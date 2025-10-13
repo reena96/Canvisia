@@ -112,9 +112,11 @@ collabcanvas/
   - Run: `npm install -D @types/node`
   - Files modified: `package.json`, `package-lock.json`
 
-- [ ] **1.3 Install PixiJS**
-  - Run: `npm install pixi.js @pixi/react`
+- [ ] **1.3 Install Konva.js and react-konva**
+  - Run: `npm install konva react-konva`
+  - Run: `npm install -D @types/react-konva`
   - Files modified: `package.json`
+  - **Why Konva.js:** Declarative React integration, built-in drag/resize/hit detection, saves 10-15 hours vs PixiJS manual integration
 
 - [ ] **1.4 Install UI dependencies**
   - Run: `npm install lucide-react` (for icons)
@@ -133,13 +135,28 @@ collabcanvas/
     }
     ```
 
-- [ ] **1.6 Create environment file structure**
+- [ ] **🧪 1.6 Install and configure Firebase Emulator**
+  - Run: `npm install -D firebase-tools`
+  - Run: `npx firebase init emulators` (select Auth, Firestore, Realtime Database)
+  - Files created: `firebase.json`, `.firebaserc`
+  - Files modified: `package.json` (add emulator scripts)
+  - Content:
+    ```json
+    "scripts": {
+      "emulators": "firebase emulators:start",
+      "test:integration": "firebase emulators:exec --only auth,firestore,database 'vitest run tests/integration'"
+    }
+    ```
+  - Configure emulator ports: Auth (9099), Firestore (8080), RTDB (9000)
+  - **Why emulator:** Integration tests will use real Firebase behavior without mocks, catching Firestore-specific issues
+
+- [ ] **1.7 Create environment file structure**
   - Files created:
     - `.env.local` (add to .gitignore)
     - `.env.example` (template for others)
   - Files modified: `.gitignore`
 
-- [ ] **1.7 Set up base folder structure**
+- [ ] **1.8 Set up base folder structure**
   - Files created:
     - `src/components/` (empty)
     - `src/hooks/` (empty)
@@ -150,19 +167,19 @@ collabcanvas/
     - `tests/unit/` (empty)
     - `tests/integration/` (empty)
 
-- [ ] **1.8 Create TypeScript types foundation**
+- [ ] **1.9 Create TypeScript types foundation**
   - Files created:
     - `src/types/canvas.ts`
     - `src/types/shapes.ts`
     - `src/types/user.ts`
   - Content: Base interfaces for Canvas, Shape, User
 
-- [ ] **1.9 Create canvas configuration**
+- [ ] **1.10 Create canvas configuration**
   - Files created:
     - `src/config/canvas.config.ts`
   - Content: Canvas dimensions (5000x5000), default shapes (100x100), zoom limits
 
-- [ ] **🧪 1.10 Create unit tests for canvas config**
+- [ ] **🧪 1.11 Create unit tests for canvas config**
   - Files created:
     - `tests/unit/canvasConfig.test.ts`
   - Content: Test that config constants are correct
@@ -184,20 +201,20 @@ collabcanvas/
     })
     ```
 
-- [ ] **1.11 Create Firebase configuration (empty placeholders)**
+- [ ] **1.12 Create Firebase configuration (empty placeholders)**
   - Files created:
     - `src/config/firebase.config.ts`
   - Content: Export Firebase config object (will be filled in PR #2)
 
-- [ ] **1.12 Update README with setup instructions**
+- [ ] **1.13 Update README with setup instructions**
   - Files modified: `README.md`
-  - Content: Project description, setup steps, tech stack
+  - Content: Project description, setup steps, tech stack (mention Konva.js)
 
-- [ ] **1.13 Clean up default Vite files**
+- [ ] **1.14 Clean up default Vite files**
   - Files deleted: `src/App.css`, unnecessary assets
   - Files modified: `src/App.tsx` (basic shell), `src/index.css` (reset styles)
 
-- [ ] **🧪 1.14 Verify tests run**
+- [ ] **🧪 1.15 Verify tests run**
   - Run: `npm test`
   - Verify test passes
 
@@ -652,43 +669,63 @@ collabcanvas/
 
 ### PR #3: Basic Canvas with Pan/Zoom
 
-**Goal:** Implement PixiJS canvas with pan and zoom functionality
+**Goal:** Implement Konva.js canvas with pan and zoom functionality using react-konva
 
 **Branch:** `feature/canvas-foundation`
 
 **Dependencies:** PR #1, PR #2
 
+**⭐ Konva.js Advantage:** This PR is 1-2 hours instead of 4-6 hours with PixiJS due to built-in pan/zoom support
+
 #### Subtasks:
 - [ ] **3.1 Create useCanvas hook**
   - Files created:
     - `src/hooks/useCanvas.ts`
-  - Content: Hook to manage PixiJS app lifecycle, initialize/destroy
+  - Content: Hook to manage canvas state (zoom, pan position), viewport utilities
 
-- [ ] **3.2 Create Canvas component**
+- [ ] **3.2 Create Canvas component with react-konva**
   - Files created:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Initialize PixiJS Application
-    - Set canvas size (5000x5000)
-    - Create viewport container
-    - Handle canvas mount/unmount
+    ```tsx
+    import { Stage, Layer } from 'react-konva'
 
-- [ ] **3.3 Implement pan functionality**
+    // Basic structure:
+    <Stage
+      width={window.innerWidth}
+      height={window.innerHeight}
+      scaleX={zoom}
+      scaleY={zoom}
+      x={panX}
+      y={panY}
+      draggable={true}  // ✅ Built-in pan!
+      onWheel={handleZoom}
+    >
+      <Layer>
+        {/* Shapes will go here */}
+      </Layer>
+    </Stage>
+    ```
+  - Set virtual canvas size (5000x5000) via bounds checking
+  - Handle Stage mount/unmount
+
+- [ ] **3.3 Implement pan functionality (Built-in!)**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Track mouse down/move/up
-    - Update viewport position on drag
-    - Cursor changes to "grab" when panning
+    - Use `draggable={true}` on Stage (no manual tracking needed!)
+    - Add `onDragEnd` handler to track final pan position
+    - Optionally add bounds checking to prevent panning off canvas
 
 - [ ] **3.4 Implement zoom functionality**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Listen to wheel events
-    - Scale viewport based on wheel delta
-    - Zoom toward mouse position (important!)
+    - Add `onWheel` handler to Stage
+    - Calculate new zoom based on wheel delta
+    - Zoom toward mouse position using pointer position
     - Clamp zoom between min/max (0.1 - 5.0)
+    - Update Stage `scaleX` and `scaleY` props
 
 - [ ] **3.5 Create canvas utility functions**
   - Files created:
@@ -769,8 +806,9 @@ collabcanvas/
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Draw grid lines on canvas
-    - Grid updates as you pan/zoom
+    - Use Konva `<Line>` components to draw grid
+    - Grid updates as you pan/zoom (react-konva handles this automatically)
+    - Consider using `<Group>` for grid lines
 
 - [ ] **3.10 Integrate canvas into App**
   - Files modified:
@@ -1064,16 +1102,16 @@ collabcanvas/
   - Files created:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Renders PixiJS Graphics for each shape
-    - Takes shape data, renders appropriate PixiJS object
-    - Handles rectangle drawing
+    - Renders Konva shapes (`<Rect>`, `<Circle>`) for each shape
+    - Takes shape data, renders appropriate react-konva component
+    - Handles rectangle drawing declaratively
 
 - [ ] **5.7 Integrate shape rendering**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Pass shapes to ShapeRenderer
-    - Update PixiJS stage when shapes change
+    - Map shapes array to `<ShapeRenderer>` components inside `<Layer>`
+    - React automatically re-renders when shapes change (no manual updates needed!)
 
 - [ ] **5.8 Implement Firestore write for new shapes**
   - Files modified:
@@ -1626,22 +1664,22 @@ collabcanvas/
   - Files modified:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Render PixiJS Graphics circle
-    - Handle fill color
+    - Render `<Circle>` component from react-konva
+    - Handle fill color prop
 
 - [ ] **9.6 Implement line rendering**
   - Files modified:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Render PixiJS Graphics line
-    - Handle stroke color and width
+    - Render `<Line>` component from react-konva
+    - Handle stroke color and width props
 
 - [ ] **9.7 Implement text rendering**
   - Files modified:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Render PixiJS Text object
-    - Handle font size and color
+    - Render `<Text>` component from react-konva
+    - Handle fontSize and fill (color) props
 
 - [ ] **9.8 Update creation logic for all shapes**
   - Files modified:
@@ -2035,13 +2073,13 @@ collabcanvas/
 **Dependencies:** PR #1-11
 
 #### Subtasks:
-- [ ] **12.1 Implement object pooling for PixiJS**
+- [ ] **12.1 Optimize shape component rendering with React.memo**
   - Files modified:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Reuse PixiJS Graphics objects instead of recreating
-    - Track which objects are in use
-    - Clear and reuse on shape delete
+    - Wrap shape components with `React.memo` to prevent unnecessary re-renders
+    - Use `useCallback` for event handlers
+    - Only re-render when shape data actually changes
 
 - [ ] **12.2 Optimize Firestore listeners**
   - Files modified:

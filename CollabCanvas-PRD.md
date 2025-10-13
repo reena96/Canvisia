@@ -218,12 +218,21 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
 - Strong community support for real-time features
 - Great tooling (Create React App, Vite)
 
-**Rendering:** PixiJS
+**Rendering:** Konva.js + react-konva
 **Why:**
-- Best performance (WebGL-based)
-- Can easily handle 500+ objects at 60 FPS
-- Excellent for smooth animations and transformations
-- Good sprite management and batching
+- **Better React integration:** react-konva provides declarative React components (`<Stage>`, `<Layer>`, `<Rect>`) - no manual state synchronization needed
+- **Built-in features:** Drag-and-drop (`draggable={true}`), resize handles (`<Transformer>`), hit detection, and event handling all included
+- **Sufficient performance:** Handles 300-500 visible objects at 60 FPS; with viewport culling, easily supports 500+ total objects
+- **Faster MVP development:** Estimated 10-15 hours saved vs PixiJS due to React integration complexity
+- **Better for collaborative tools:** Used by Excalidraw, Miro-like apps; PixiJS is optimized for games
+- **AI code generation advantage:** react-konva's declarative patterns are more common in training data, leading to more accurate AI-generated code
+
+**Why not PixiJS:**
+- PixiJS (WebGL) offers superior raw performance (1000+ objects) but requires complex manual integration with React
+- Would need custom state synchronization between React state and PixiJS scene graph
+- Manual implementation of drag-and-drop, hit detection, and resize handles
+- Adds 4-6 hours of complexity per PR for a 7-day timeline
+- Performance advantage not needed: With viewport culling, only 100-200 objects visible at once
 
 **State Management:**
 - React Context (for global state)
@@ -323,37 +332,40 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
    - ⚠️ PITFALL: Initial connection can take 1-2 seconds
    - ✅ SOLUTION: Show loading state, implement optimistic updates
 
-### React + PixiJS
+### React + Konva.js
 
 **Pros:**
-- PixiJS is incredibly fast (WebGL)
-- React handles UI layer well
-- Can separate canvas (PixiJS) from controls (React)
+- react-konva provides React components for canvas elements
+- Declarative API matches React patterns naturally
+- No manual state synchronization needed
+- Built-in drag-and-drop, resize handles, hit detection
+- Strong TypeScript support
+- Active maintenance (10k+ GitHub stars)
 
 **Cons:**
-- PixiJS and React don't naturally work together
-- React's re-renders can cause PixiJS to redraw unnecessarily
-- Need to manage PixiJS lifecycle carefully
+- Canvas 2D rendering (not WebGL) - slightly lower max object count than PixiJS
+- Performance depends on proper optimization (viewport culling essential)
 
 **Critical Pitfalls:**
 
-1. **React-PixiJS Integration**
-   - ⚠️ PITFALL: Re-creating PixiJS app on every render = performance death
-   - ✅ SOLUTION: Use refs to hold PixiJS app, initialize once in useEffect
-   - Consider react-pixi library (wraps PixiJS in React components)
+1. **Performance Without Culling**
+   - ⚠️ PITFALL: Rendering 500+ objects without viewport culling = poor FPS
+   - ✅ SOLUTION: Implement viewport culling early (only render visible shapes)
+   - Pattern: Filter shapes based on viewport bounds before rendering
 
-2. **State Synchronization**
-   - ⚠️ PITFALL: Keeping React state and PixiJS objects in sync is tricky
-   - ✅ SOLUTION: Make Firestore the single source of truth, sync both ways
-   - Pattern: Firestore → React State → PixiJS rendering
+2. **Layer Management**
+   - ⚠️ PITFALL: Too many layers or unnecessary re-renders = performance drop
+   - ✅ SOLUTION: Use single Layer for all shapes, optimize with React.memo
+   - Only re-render changed shapes, not entire canvas
 
-3. **Event Handling**
-   - ⚠️ PITFALL: PixiJS events (click, drag) separate from React events
-   - ✅ SOLUTION: Use PixiJS InteractionManager, update React state from PixiJS handlers
+3. **Event Handler Memory**
+   - ⚠️ PITFALL: Creating new functions in render = unnecessary re-renders
+   - ✅ SOLUTION: Use useCallback for event handlers, memoize shape components
 
-4. **Memory Leaks**
-   - ⚠️ PITFALL: Not destroying PixiJS sprites/textures = memory grows
-   - ✅ SOLUTION: Clean up in useEffect return, destroy sprites when objects deleted
+4. **Large Canvas Performance**
+   - ⚠️ PITFALL: 5000x5000 canvas with all shapes rendered = slow zoom/pan
+   - ✅ SOLUTION: Implement viewport culling in PR #5 (not PR #12)
+   - Use `scaleX` and `scaleY` for zoom, optimize Stage props
 
 ### Anthropic Claude API
 
@@ -497,11 +509,11 @@ Based on project guidance and pitfalls for real-time newcomers:
    - Render cursors with name labels
    - Test with 2 browser windows
 
-3. **Basic Canvas + One Shape (3-4 hours)**
-   - Set up PixiJS in React
-   - Implement pan and zoom
+3. **Basic Canvas + One Shape (1-2 hours)** ✅ Simpler with Konva.js
+   - Set up react-konva Stage and Layer
+   - Implement pan (draggable Stage) and zoom (wheel handler)
    - Create ONE shape type (rectangle is easiest)
-   - Render shapes from PixiJS
+   - Declarative rendering with `<Rect>` components
 
 4. **Object Sync (4-5 hours)**
    - Create object → write to Firestore
@@ -603,11 +615,12 @@ Based on project guidance and pitfalls for real-time newcomers:
 - Consider using RTDB for high-frequency updates
 - Monitor usage in Firebase console
 
-### PixiJS + React Patterns
-- Consider react-pixi library for easier integration
-- Use refs for PixiJS app instance
-- Separate canvas logic from React components
-- Study PixiJS examples for transforms and interactions
+### Konva.js + React Patterns
+- Use react-konva for declarative canvas components
+- Implement viewport culling for 500+ objects
+- Memoize shape components with React.memo
+- Use useCallback for event handlers to prevent re-renders
+- Study Excalidraw source code for collaborative canvas patterns
 
 ### AI Function Calling
 - Anthropic Claude function calling docs
