@@ -89,7 +89,7 @@ graph TB
     end
 
     subgraph "Collaboration"
-        CursorOverlay[CursorOverlay<br/>Other Users' Cursors]
+        CursorOverlay[CursorOverlay<br/>Other Users Cursors]
         Presence[PresenceIndicator<br/>Active Users]
         UserList[UserList<br/>Online Users]
     end
@@ -265,20 +265,20 @@ sequenceDiagram
 graph TB
     subgraph "Cloud Firestore"
         Canvases[canvases/]
-        Canvas1["{canvasId}/"]
-        Metadata[metadata<br/>{name, createdAt, ownerId}]
+        Canvas1[canvasId/]
+        Metadata[metadata<br/>name, createdAt, ownerId]
 
         Objects[objects/]
-        Object1["{objectId}/<br/>{type, x, y, width, height,<br/>color, rotation, zIndex}"]
+        Object1[objectId/<br/>type, x, y, width, height,<br/>color, rotation, zIndex]
 
         Users[users/]
-        User1["{userId}/<br/>{name, color, lastSeen, isActive}"]
+        User1[userId/<br/>name, color, lastSeen, isActive]
     end
 
     subgraph "Realtime Database"
         Cursors[cursors/]
-        CanvasCursors["{canvasId}/"]
-        UserCursor["{userId}/<br/>{x, y, timestamp}"]
+        CanvasCursors[canvasId/]
+        UserCursor[userId/<br/>x, y, timestamp]
     end
 
     Canvases --> Canvas1
@@ -604,8 +604,8 @@ graph TB
 
     subgraph "User Feedback"
         Toast[Toast Notification<br/>Error message]
-        Banner[Offline Banner<br/>"You're offline"]
-        Retry[Retry Button<br/>"Try again"]
+        Banner[Offline Banner<br/>You are offline]
+        Retry[Retry Button<br/>Try again]
         Fallback[Fallback UI<br/>Error state]
     end
 
