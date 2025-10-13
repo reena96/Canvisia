@@ -67,47 +67,48 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "App.tsx"
+    subgraph AppRoot["App.tsx"]
         App[App Component<br/>Root]
     end
 
-    subgraph "Providers"
+    subgraph Providers["Providers"]
         AuthProvider[AuthProvider<br/>Context]
     end
 
-    subgraph "Layout"
-        Header[Header<br/>User Info + Logout]
-        Sidebar[Sidebar<br/>Tools & Settings]
+    subgraph Layout["Layout"]
+        Header[Header<br/>User Info and Logout]
+        Sidebar[Sidebar<br/>Tools and Settings]
     end
 
-    subgraph "Canvas Layer"
+    subgraph CanvasLayer["Canvas Layer"]
         CanvasContainer[Canvas.tsx<br/>Stage Container]
-        Stage[Konva Stage<br/>Pan/Zoom/Drag]
+        Stage[Konva Stage<br/>Pan Zoom Drag]
         Layer[Konva Layer<br/>Shape Container]
-        ShapeRenderer[ShapeRenderer<br/>Rect/Circle/Line/Text]
+        ShapeRenderer[ShapeRenderer<br/>Rect Circle Line Text]
         Controls[CanvasControls<br/>Zoom Buttons]
     end
 
-    subgraph "Collaboration"
+    subgraph Collaboration["Collaboration"]
         CursorOverlay[CursorOverlay<br/>Other Users Cursors]
         Presence[PresenceIndicator<br/>Active Users]
         UserList[UserList<br/>Online Users]
     end
 
-    subgraph "AI Panel"
-        AIPanel[AIPanel<br/>Command Interface]
+    subgraph AIPanel["AI Panel"]
+        AIPanelComp[AIPanel<br/>Command Interface]
         AIInput[AIInput<br/>Text Input]
-        AIStatus[AIStatusIndicator<br/>Loading/Success/Error]
+        AIStatus[AIStatusIndicator<br/>Loading Success Error]
     end
 
-    subgraph "Toolbar"
+    subgraph ToolbarGroup["Toolbar"]
         Toolbar[Toolbar<br/>Shape Selection]
     end
 
     App --> AuthProvider
     AuthProvider --> Header
+    AuthProvider --> Sidebar
     AuthProvider --> CanvasContainer
-    AuthProvider --> AIPanel
+    AuthProvider --> AIPanelComp
 
     CanvasContainer --> Stage
     CanvasContainer --> CursorOverlay
@@ -120,14 +121,14 @@ graph TB
     Sidebar --> UserList
     Sidebar --> Toolbar
 
-    AIPanel --> AIInput
-    AIPanel --> AIStatus
+    AIPanelComp --> AIInput
+    AIPanelComp --> AIStatus
 
     style App fill:#61dafb
     style AuthProvider fill:#98d8f0
     style Stage fill:#d4a373
     style Layer fill:#d4a373
-    style AIPanel fill:#ffca28
+    style AIPanelComp fill:#ffca28
 ```
 
 ---
