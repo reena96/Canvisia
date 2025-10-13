@@ -1,8 +1,8 @@
-# CollabCanvas - Product Requirements Document
+# Canvisia - Product Requirements Document
 
 ## Project Overview
 
-CollabCanvas is a real-time collaborative design tool inspired by Figma, enabling multiple users to work simultaneously on a shared canvas with AI-assisted design capabilities. This is a one-week sprint project for Gauntlet AI with a critical 24-hour MVP checkpoint.
+Canvisia is a real-time collaborative design tool inspired by Figma, enabling multiple users to work simultaneously on a shared canvas with AI-assisted design capabilities. This is a one-week sprint project for Gauntlet AI with a critical 24-hour MVP checkpoint.
 
 **Timeline:**
 - MVP: Tuesday (24 hours) - HARD GATE
@@ -31,6 +31,41 @@ CollabCanvas is a real-time collaborative design tool inspired by Figma, enablin
 - As an AI agent, I want to receive natural language commands so that I can interpret user intent
 - As an AI agent, I want to manipulate canvas objects through function calls so that I can execute design tasks
 - As an AI agent, I want my changes to sync to all users so that everyone sees AI-generated content
+
+---
+
+## Canvas Flow & Access
+
+### Canvas Creation
+**MVP Implementation:**
+- After login, user sees a dashboard with a "New Canvas" button
+- Clicking "New Canvas" creates a new canvas document in Firestore with unique ID
+- User is automatically navigated to `/canvas/{canvasId}`
+- Canvas metadata includes: name (default: "Untitled Canvas"), createdAt, ownerId
+
+**Post-MVP:**
+- "Recent Canvases" list
+- Canvas templates
+- Canvas search/filter
+
+### Canvas Joining & Collaboration
+**MVP Implementation:**
+- Users join existing canvases via **URL sharing only**
+  - Example: `canvisia.com/canvas/abc123def456`
+  - Each canvas has a unique ID generated on creation
+  - Anyone with the URL can access the canvas (public access)
+- No invite system or canvas selection UI in MVP
+
+**Access Control:**
+- MVP: Public via URL (no permissions, no invites)
+- Post-MVP: Private canvases, role-based access (owner, editor, viewer)
+
+**User Flow:**
+1. User logs in → Dashboard
+2. User clicks "New Canvas" → Creates canvas → Redirected to `/canvas/{id}`
+3. User shares URL with collaborators
+4. Collaborators visit URL → Join same canvas session
+5. All users see real-time updates from each other
 
 ---
 
@@ -68,9 +103,10 @@ These are non-negotiable for passing the MVP gate:
   - Clear indicator of active users
 
 - [ ] **User authentication**
-  - Users have accounts/names
-  - Login/signup flow
-  - Session persistence
+  - **Google Sign-In only** (OAuth)
+  - Users authenticated via Google accounts (provides name, email, profile photo)
+  - Session persistence via Firebase Auth
+  - No email/password signup in MVP (simplifies security, avoids password storage)
 
 - [ ] **Deployed and publicly accessible**
   - Working URL
@@ -99,6 +135,15 @@ These are non-negotiable for passing the MVP gate:
   - Circles (with fill color, stroke)
   - Lines (with stroke color, width)
   - Text layers (with font size, color, basic formatting)
+
+- **Shape Default Values:**
+
+| Shape | Default Size | Default Color | Placement |
+|-------|-------------|---------------|-----------|
+| Rectangle | 100×100 px | Blue (#4285F4) | Center of viewport or click point |
+| Circle | Radius 50 px (100px diameter) | Red (#DB4437) | Center of viewport or click point |
+| Line | 150px horizontal | Black (#000000) | Center of viewport or click point |
+| Text | "Hello World", 16px | Black (#000000) | Center of viewport or click point |
 
 - **Object Manipulation:**
   - Move (click and drag)
@@ -142,10 +187,12 @@ These are non-negotiable for passing the MVP gate:
 
 #### Performance Targets
 - 60 FPS during all interactions
-- Support 500+ objects without degradation
+- Support 500+ **total objects** on canvas without degradation
+  - *Note: Uses viewport culling - only renders visible objects (~100-200 at once)*
+  - *Performance testing focuses on interaction smoothness, not raw object count*
 - Support 5+ concurrent users
-- Cursor sync <50ms
-- Object sync <100ms
+- Cursor sync <50ms latency
+- Object sync <100ms latency
 
 ### Phase 2: AI Canvas Agent (Days 4-7)
 
@@ -188,6 +235,21 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
   getCanvasState() // returns current objects for context
   ```
 
+- **Function Parameter Defaults:**
+  - Parameters are optional; fallback to shape defaults (see Shape Default Values table)
+  - Examples:
+    ```typescript
+    createShape("rectangle", 100, 200)
+    // → width=100, height=100, color=blue (#4285F4)
+
+    createShape("circle")
+    // → x=viewport center, y=viewport center, radius=50, color=red (#DB4437)
+
+    createText("Hello")
+    // → x=viewport center, y=viewport center, fontSize=16, color=black
+    ```
+  - Missing x/y coordinates default to viewport center
+
 - **AI Integration:**
   - Anthropic Claude with function calling
   - Natural language interpretation
@@ -198,6 +260,23 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
   - All users see AI-generated results
   - Multiple users can use AI simultaneously
   - AI actions sync through same real-time system
+
+- **Multi-User AI Conflict Resolution:**
+  - **MVP Strategy: Last-Write-Wins**
+  - If two users send AI commands simultaneously:
+    - Both commands execute independently
+    - Last command to complete writes final state
+    - Conflicts logged in dev console for debugging
+  - **Post-MVP:** Command queue or lock system to serialize AI operations
+
+- **AI Context Optimization:**
+  - **MVP Strategy: Filtered Subset**
+  - Don't send full canvas state (500 objects = expensive)
+  - Filter to relevant objects only:
+    - Example: "move red circles" → send only circles with fill: red
+    - Example: "create grid" → send canvas bounds + existing objects in target area
+  - Include canvas metadata (size, zoom level) for spatial commands
+  - **Post-MVP:** Implement context summarization or compression
 
 #### AI Performance Targets
 - Response latency <2 seconds for single-step commands
@@ -252,12 +331,14 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
 - Integrated authentication
 - Good free tier for MVP
 
-**Authentication:** Firebase Auth
+**Authentication:** Firebase Auth with Google Sign-In
 **Why:**
 - Integrates seamlessly with Firestore
-- Multiple providers (email/password, Google, GitHub)
-- Session management handled
-- Quick setup
+- **Google OAuth only** for MVP (simplifies setup, no password storage)
+- Session management handled automatically
+- Quick setup (single provider configuration)
+- Users authenticated with name and profile photo
+- Post-MVP: Can add email/password, GitHub if needed
 
 **AI:** Anthropic Claude API
 **Why:**
@@ -316,7 +397,8 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
 2. **Read/Write Costs on Cursor Movement**
    - ⚠️ PITFALL: Syncing cursor position every frame = thousands of writes/sec
    - ✅ SOLUTION: Use Firebase Realtime Database (RTDB) for cursors, Firestore for objects
-   - Or throttle cursor updates to 10-20 per second (still smooth enough)
+   - **Throttle rate: 20 updates/sec (50ms intervals)** for smooth UX
+   - Auto-degrade to 10 updates/sec if 5+ concurrent users detected
 
 3. **Listener Overhead**
    - ⚠️ PITFALL: Listening to entire collection causes re-renders on every change
@@ -467,12 +549,15 @@ canvases/
 ## Success Metrics
 
 ### MVP (24 Hours)
-- [ ] Can create account and log in
+- [ ] Can create account and log in (Google Sign-In)
+- [ ] Can create new canvas and join via URL
+- [ ] Can pan and zoom canvas smoothly
 - [ ] Can create at least one type of shape
 - [ ] Can move objects around
 - [ ] Two users see each other's cursors
 - [ ] Two users see each other's changes instantly
 - [ ] Canvas state persists through refresh
+- [ ] Canvas interactions maintain ≥60 FPS
 - [ ] Deployed at public URL
 
 ### Full Project (7 Days)
@@ -581,11 +666,11 @@ Based on project guidance and pitfalls for real-time newcomers:
 
 2. **Cursor Update Frequency**
    - Risk: Too many writes = cost/performance issues
-   - Mitigation: Use RTDB for cursors OR throttle to 10-20 updates/sec
+   - Mitigation: Use RTDB for cursors AND throttle to 20 updates/sec (degrades to 10/sec with 5+ users)
 
-3. **PixiJS-React Integration**
-   - Risk: Re-rendering issues, memory leaks
-   - Mitigation: Use refs carefully, study react-pixi examples, clean up properly
+3. **Konva.js Performance Under Load**
+   - Risk: 500+ objects without optimization = FPS drops
+   - Mitigation: Implement viewport culling early (PR #5), use React.memo, optimize re-renders
 
 4. **Conflict Resolution**
    - Risk: Lost updates, bad UX
