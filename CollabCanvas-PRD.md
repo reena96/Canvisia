@@ -1,0 +1,632 @@
+# CollabCanvas - Product Requirements Document
+
+## Project Overview
+
+CollabCanvas is a real-time collaborative design tool inspired by Figma, enabling multiple users to work simultaneously on a shared canvas with AI-assisted design capabilities. This is a one-week sprint project for Gauntlet AI with a critical 24-hour MVP checkpoint.
+
+**Timeline:**
+- MVP: Tuesday (24 hours) - HARD GATE
+- Early Submission: Friday (4 days)
+- Final: Sunday (7 days)
+
+---
+
+## User Stories
+
+### Primary User: Designer/Creator
+- As a designer, I want to create shapes (rectangles, circles, text) on a canvas so that I can build visual layouts
+- As a designer, I want to pan and zoom the canvas so that I can navigate a large workspace
+- As a designer, I want to move, resize, and rotate objects so that I can arrange my design
+- As a designer, I want to see other users' cursors in real-time so that I know where they're working
+- As a designer, I want to see who else is online so that I know who I'm collaborating with
+- As a designer, I want my work to persist when I disconnect so that I don't lose my progress
+- As a designer, I want to use natural language to create designs so that I can work faster with AI assistance
+
+### Secondary User: Collaborator
+- As a collaborator, I want to join an existing canvas so that I can work with my team
+- As a collaborator, I want to see changes from other users instantly so that we can work simultaneously without conflicts
+- As a collaborator, I want to use the AI agent and see its results shared with everyone so that we can co-create with AI
+
+### System User: AI Agent
+- As an AI agent, I want to receive natural language commands so that I can interpret user intent
+- As an AI agent, I want to manipulate canvas objects through function calls so that I can execute design tasks
+- As an AI agent, I want my changes to sync to all users so that everyone sees AI-generated content
+
+---
+
+## MVP Requirements (24-Hour Checkpoint)
+
+### Critical Features - MUST HAVE
+These are non-negotiable for passing the MVP gate:
+
+- [ ] **Basic canvas with pan/zoom**
+  - Large workspace (doesn't need to be infinite, but spacious)
+  - Smooth pan (click and drag)
+  - Zoom in/out (mouse wheel)
+
+- [ ] **At least one shape type**
+  - Rectangle, circle, OR text (minimum one, more is better)
+  - Basic properties: position, size, color
+
+- [ ] **Create and move objects**
+  - Click to create new objects
+  - Drag to move objects
+  - Visual feedback during interaction
+
+- [ ] **Real-time sync between 2+ users**
+  - Object creation syncs instantly
+  - Object movements sync instantly
+  - Changes visible to all connected users
+
+- [ ] **Multiplayer cursors with name labels**
+  - See other users' cursor positions in real-time
+  - Each cursor labeled with username
+  - Smooth cursor movement (not jumpy)
+
+- [ ] **Presence awareness**
+  - See who's currently online
+  - Clear indicator of active users
+
+- [ ] **User authentication**
+  - Users have accounts/names
+  - Login/signup flow
+  - Session persistence
+
+- [ ] **Deployed and publicly accessible**
+  - Working URL
+  - Can be accessed from any browser
+  - No local-only dependencies
+
+### Success Criteria
+- Two users in different browsers can edit simultaneously
+- Canvas state persists through page refresh
+- 60 FPS maintained during pan/zoom/move operations
+
+---
+
+## Key Features for Full Project
+
+### Phase 1: Core Collaborative Canvas (Days 1-3)
+
+#### Canvas Features
+- **Workspace:**
+  - Pan (click and drag background)
+  - Zoom (mouse wheel, pinch gestures)
+  - Large canvas area (5000x5000 minimum)
+
+- **Shape Types:**
+  - Rectangles (with fill color, stroke)
+  - Circles (with fill color, stroke)
+  - Lines (with stroke color, width)
+  - Text layers (with font size, color, basic formatting)
+
+- **Object Manipulation:**
+  - Move (click and drag)
+  - Resize (drag handles)
+  - Rotate (rotation handle)
+  - Selection (single click)
+  - Multi-select (shift-click or drag-to-select box)
+
+- **Operations:**
+  - Delete (backspace/delete key)
+  - Duplicate (cmd+d / ctrl+d)
+  - Layer ordering (bring to front, send to back)
+  - Undo/redo (nice to have, not MVP)
+
+#### Real-Time Collaboration
+- **Multiplayer Cursors:**
+  - Position syncs <50ms
+  - Smooth interpolation between updates
+  - Name labels follow cursor
+  - Color-coded per user
+
+- **Object Sync:**
+  - Create/delete operations sync <100ms
+  - Transform operations (move/resize/rotate) sync <100ms
+  - Optimistic updates (local changes appear instant)
+
+- **Presence System:**
+  - User join/leave notifications
+  - Active users list with indicators
+  - Last seen timestamps
+
+- **Conflict Resolution:**
+  - Last write wins strategy (acceptable for MVP)
+  - Clear documentation of approach
+  - Graceful handling of simultaneous edits
+
+- **Connection Management:**
+  - Handle disconnects gracefully
+  - Reconnect without data loss
+  - State persistence across sessions
+
+#### Performance Targets
+- 60 FPS during all interactions
+- Support 500+ objects without degradation
+- Support 5+ concurrent users
+- Cursor sync <50ms
+- Object sync <100ms
+
+### Phase 2: AI Canvas Agent (Days 4-7)
+
+#### AI Capabilities
+The AI agent must support **at least 6 distinct command types** demonstrating:
+- Creation
+- Manipulation
+- Layout operations
+
+#### Command Categories
+
+**Creation Commands (must support 2+):**
+- "Create a red circle at position 100, 200"
+- "Add a text layer that says 'Hello World'"
+- "Make a 200x300 rectangle"
+
+**Manipulation Commands (must support 2+):**
+- "Move the blue rectangle to the center"
+- "Resize the circle to be twice as big"
+- "Rotate the text 45 degrees"
+
+**Layout Commands (must support 2+):**
+- "Arrange these shapes in a horizontal row"
+- "Create a grid of 3x3 squares"
+- "Space these elements evenly"
+
+**Complex Commands (stretch goal):**
+- "Create a login form with username and password fields"
+- "Build a navigation bar with 4 menu items"
+- "Make a card layout with title, image, and description"
+
+#### Technical Implementation
+- **Function Calling Schema:**
+  ```typescript
+  createShape(type, x, y, width, height, color)
+  moveShape(shapeId, x, y)
+  resizeShape(shapeId, width, height)
+  rotateShape(shapeId, degrees)
+  createText(text, x, y, fontSize, color)
+  getCanvasState() // returns current objects for context
+  ```
+
+- **AI Integration:**
+  - Anthropic Claude with function calling
+  - Natural language interpretation
+  - Multi-step operation planning
+  - Context awareness of canvas state
+
+- **Shared AI State:**
+  - All users see AI-generated results
+  - Multiple users can use AI simultaneously
+  - AI actions sync through same real-time system
+
+#### AI Performance Targets
+- Response latency <2 seconds for single-step commands
+- Handles 6+ command types reliably
+- Executes multi-step operations correctly
+- Consistent and accurate execution
+- Natural interaction with immediate feedback
+
+---
+
+## Tech Stack
+
+### Frontend
+**Framework:** React
+**Why:**
+- Large ecosystem and component libraries
+- Excellent developer experience
+- Strong community support for real-time features
+- Great tooling (Create React App, Vite)
+
+**Rendering:** PixiJS
+**Why:**
+- Best performance (WebGL-based)
+- Can easily handle 500+ objects at 60 FPS
+- Excellent for smooth animations and transformations
+- Good sprite management and batching
+
+**State Management:**
+- React Context (for global state)
+- Local state for UI components
+- Consider Zustand if state gets complex
+
+**Styling:**
+- Tailwind CSS (utility-first, fast development)
+- Or CSS Modules (scoped styling)
+
+### Backend
+**Database & Real-Time:** Firebase Firestore
+**Why:**
+- Built-in real-time listeners
+- Easy to set up and deploy
+- Automatic scaling
+- Integrated authentication
+- Good free tier for MVP
+
+**Authentication:** Firebase Auth
+**Why:**
+- Integrates seamlessly with Firestore
+- Multiple providers (email/password, Google, GitHub)
+- Session management handled
+- Quick setup
+
+**AI:** Anthropic Claude API
+**Why:**
+- Excellent function calling support
+- Strong instruction following
+- Good at multi-step reasoning
+- Context management
+
+### Deployment
+**Frontend:** Vercel
+**Why:**
+- Zero-config deployment for React
+- Automatic HTTPS
+- Edge network for low latency
+- Excellent DX
+
+**Backend:** Firebase (fully managed)
+
+### Development Tools
+- TypeScript (type safety, better DX)
+- ESLint + Prettier (code quality)
+- Git + GitHub (version control)
+
+---
+
+## Tech Stack: Pros, Cons & Pitfalls
+
+### Firebase Firestore
+
+**Pros:**
+- Real-time updates out of the box
+- No server management required
+- Scales automatically
+- Simple query API
+- Free tier is generous (50k reads/day, 20k writes/day)
+- Built-in security rules
+
+**Cons:**
+- Can get expensive at scale (pricing per operation)
+- Query limitations (no OR queries without multiple calls)
+- Offline handling requires extra setup
+- Vendor lock-in
+
+**Critical Pitfalls (You're New to Real-Time):**
+
+1. **Document Size Limits (1MB max)**
+   - ⚠️ PITFALL: Storing all canvas objects in one document will hit limits fast
+   - ✅ SOLUTION: Use subcollections or separate documents per object
+   - Recommended structure:
+     ```
+     canvases/{canvasId}/objects/{objectId}
+     canvases/{canvasId}/users/{userId}
+     canvases/{canvasId}/metadata
+     ```
+
+2. **Read/Write Costs on Cursor Movement**
+   - ⚠️ PITFALL: Syncing cursor position every frame = thousands of writes/sec
+   - ✅ SOLUTION: Use Firebase Realtime Database (RTDB) for cursors, Firestore for objects
+   - Or throttle cursor updates to 10-20 per second (still smooth enough)
+
+3. **Listener Overhead**
+   - ⚠️ PITFALL: Listening to entire collection causes re-renders on every change
+   - ✅ SOLUTION: Use precise queries, implement local optimistic updates
+   - Detach listeners when component unmounts
+
+4. **Simultaneous Edits**
+   - ⚠️ PITFALL: Two users editing same object = last write wins (data loss)
+   - ✅ SOLUTION: For MVP, "last write wins" is acceptable (document this!)
+   - Future: Implement operational transforms or CRDTs
+
+5. **Cold Start Latency**
+   - ⚠️ PITFALL: Initial connection can take 1-2 seconds
+   - ✅ SOLUTION: Show loading state, implement optimistic updates
+
+### React + PixiJS
+
+**Pros:**
+- PixiJS is incredibly fast (WebGL)
+- React handles UI layer well
+- Can separate canvas (PixiJS) from controls (React)
+
+**Cons:**
+- PixiJS and React don't naturally work together
+- React's re-renders can cause PixiJS to redraw unnecessarily
+- Need to manage PixiJS lifecycle carefully
+
+**Critical Pitfalls:**
+
+1. **React-PixiJS Integration**
+   - ⚠️ PITFALL: Re-creating PixiJS app on every render = performance death
+   - ✅ SOLUTION: Use refs to hold PixiJS app, initialize once in useEffect
+   - Consider react-pixi library (wraps PixiJS in React components)
+
+2. **State Synchronization**
+   - ⚠️ PITFALL: Keeping React state and PixiJS objects in sync is tricky
+   - ✅ SOLUTION: Make Firestore the single source of truth, sync both ways
+   - Pattern: Firestore → React State → PixiJS rendering
+
+3. **Event Handling**
+   - ⚠️ PITFALL: PixiJS events (click, drag) separate from React events
+   - ✅ SOLUTION: Use PixiJS InteractionManager, update React state from PixiJS handlers
+
+4. **Memory Leaks**
+   - ⚠️ PITFALL: Not destroying PixiJS sprites/textures = memory grows
+   - ✅ SOLUTION: Clean up in useEffect return, destroy sprites when objects deleted
+
+### Anthropic Claude API
+
+**Pros:**
+- Excellent function calling
+- Strong reasoning for complex commands
+- Good at following instructions
+- 200k context window (can send full canvas state)
+
+**Cons:**
+- API costs (but reasonable for MVP)
+- Rate limits on free tier
+- Latency (network round trip)
+
+**Pitfalls:**
+
+1. **Rate Limits**
+   - ⚠️ PITFALL: Multiple users hitting AI = rate limit errors
+   - ✅ SOLUTION: Implement queue system, show "AI is thinking" state
+   - Cache common commands
+
+2. **Cost Management**
+   - ⚠️ PITFALL: Sending full canvas state every request = $$
+   - ✅ SOLUTION: Send only relevant objects, use efficient prompts
+   - Consider caching canvas context
+
+3. **Error Handling**
+   - ⚠️ PITFALL: API failures = broken UX
+   - ✅ SOLUTION: Graceful fallbacks, retry logic, clear error messages
+
+---
+
+## Recommended Architecture
+
+### Data Model (Firestore)
+
+```
+canvases/
+  {canvasId}/
+    metadata:
+      - name
+      - createdAt
+      - ownerId
+
+    objects/
+      {objectId}:
+        - type (rectangle, circle, text)
+        - x, y, width, height
+        - color, strokeColor, strokeWidth
+        - rotation
+        - zIndex
+        - createdBy
+        - updatedAt
+
+    users/
+      {userId}:
+        - name
+        - color (for cursor)
+        - lastSeen
+        - isActive
+```
+
+### Alternative: Hybrid Approach (Recommended)
+- **Firestore:** Canvas objects, user accounts, canvas metadata
+- **Firebase Realtime Database (RTDB):** Cursor positions (cheaper for high-frequency updates)
+
+---
+
+## Out of Scope for MVP
+
+### Features NOT Required for MVP (24 hours)
+- Undo/redo functionality
+- Copy/paste
+- Grouping objects
+- Advanced styling (gradients, shadows, borders)
+- Image uploads
+- Export to PNG/SVG
+- Keyboard shortcuts beyond basics
+- Touch/mobile optimization
+- Multiple canvas pages
+- Comments or annotations
+- Version history
+- Permissions/sharing settings
+
+### Features NOT Required for Full Project (Week 1)
+- Advanced conflict resolution (CRDTs, OT)
+- Video/voice chat
+- Advanced AI commands beyond the 6 required
+- Custom fonts
+- Animation or transitions
+- Snap to grid/guides
+- Component libraries
+- Templates
+- Team workspaces
+- Payment/billing
+
+---
+
+## Success Metrics
+
+### MVP (24 Hours)
+- [ ] Can create account and log in
+- [ ] Can create at least one type of shape
+- [ ] Can move objects around
+- [ ] Two users see each other's cursors
+- [ ] Two users see each other's changes instantly
+- [ ] Canvas state persists through refresh
+- [ ] Deployed at public URL
+
+### Full Project (7 Days)
+- [ ] All MVP requirements +
+- [ ] Multiple shape types (rect, circle, line, text)
+- [ ] Resize and rotate objects
+- [ ] Multi-select functionality
+- [ ] 60 FPS performance with 500+ objects
+- [ ] 5+ users can collaborate simultaneously
+- [ ] AI agent handles 6+ command types
+- [ ] Complex AI commands work (e.g., "create login form")
+- [ ] Demo video completed
+- [ ] AI development log submitted
+
+---
+
+## Recommended Build Order
+
+Based on project guidance and pitfalls for real-time newcomers:
+
+### Day 1 (MVP Focus)
+**Priority: Get multiplayer sync working**
+
+1. **Setup (2 hours)**
+   - Initialize React + TypeScript project
+   - Set up Firebase (Firestore + Auth)
+   - Deploy placeholder to Vercel
+   - Set up basic authentication
+
+2. **Cursor Sync (3-4 hours)** ⚠️ START WITH HARDEST PART
+   - Implement cursor position tracking
+   - Send cursor position to Firestore/RTDB
+   - Listen to other users' cursors
+   - Render cursors with name labels
+   - Test with 2 browser windows
+
+3. **Basic Canvas + One Shape (3-4 hours)**
+   - Set up PixiJS in React
+   - Implement pan and zoom
+   - Create ONE shape type (rectangle is easiest)
+   - Render shapes from PixiJS
+
+4. **Object Sync (4-5 hours)**
+   - Create object → write to Firestore
+   - Listen to Firestore → render new objects
+   - Move object → update Firestore
+   - Handle simultaneous edits (last write wins)
+   - Test persistence (refresh browser)
+
+5. **Polish & Deploy (2-3 hours)**
+   - Presence awareness (who's online)
+   - Basic error handling
+   - Deploy and test publicly
+   - Fix critical bugs
+
+### Days 2-4 (Full Canvas Features)
+6. **More Shapes & Transforms**
+   - Add circles, lines, text
+   - Implement resize handles
+   - Implement rotation
+   - Delete and duplicate
+
+7. **Advanced Selection**
+   - Multi-select (shift-click)
+   - Drag-to-select box
+   - Layer management
+
+8. **Performance Optimization**
+   - Optimize Firestore listeners
+   - Throttle updates where appropriate
+   - Test with 500+ objects
+   - Ensure 60 FPS
+
+### Days 5-7 (AI Agent)
+9. **Basic AI Integration**
+   - Set up Claude API
+   - Implement function calling schema
+   - Test simple commands (create shape)
+
+10. **Advanced AI Commands**
+    - Manipulation commands
+    - Layout commands
+    - Complex multi-step commands
+
+11. **AI UX & Testing**
+    - Natural language input UI
+    - Loading states
+    - Error handling
+    - Multi-user AI testing
+
+12. **Documentation & Submission**
+    - Record demo video
+    - Write AI development log
+    - README with setup guide
+    - Architecture documentation
+
+---
+
+## Risk Mitigation
+
+### High-Risk Areas (You're New to Real-Time)
+
+1. **Firestore Structure**
+   - Risk: Wrong structure = performance death or cost explosion
+   - Mitigation: Follow recommended structure above, test early with multiple users
+
+2. **Cursor Update Frequency**
+   - Risk: Too many writes = cost/performance issues
+   - Mitigation: Use RTDB for cursors OR throttle to 10-20 updates/sec
+
+3. **PixiJS-React Integration**
+   - Risk: Re-rendering issues, memory leaks
+   - Mitigation: Use refs carefully, study react-pixi examples, clean up properly
+
+4. **Conflict Resolution**
+   - Risk: Lost updates, bad UX
+   - Mitigation: Implement optimistic updates, use "last write wins" with clear feedback
+
+5. **Time Management**
+   - Risk: Spending too much on features, not enough on sync
+   - Mitigation: Follow build order above, get multiplayer working FIRST
+
+---
+
+## Questions to Resolve Before Starting
+
+- [ ] Firebase project set up?
+- [ ] Claude API key obtained?
+- [ ] GitHub repo created?
+- [ ] Vercel account ready?
+- [ ] Development environment ready (Node, npm/yarn)?
+
+---
+
+## Additional Resources
+
+### Firebase Real-Time Best Practices
+- Use subcollections for scalability
+- Implement security rules early
+- Consider using RTDB for high-frequency updates
+- Monitor usage in Firebase console
+
+### PixiJS + React Patterns
+- Consider react-pixi library for easier integration
+- Use refs for PixiJS app instance
+- Separate canvas logic from React components
+- Study PixiJS examples for transforms and interactions
+
+### AI Function Calling
+- Anthropic Claude function calling docs
+- Test with simple commands first
+- Build up to complex multi-step operations
+- Handle partial failures gracefully
+
+---
+
+## Next Steps
+
+1. Review this PRD together
+2. Make any adjustments to tech stack or scope
+3. Set up development environment
+4. Create implementation plan with detailed tasks
+5. Start building (multiplayer sync first!)
+
+---
+
+**Philosophy:** "A simple, solid, multiplayer canvas with a working AI agent beats any feature-rich app with broken collaboration."
+
+**Focus:** Get the foundation right. Everything else builds on top of solid real-time sync.
