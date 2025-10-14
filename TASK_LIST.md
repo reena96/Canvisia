@@ -155,13 +155,15 @@ collabcanvas/
 
 ---
 
-### PR #2: Firebase Setup & Google Authentication
+### PR #2: Firebase Setup, Google Authentication & Routing
 
-**Goal:** Set up Firebase project and implement Google Sign-In
+**Goal:** Set up Firebase project, implement Google Sign-In, add routing, and implement security rules
 
 **Branch:** `feature/auth`
 
 **Dependencies:** PR #1
+
+**⚠️ CRITICAL: Security rules must be implemented in this PR, not PR #18!**
 
 #### Subtasks:
 - [ ] **2.1 Create Firebase project**
@@ -169,10 +171,11 @@ collabcanvas/
   - Enable Google Analytics (optional)
   - Copy Firebase config keys
 
-- [ ] **2.2 Enable Firebase Authentication**
+- [ ] **2.2 Enable Firebase Authentication & Set Security Rules**
   - Action: In Firebase Console → Authentication → Sign-in method
   - Enable "Google" provider
-  - No files changed yet
+  - **CRITICAL:** Set Firestore security rules (test mode → authenticated only)
+  - Set RTDB security rules (authenticated only)
 
 - [ ] **2.3 Enable Firestore Database**
   - Action: In Firebase Console → Firestore Database → Create database
@@ -184,12 +187,16 @@ collabcanvas/
   - Start in "test mode"
   - Select region
 
-- [ ] **2.5 Add Firebase config to project**
+- [ ] **2.5 Add Firebase config and security rules to project**
+  - Files created:
+    - `firestore.rules`
+    - `database.rules.json` (RTDB rules)
   - Files modified:
     - `.env.local` (add Firebase keys - DO NOT COMMIT)
     - `.env.example` (add placeholder keys for others)
     - `src/config/firebase.config.ts` (implement Firebase initialization)
   - Content: Initialize Firebase app, auth, firestore, rtdb
+  - **Deploy security rules:** `firebase deploy --only firestore:rules,database`
 
 - [ ] **2.6 Create Firebase service modules**
   - Files created:
@@ -213,24 +220,57 @@ collabcanvas/
     - `src/components/layout/Header.tsx`
   - Content: App header, displays user info when logged in, logout button
 
-- [ ] **2.10 Integrate auth into App.tsx**
+- [ ] **2.10 Install and setup React Router**
+  - Run: `npm install react-router-dom`
+  - Files modified: `package.json`
+
+- [ ] **2.11 Create routing structure**
   - Files modified:
     - `src/App.tsx`
-  - Content: Wrap app with AuthProvider, show login screen if not authenticated
+  - Content: Add React Router with routes:
+    - `/` → Redirects to `/canvas/new` (authenticated) or `/login` (not authenticated)
+    - `/login` → Login page with Google Sign-In button
+    - `/canvas/new` → Creates new canvas, redirects to `/canvas/:id`
+    - `/canvas/:id` → Canvas editor component
 
-- [ ] **2.11 Test authentication flow**
-  - Action: Sign in with Google, verify user info displays
+- [ ] **2.12 Create canvas creation route**
+  - Files created:
+    - `src/pages/CreateCanvas.tsx`
+  - Content:
+    ```typescript
+    // Automatically create canvas and redirect
+    const canvasRef = await firestore.collection('canvases').add({
+      name: 'Untitled Canvas',
+      createdAt: serverTimestamp(),
+      ownerId: currentUser.uid,
+      lastModified: serverTimestamp()
+    })
+    navigate(`/canvas/${canvasRef.id}`)
+    ```
+
+- [ ] **2.13 Integrate auth and routing into App.tsx**
+  - Files modified:
+    - `src/App.tsx`
+  - Content: Wrap app with AuthProvider and Router, implement protected routes
+
+- [ ] **2.14 Test authentication flow**
+  - Action: Sign in with Google, verify redirect to `/canvas/new`
+  - Verify canvas created in Firestore
   - Check Firebase Console → Authentication → Users (should see your account)
+  - **Test security rules:** Try accessing Firestore without auth (should fail)
 
 **Files Created/Modified:**
-- Created: `src/services/firebase.ts`, `src/services/auth.ts`, `src/services/firestore.ts`, `src/services/rtdb.ts`, `src/components/auth/*`, `src/components/layout/Header.tsx`
-- Modified: `.env.local`, `.env.example`, `src/config/firebase.config.ts`, `src/App.tsx`
+- Created: `firestore.rules`, `database.rules.json`, `src/pages/CreateCanvas.tsx`, `src/services/firebase.ts`, `src/services/auth.ts`, `src/services/firestore.ts`, `src/services/rtdb.ts`, `src/components/auth/*`, `src/components/layout/Header.tsx`
+- Modified: `.env.local`, `.env.example`, `src/config/firebase.config.ts`, `src/App.tsx`, `package.json`
 
 **Acceptance Criteria:**
 - [ ] Google Sign-In works
+- [ ] User redirected to `/canvas/new` after login
+- [ ] `/canvas/new` creates canvas in Firestore and redirects to `/canvas/{id}`
 - [ ] User info displays in header
 - [ ] Logout works
 - [ ] Auth state persists on refresh
+- [ ] **Security rules deployed and tested** (unauthenticated access denied)
 - [ ] Firebase project is fully configured
 
 ---
@@ -742,68 +782,61 @@ collabcanvas/
 **Dependencies:** PR #1-7
 
 #### Subtasks:
-- [ ] **8.1 Create production environment config**
-  - Files created:
-    - `.env.production` (add to .gitignore)
-  - Content:
-    - Production Firebase keys
-    - Production API URLs
+- [ ] **8.1 Verify Firebase security rules are deployed**
+  - Action: Check Firebase Console
+    - Verify Firestore rules require authentication (from PR #2)
+    - Verify RTDB rules require authentication (from PR #2)
+  - **NOTE:** Security rules should already be deployed from PR #2!
 
-- [ ] **8.2 Update Firebase security rules**
-  - Action: In Firebase Console
-    - Firestore rules: Require authentication
-    - RTDB rules: Require authentication
-  - Files created (local documentation):
-    - `firestore.rules` (for reference)
-    - `rtdb.rules` (for reference)
-
-- [ ] **8.3 Set up Vercel project**
+- [ ] **8.2 Set up Vercel project**
   - Action: Go to Vercel.com
     - Import GitHub repo
     - Configure build settings (Vite)
     - Add environment variables
 
-- [ ] **8.4 Configure Vercel deployment**
+- [ ] **8.3 Configure Vercel deployment**
   - Files created:
     - `vercel.json` (optional, for SPA routing)
   - Content:
     - Redirect all routes to index.html
 
-- [ ] **8.5 Deploy to Vercel**
+- [ ] **8.4 Deploy to Vercel**
   - Action: Push to main branch (or trigger deploy)
   - Verify deployment succeeds
   - Get public URL
 
-- [ ] **8.6 Test deployed app**
+- [ ] **8.5 Test deployed app**
   - Action: Open deployed URL
   - Test all MVP features:
     - [ ] Google Sign-In works
-    - [ ] Canvas loads
+    - [ ] User redirected to `/canvas/new` after login
+    - [ ] Canvas created and redirected to `/canvas/{id}`
     - [ ] Can create shapes
     - [ ] Can move shapes
     - [ ] Cursors sync
     - [ ] Presence works
     - [ ] Persistence works
+    - [ ] **Security: Try accessing without auth** (should redirect to login)
 
-- [ ] **8.7 Test with multiple users on deployed app**
+- [ ] **8.6 Test with multiple users on deployed app**
   - Action: Open deployed URL in 2+ browsers/devices
   - Verify real-time sync works in production
 
-- [ ] **8.8 Update README with deployed URL**
+- [ ] **8.7 Update README with deployed URL**
   - Files modified:
     - `README.md`
   - Content:
     - Add "Live Demo: [URL]" section
     - Update setup instructions for deployment
 
-- [ ] **8.9 Create MVP verification checklist**
+- [ ] **8.8 Create MVP verification checklist**
   - Files created:
     - `MVP_CHECKLIST.md`
   - Content:
     - List all 8 MVP requirements
     - Check off each one with evidence
 
-- [ ] **8.10 Final MVP testing**
+- [ ] **8.9 Final MVP testing**
   - Action: Test ALL MVP requirements on deployed app:
     - [ ] Basic canvas with pan/zoom
     - [ ] At least one shape type (rectangle)
@@ -815,13 +848,15 @@ collabcanvas/
     - [ ] Deployed and publicly accessible
 
 **Files Created/Modified:**
-- Created: `.env.production`, `vercel.json`, `firestore.rules`, `rtdb.rules`, `MVP_CHECKLIST.md`
+- Created: `vercel.json`, `MVP_CHECKLIST.md`
 - Modified: `README.md`
 
 **Acceptance Criteria:**
 - [ ] App is deployed at public URL
+- [ ] Environment variables configured in Vercel dashboard (no .env.production file)
 - [ ] All MVP requirements verified and working
-- [ ] Security rules implemented
+- [ ] **Security rules already deployed** (from PR #2)
+- [ ] Security tested: unauthenticated access denied
 - [ ] Performance targets met (60 FPS, <100ms sync)
 - [ ] README has live demo link
 
@@ -1251,32 +1286,64 @@ collabcanvas/
 
 ## AI Canvas Agent (Days 5-7) - PRs 13-17
 
-### PR #13: AI Integration - Basic Setup
+### PR #13: AI Integration - Basic Setup with Security
 
-**Goal:** Set up Claude API and basic function calling
+**Goal:** Set up Claude API with server-side execution and Firebase Auth verification
 
 **Branch:** `feature/ai-setup`
 
 **Dependencies:** PR #1-12
 
+**⚠️ CRITICAL: AI commands MUST go through Vercel Functions with Firebase Auth verification!**
+
 #### Subtasks:
-- [ ] **13.1 Install Anthropic SDK**
-  - Run: `npm install @anthropic-ai/sdk`
+- [ ] **13.1 Install Anthropic SDK and Firebase Admin**
+  - Run: `npm install @anthropic-ai/sdk firebase-admin`
   - Files modified: `package.json`
 
-- [ ] **13.2 Add Claude API key to environment**
+- [ ] **13.2 Add Claude API key to environment (server-side only)**
   - Files modified:
-    - `.env.local` (add VITE_ANTHROPIC_API_KEY)
+    - `.env.local` (add ANTHROPIC_API_KEY - NOT prefixed with VITE_)
     - `.env.example` (add placeholder)
   - Action: Get API key from Anthropic Console
+  - **NOTE:** Client-side code should NEVER access Claude API directly
+  - Add to Vercel Dashboard: Environment Variables → ANTHROPIC_API_KEY
 
-- [ ] **13.3 Create Claude service**
+- [ ] **13.3 Create Vercel Function for AI commands**
   - Files created:
-    - `src/services/claude.ts`
+    - `api/ai/execute-command.ts`
   - Content:
-    - Initialize Anthropic client
-    - `sendMessage(prompt, tools)` - Send message with function calling
-    - Handle streaming responses (optional)
+    ```typescript
+    import { Anthropic } from '@anthropic-ai/sdk'
+    import * as admin from 'firebase-admin'
+
+    export default async function handler(req, res) {
+      // 1. Verify Firebase Auth token
+      const token = req.headers.authorization?.split('Bearer ')[1]
+      if (!token) return res.status(401).json({ error: 'Unauthorized' })
+
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(token)
+        const userId = decodedToken.uid
+
+        // 2. Call Claude API
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+        const response = await anthropic.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1024,
+          tools: [...], // Function calling tools
+          messages: [{ role: 'user', content: req.body.command }]
+        })
+
+        // 3. Execute AI commands via Firestore Admin SDK
+        // ... handle function calls
+
+        return res.json({ success: true, response })
+      } catch (error) {
+        return res.status(401).json({ error: 'Invalid token' })
+      }
+    }
+    ```
 
 - [ ] **13.4 Define AI types**
   - Files created:
@@ -1318,14 +1385,34 @@ collabcanvas/
     - Shows errors
     - Shows success messages
 
-- [ ] **13.9 Create useAI hook**
+- [ ] **13.9 Create useAI hook (client-side)**
   - Files created:
     - `src/hooks/useAI.ts`
   - Content:
-    - `sendCommand(text)` - Send command to Claude
-    - Parse function calls from response
-    - Execute functions on canvas
-    - Handle errors
+    ```typescript
+    const sendCommand = async (command: string) => {
+      // Get Firebase Auth token
+      const token = await auth.currentUser?.getIdToken()
+
+      // Call Vercel Function
+      const response = await fetch('/api/ai/execute-command', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          command,
+          canvasId,
+          canvasState: getCurrentCanvasState()
+        })
+      })
+
+      return response.json()
+    }
+    ```
+  - Parse function calls from response
+  - Handle errors with clear messages
 
 - [ ] **13.10 Integrate AI panel into app**
   - Files modified:
@@ -1334,21 +1421,31 @@ collabcanvas/
     - Render AIPanel
     - Connect useAI hook
 
-- [ ] **13.11 Test basic AI flow (without real commands)**
+- [ ] **13.11 Test AI security**
+  - Action:
+    - Try calling `/api/ai/execute-command` without auth token (should fail with 401)
+    - Sign in and send AI command
+    - Verify token is validated server-side
+
+- [ ] **13.12 Test basic AI flow**
   - Action:
     - Open AI panel
     - Type "hello"
     - Verify Claude responds
     - Check function calling works (even if no functions called)
+    - Verify no Claude API key exposed in client code
 
 **Files Created/Modified:**
-- Created: `src/services/claude.ts`, `src/types/ai.ts`, `src/components/ai/AIPanel.tsx`, `src/components/ai/AIInput.tsx`, `src/components/ai/AIStatusIndicator.tsx`, `src/hooks/useAI.ts`
+- Created: `api/ai/execute-command.ts`, `src/types/ai.ts`, `src/components/ai/AIPanel.tsx`, `src/components/ai/AIInput.tsx`, `src/components/ai/AIStatusIndicator.tsx`, `src/hooks/useAI.ts`
 - Modified: `.env.local`, `.env.example`, `package.json`, `src/App.tsx`
 
 **Acceptance Criteria:**
-- [ ] Claude API integration works
+- [ ] Claude API integration works via Vercel Function
+- [ ] Firebase Auth token verified server-side
+- [ ] **Claude API key NEVER exposed to client**
+- [ ] Unauthenticated requests rejected with 401
 - [ ] AI panel displays and opens/closes
-- [ ] Can send messages to Claude
+- [ ] Can send messages to Claude (authenticated users only)
 - [ ] Function calling schemas defined
 - [ ] No errors in console
 

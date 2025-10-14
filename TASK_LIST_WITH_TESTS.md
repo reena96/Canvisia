@@ -1,4 +1,17 @@
-# CollabCanvas - Implementation Task List (With Tests)
+# Canvisia - Implementation Task List (With Tests)
+
+**📝 NOTE:** This file requires similar updates as TASK_LIST.md for:
+- PR #2: Add routing (/canvas/new), security rules, React Router
+- PR #8: Remove .env.production, add Vercel Dashboard config
+- PR #13: Add Vercel Functions with Firebase Auth verification for AI security
+
+**Key Changes Needed:**
+- Security rules must be in PR #2 (not PR #18)
+- No dashboard in MVP - use /canvas/new for canvas creation
+- AI commands go through Vercel Functions with JWT verification
+- No .env.production file - configure in Vercel Dashboard
+
+For detailed updates, refer to TASK_LIST.md which has been fully updated.
 
 **Organized by Pull Requests (PRs)**
 

@@ -223,30 +223,35 @@ sequenceDiagram
 
 ---
 
-## 6. Data Flow: AI Command Execution
+## 6. Data Flow: AI Command Execution (with Security)
 
 ```mermaid
 sequenceDiagram
     participant User
     participant AIPanel
     participant API Route
+    participant Firebase Auth
     participant Claude API
     participant Firestore
     participant Canvas
 
     User->>AIPanel: Type "create a red circle"
-    AIPanel->>API Route: POST /api/ai/execute-command
+    AIPanel->>AIPanel: Get Firebase Auth JWT
+    AIPanel->>API Route: POST /api/ai/execute-command<br/>Authorization: Bearer {JWT}
     Note over API Route: Vercel Serverless Function
+
+    API Route->>Firebase Auth: Verify JWT token
+    Firebase Auth->>API Route: Token valid, return userId
 
     API Route->>API Route: Get canvas state from Firestore
     API Route->>Claude API: Send prompt + canvas context
-    Note over Claude API: Function calling enabled
+    Note over Claude API: Function calling enabled<br/>API key server-side only
 
     Claude API->>Claude API: Parse intent
     Claude API->>API Route: Return function call
     Note over API Route: {function: "createShape",<br/>args: {type: "circle", color: "red"}}
 
-    API Route->>Firestore: createShape()
+    API Route->>Firestore: createShape() via Admin SDK
     Note over Firestore: canvases/{id}/objects/{shapeId}
 
     Firestore-->>Canvas: onSnapshot() triggered
@@ -256,6 +261,7 @@ sequenceDiagram
     AIPanel->>User: Show "Created red circle ✓"
 
     Note over User,Canvas: AI-created object syncs<br/>to all users via Firestore
+    Note over API Route,Claude API: ✅ Claude API key never<br/>exposed to client
 ```
 
 ---

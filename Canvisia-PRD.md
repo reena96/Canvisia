@@ -38,34 +38,58 @@ Canvisia is a real-time collaborative design tool inspired by Figma, enabling mu
 
 ### Canvas Creation
 **MVP Implementation:**
-- After login, user sees a dashboard with a "New Canvas" button
-- Clicking "New Canvas" creates a new canvas document in Firestore with unique ID
+- After login, user is redirected to `/canvas/new`
+- `/canvas/new` route creates a new canvas document in Firestore with auto-generated ID
 - User is automatically navigated to `/canvas/{canvasId}`
-- Canvas metadata includes: name (default: "Untitled Canvas"), createdAt, ownerId
+- Canvas metadata includes: name (default: "Untitled Canvas"), createdAt, ownerId, lastModified
+- **No dashboard in MVP** - saves 2-3 hours of development time
+
+**Canvas Creation Code Flow:**
+```typescript
+// When user visits /canvas/new
+const canvasRef = await firestore.collection('canvases').add({
+  name: 'Untitled Canvas',
+  createdAt: serverTimestamp(),
+  ownerId: currentUser.uid,
+  lastModified: serverTimestamp()
+})
+
+// Redirect to /canvas/{canvasRef.id}
+navigate(`/canvas/${canvasRef.id}`)
+```
 
 **Post-MVP:**
-- "Recent Canvases" list
+- Dashboard at `/dashboard` with "Recent Canvases" list
 - Canvas templates
 - Canvas search/filter
+- Rename canvas functionality
 
 ### Canvas Joining & Collaboration
 **MVP Implementation:**
 - Users join existing canvases via **URL sharing only**
   - Example: `canvisia.com/canvas/abc123def456`
   - Each canvas has a unique ID generated on creation
-  - Anyone with the URL can access the canvas (public access)
+  - Anyone with the URL can access the canvas (must be authenticated)
 - No invite system or canvas selection UI in MVP
 
 **Access Control:**
-- MVP: Public via URL (no permissions, no invites)
+- MVP: **Public to authenticated users** - must sign in with Google, then can access any canvas via URL
+- Firestore security rules enforce authentication (see Security section below)
 - Post-MVP: Private canvases, role-based access (owner, editor, viewer)
 
 **User Flow:**
-1. User logs in → Dashboard
-2. User clicks "New Canvas" → Creates canvas → Redirected to `/canvas/{id}`
-3. User shares URL with collaborators
-4. Collaborators visit URL → Join same canvas session
-5. All users see real-time updates from each other
+1. User visits `/` → Redirected to `/login` (if not authenticated) or `/canvas/new` (if authenticated)
+2. User signs in with Google
+3. User redirected to `/canvas/new` → Creates canvas → Auto-redirected to `/canvas/{id}`
+4. User shares `/canvas/{id}` URL with collaborators
+5. Collaborators visit URL → Must sign in → Join same canvas session
+6. All users see real-time updates from each other
+
+**Routes:**
+- `/` - Redirects to `/canvas/new` (authenticated) or `/login` (unauthenticated)
+- `/login` - Google Sign-In page
+- `/canvas/new` - Creates new canvas, redirects to `/canvas/{id}`
+- `/canvas/{id}` - Canvas editor
 
 ---
 
@@ -379,12 +403,87 @@ const usePresenceStore = create((set) => ({
 - Users authenticated with name and profile photo
 - Post-MVP: Can add email/password, GitHub if needed
 
-**AI:** Anthropic Claude API
+**Security Rules (Implemented in PR #2, not PR #18!):**
+```javascript
+// firestore.rules - Enforce authentication from day 1
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Canvases: Any authenticated user can read/write
+    match /canvases/{canvasId}/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+// rtdb.rules - RTDB for cursors
+{
+  "rules": {
+    "cursors": {
+      "$canvasId": {
+        "$userId": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $userId"
+        }
+      }
+    }
+  }
+}
+```
+
+**Why enforce auth from day 1:**
+- Prevents bot spam and abuse
+- Can track usage per user
+- Production-ready security for MVP deployment
+- Still "public via URL" - any authenticated user can access any canvas
+
+**AI:** Anthropic Claude API (via Vercel Functions)
 **Why:**
 - Excellent function calling support
 - Strong instruction following
 - Good at multi-step reasoning
 - Context management
+
+**AI Security Architecture:**
+```
+Client → Vercel Function (with Firebase JWT)
+       → Verify Auth Token
+       → Claude API (API key hidden server-side)
+       → Execute commands via Firestore Admin SDK
+       → Return result to client
+```
+
+**Vercel Function Pattern:**
+```typescript
+// /api/ai/execute-command.ts
+export default async function handler(req, res) {
+  // 1. Extract Firebase Auth token from header
+  const token = req.headers.authorization?.split('Bearer ')[1]
+  if (!token) return res.status(401).json({ error: 'Unauthorized' })
+
+  try {
+    // 2. Verify token with Firebase Admin SDK
+    const decodedToken = await admin.auth().verifyIdToken(token)
+    const userId = decodedToken.uid
+
+    // 3. Call Claude API (server-side, API key protected)
+    const aiResponse = await callClaude(req.body.command, req.body.canvasState)
+
+    // 4. Execute AI commands as admin (bypasses Firestore security rules)
+    await executeAICommands(aiResponse, req.body.canvasId, userId)
+
+    return res.status(200).json({ success: true })
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
+}
+```
+
+**Why server-side AI:**
+- ✅ Claude API key never exposed to client
+- ✅ Prevents abuse and cost overruns
+- ✅ Rate limiting per user possible
+- ✅ Can validate commands before executing
 
 ### Deployment
 **Frontend:** Vercel
@@ -393,8 +492,20 @@ const usePresenceStore = create((set) => ({
 - Automatic HTTPS
 - Edge network for low latency
 - Excellent DX
+- Environment variables configured in Vercel dashboard (no `.env.production` file in repo)
 
 **Backend:** Firebase (fully managed)
+
+**Environment Variables:**
+- **Development:** `.env.local` (gitignored)
+- **Production:** Vercel Dashboard → Settings → Environment Variables
+  ```
+  VITE_FIREBASE_API_KEY=...
+  VITE_FIREBASE_AUTH_DOMAIN=...
+  VITE_FIREBASE_PROJECT_ID=...
+  ANTHROPIC_API_KEY=... (server-side only, NOT prefixed with VITE_)
+  ```
+- **Why no .env.production:** Security risk if accidentally committed to repo
 
 ### Development Tools
 - TypeScript (type safety, better DX)
@@ -423,6 +534,11 @@ const usePresenceStore = create((set) => ({
 - Query limitations (no OR queries without multiple calls)
 - Offline handling requires extra setup
 - Vendor lock-in
+
+**Security Rules (IMPLEMENT IN PR #2, NOT PR #18!):**
+- ⚠️ PITFALL: Deploying MVP with "test mode" security rules = anyone can read/write your database
+- ✅ SOLUTION: Implement authenticated-only rules from day 1 (see Backend section above)
+- Test security rules with Firebase Emulator before deploying
 
 **Critical Pitfalls (You're New to Real-Time):**
 
@@ -681,8 +797,10 @@ Based on project guidance and pitfalls for real-time newcomers:
 1. **Setup (2 hours)**
    - Initialize React + TypeScript project
    - Set up Firebase (Firestore + Auth)
+   - **Implement Firestore security rules** (authenticated users only)
    - Deploy placeholder to Vercel
-   - Set up basic authentication
+   - Set up Google Sign-In authentication
+   - Create `/canvas/new` route for canvas creation
 
 2. **Cursor Sync (3-4 hours)** ⚠️ START WITH HARDEST PART
    - Implement cursor position tracking
