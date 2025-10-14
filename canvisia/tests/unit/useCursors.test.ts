@@ -107,9 +107,9 @@ describe('useCursors', () => {
     // Should only call updateCursorPosition once immediately
     expect(rtdb.updateCursorPosition).toHaveBeenCalledTimes(1)
 
-    // Wait for throttle period (100ms + buffer)
+    // Wait for throttle period
     act(() => {
-      vi.advanceTimersByTime(110)
+      vi.advanceTimersByTime(60)
     })
 
     // Should call again with latest position
