@@ -108,15 +108,15 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     })) as Shape[]
   }, [firestoreShapes, localShapeUpdates])
 
-  // Throttled Firestore update function (10-20 updates per second)
-  // Using 50ms = 20 updates/sec, 100ms = 10 updates/sec
+  // Throttled Firestore update function (10 updates per second)
+  // Optimized for production network performance
   const updateShapeThrottled = useMemo(
     () =>
       throttle((shapeId: string, updates: Partial<Shape>) => {
         updateShape(shapeId, updates).catch((error) => {
           console.error('Throttled shape update failed:', error)
         })
-      }, 50), // 20 updates per second
+      }, 100), // 10 updates per second (better for production network latency)
     [updateShape]
   )
 

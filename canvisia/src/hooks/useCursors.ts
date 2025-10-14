@@ -8,7 +8,7 @@ import {
 import { throttle } from '@/utils/throttle'
 import type { CursorPosition } from '@/types/user'
 
-const CURSOR_UPDATE_THROTTLE = 50 // 20 updates per second
+const CURSOR_UPDATE_THROTTLE = 100 // 10 updates per second (optimized for production)
 
 export function useCursors(
   canvasId: string,
