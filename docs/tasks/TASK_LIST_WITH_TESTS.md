@@ -1526,44 +1526,50 @@ collabcanvas/
 
 ### PR #8: Deployment & MVP Verification
 
-**Goal:** Deploy to Vercel and verify MVP requirements
+**Goal:** Deploy to Firebase Hosting and verify MVP requirements
 
 **Branch:** `feature/deployment`
 
 **Dependencies:** PR #1-7
 
 #### Subtasks:
-- [ ] **8.1 Create production environment config**
-  - Files created:
-    - `.env.production` (add to .gitignore)
-  - Content:
-    - Production Firebase keys
-    - Production API URLs
+- [x] **8.1 Verify Firebase configuration**
+  - Files already configured:
+    - `firebase.json` (hosting, firestore, database rules)
+    - `firestore.rules` (security rules)
+    - `database.rules.json` (RTDB security rules)
+  - No .env.production needed - Firebase SDK auto-configures for production
 
-- [ ] **8.2 Update Firebase security rules**
-  - Action: In Firebase Console
-    - Firestore rules: Require authentication
-    - RTDB rules: Require authentication
-  - Files created (local documentation):
-    - `firestore.rules` (for reference)
-    - `rtdb.rules` (for reference)
+- [x] **8.2 Update Firebase security rules for production**
+  - Action: Rules already configured and deployed
+    - Firestore rules: Require authentication for shapes
+    - RTDB rules: Require authentication for cursors and presence
+  - Security rules deployed via: `firebase deploy --only database,firestore`
 
-- [ ] **8.3 Set up Vercel project**
-  - Action: Go to Vercel.com
-    - Import GitHub repo
-    - Configure build settings (Vite)
-    - Add environment variables
+- [x] **8.3 Build production bundle**
+  - Command: `npm run build`
+  - Action:
+    - TypeScript compilation (`tsc -b`)
+    - Vite production build
+    - Output to `dist/` directory
+  - Verify: Check bundle size and no errors
 
-- [ ] **8.4 Configure Vercel deployment**
-  - Files created:
-    - `vercel.json` (optional, for SPA routing)
-  - Content:
-    - Redirect all routes to index.html
-
-- [ ] **8.5 Deploy to Vercel**
-  - Action: Push to main branch (or trigger deploy)
+- [x] **8.4 Deploy to Firebase Hosting**
+  - Command: `firebase deploy`
+  - What gets deployed:
+    - Hosting (static files from dist/)
+    - Firestore rules
+    - RTDB rules
   - Verify deployment succeeds
-  - Get public URL
+  - Get public URL (e.g., https://canvisia-ab47b.web.app)
+
+- [ ] **8.5 Create production test users**
+  - Action: In Firebase Console → Authentication
+    - Create test users:
+      - alice@test.com / password123
+      - bob@test.com / password123
+      - charlie@test.com / password123
+  - OR: Enable Google Sign-In for production testing
 
 - [ ] **8.6 Test deployed app**
   - Action: Open deployed URL
@@ -3303,7 +3309,7 @@ collabcanvas/
     - Configure environment variables
     - Run tests
     - Run locally
-    - Deploy to Vercel
+    - Deploy to Firebase Hosting
 
 - [ ] **18.7 Add screenshots to repo**
   - Files created:
@@ -3384,7 +3390,7 @@ collabcanvas/
 - [ ] **18.14 Final deployment**
   - Action:
     - Merge all PRs to main
-    - Verify Vercel auto-deploys
+    - Deploy to Firebase Hosting: `firebase deploy`
     - Test deployed app one more time
     - Share link!
 
