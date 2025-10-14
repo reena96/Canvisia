@@ -5,12 +5,14 @@ import type { Rectangle } from '@/types/shapes'
  * @param x - X coordinate
  * @param y - Y coordinate
  * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the rectangle (optional, defaults to blue)
  * @returns Rectangle shape with default properties
  */
 export function createDefaultRectangle(
   x: number,
   y: number,
-  userId: string = 'anonymous'
+  userId: string = 'anonymous',
+  color: string = '#3B82F6'
 ): Rectangle {
   return {
     id: crypto.randomUUID(),
@@ -19,7 +21,7 @@ export function createDefaultRectangle(
     y,
     width: 100,
     height: 100,
-    fill: '#3B82F6', // Blue
+    fill: color,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }

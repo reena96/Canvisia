@@ -105,8 +105,8 @@ export function Canvas() {
         // Convert screen coordinates to canvas coordinates
         const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
 
-        // Create new rectangle at click position
-        const newRect = createDefaultRectangle(canvasPos.x, canvasPos.y, userId)
+        // Create new rectangle at click position with user's color
+        const newRect = createDefaultRectangle(canvasPos.x, canvasPos.y, userId, userColor)
 
         // Write to Firestore (will automatically sync back via subscription)
         try {
