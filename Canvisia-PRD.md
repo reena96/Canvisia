@@ -313,10 +313,49 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
 - Adds 4-6 hours of complexity per PR for a 7-day timeline
 - Performance advantage not needed: With viewport culling, only 100-200 objects visible at once
 
-**State Management:**
-- React Context (for global state)
-- Local state for UI components
-- Consider Zustand if state gets complex
+**State Management:** Zustand
+**Why:**
+- **Better performance with 500+ objects:** Selective subscriptions prevent unnecessary re-renders
+- **Simpler API:** No Provider wrappers, less boilerplate than Context + useReducer
+- **Proven for canvas apps:** Used by Excalidraw and similar collaborative tools
+- **Granular updates:** Components subscribe only to the state they need
+- **Easy optimization:** Built-in shallow comparison, middleware support
+- **Small bundle:** ~1KB, minimal overhead
+
+**State Structure:**
+```typescript
+// Canvas Store
+const useCanvasStore = create((set) => ({
+  shapes: [],
+  selectedIds: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
+  addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
+  updateShape: (id, updates) => set((state) => ({
+    shapes: state.shapes.map(s => s.id === id ? { ...s, ...updates } : s)
+  }))
+}))
+
+// Auth Store (or keep Firebase Auth context - lighter)
+const useAuthStore = create((set) => ({
+  user: null,
+  setUser: (user) => set({ user })
+}))
+
+// Presence Store
+const usePresenceStore = create((set) => ({
+  onlineUsers: [],
+  cursors: {},
+  updateCursor: (userId, position) => set((state) => ({
+    cursors: { ...state.cursors, [userId]: position }
+  }))
+}))
+```
+
+**Why not React Context:**
+- Context causes all consumers to re-render on any state change
+- With 500+ shapes, this breaks the 60 FPS requirement
+- Requires extensive use of React.memo, useMemo, useCallback for optimization
+- Zustand provides better DX with less manual optimization
 
 **Styling:**
 - Tailwind CSS (utility-first, fast development)
@@ -359,6 +398,9 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
 
 ### Development Tools
 - TypeScript (type safety, better DX)
+- Zustand (state management)
+- Vitest + Testing Library (testing)
+- Firebase Emulator (local development & testing)
 - ESLint + Prettier (code quality)
 - Git + GitHub (version control)
 
@@ -448,6 +490,61 @@ The AI agent must support **at least 6 distinct command types** demonstrating:
    - ⚠️ PITFALL: 5000x5000 canvas with all shapes rendered = slow zoom/pan
    - ✅ SOLUTION: Implement viewport culling in PR #5 (not PR #12)
    - Use `scaleX` and `scaleY` for zoom, optimize Stage props
+
+### Zustand
+
+**Pros:**
+- Minimal boilerplate (no providers, reducers)
+- Excellent performance (selective re-renders)
+- Small bundle size (~1KB)
+- Works outside React (useful for Firestore listeners)
+- DevTools support
+- TypeScript support out of the box
+
+**Cons:**
+- Less widespread than Context (but growing)
+- One more dependency to learn
+
+**Critical Pitfalls:**
+
+1. **Mutating State Directly**
+   - ⚠️ PITFALL: `set((state) => { state.shapes.push(shape); return state })` (mutates!)
+   - ✅ SOLUTION: Always return new objects/arrays
+   ```typescript
+   set((state) => ({ shapes: [...state.shapes, shape] })) // ✅ Correct
+   ```
+
+2. **Subscribing to Entire Store**
+   - ⚠️ PITFALL: `const store = useCanvasStore()` (re-renders on ANY change)
+   - ✅ SOLUTION: Use selectors
+   ```typescript
+   const shapes = useCanvasStore(state => state.shapes) // ✅ Only shapes
+   const addShape = useCanvasStore(state => state.addShape) // ✅ Stable reference
+   ```
+
+3. **Firestore → Zustand Sync Pattern**
+   - ⚠️ PITFALL: Syncing in components causes race conditions
+   - ✅ SOLUTION: Sync in store initialization
+   ```typescript
+   // Initialize store with Firestore listener
+   const useCanvasStore = create((set) => {
+     // Subscribe to Firestore once at store level
+     onSnapshot(collection, (snapshot) => {
+       set({ shapes: snapshot.docs.map(doc => doc.data()) })
+     })
+     return { shapes: [], addShape: ... }
+   })
+   ```
+
+4. **Actions vs Selectors**
+   - Pattern: Actions (setters) should be stable, data should be reactive
+   ```typescript
+   // ✅ Good: Actions outside state, data inside
+   const useCanvasStore = create((set) => ({
+     shapes: [],
+     addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] }))
+   }))
+   ```
 
 ### Anthropic Claude API
 
