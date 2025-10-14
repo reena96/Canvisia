@@ -103,7 +103,7 @@ This project follows an 18-PR implementation plan:
 - **PR #13-17:** AI Integration
 - **PR #18:** Documentation & Submission
 
-See `../TASK_LIST.md` for detailed implementation plan.
+See `../docs/tasks/TASK_LIST.md` for detailed implementation plan.
 
 ## Performance Targets
 
@@ -115,7 +115,7 @@ See `../TASK_LIST.md` for detailed implementation plan.
 
 ## Contributing
 
-This is a sprint project for Gauntlet AI. Implementation follows the structured PR plan in TASK_LIST.md.
+This is a sprint project for Gauntlet AI. Implementation follows the structured PR plan in `../docs/tasks/TASK_LIST.md`.
 
 ## License
 
@@ -123,7 +123,11 @@ MIT
 
 ## Links
 
-- Documentation: See `/CollabCanvas` directory for PRD, task lists, and architecture diagrams
+- Documentation: See `../docs/` directory for organized documentation
+  - Planning: `../docs/planning/` (PRD, Architecture Diagrams)
+  - Tasks: `../docs/tasks/` (Task Lists)
+  - Testing: `../docs/testing/` (Test Documentation)
+  - Setup: `../docs/setup/` (Environment Setup, Security Guide)
 - Firebase Project: (will be added in PR #2)
 - Live Demo: (will be added in PR #8)
 

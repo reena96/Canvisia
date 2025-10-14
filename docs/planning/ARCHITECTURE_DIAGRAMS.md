@@ -823,4 +823,4 @@ mindmap
 
 **Generated:** 2025-10-13
 **Repository:** https://github.com/reena96/Canvisia
-**Based on:** CollabCanvas-PRD.md, TASK_LIST_WITH_TESTS.md
+**Based on:** Canvisia-PRD.md, ../tasks/TASK_LIST_WITH_TESTS.md
