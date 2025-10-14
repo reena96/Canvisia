@@ -16,19 +16,19 @@ const TEST_USERS: TestUser[] = [
   {
     email: 'alice@test.com',
     password: 'password123',
-    displayName: 'Alice Test',
+    displayName: 'Alice',
     photoURL: 'https://i.pravatar.cc/150?img=1',
   },
   {
     email: 'bob@test.com',
     password: 'password123',
-    displayName: 'Bob Test',
+    displayName: 'Bob',
     photoURL: 'https://i.pravatar.cc/150?img=12',
   },
   {
     email: 'charlie@test.com',
     password: 'password123',
-    displayName: 'Charlie Test',
+    displayName: 'Charlie',
     photoURL: 'https://i.pravatar.cc/150?img=33',
   },
 ]

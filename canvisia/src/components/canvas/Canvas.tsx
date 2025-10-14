@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Stage, Layer, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
@@ -7,6 +7,11 @@ import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
 import { CursorOverlay } from './CursorOverlay'
 import { useCursors } from '@/hooks/useCursors'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { Toolbar, type Tool } from './Toolbar'
+import { ShapeRenderer } from './ShapeRenderer'
+import { createDefaultRectangle } from '@/utils/shapeDefaults'
+import { useFirestore } from '@/hooks/useFirestore'
+import { getUserColor } from '@/config/userColors'
 
 export function Canvas() {
   const stageRef = useRef<any>(null)
@@ -14,12 +19,21 @@ export function Canvas() {
   const updateViewport = useCanvasStore((state) => state.updateViewport)
   const { user } = useAuth()
 
-  // Setup cursor tracking
+  // Local state for tools and selection
+  const [selectedTool, setSelectedTool] = useState<Tool>('select')
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
+
+  // Setup canvas and user tracking
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
   const userId = user?.uid || ''
   const userName = user?.displayName || 'Anonymous'
-  const userColor = getUserColor(userId)
+  const userColor = getUserColor(userName)
+
+  // Setup cursor tracking
   const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
+
+  // Setup Firestore sync for shapes
+  const { shapes, createShape, updateShape } = useFirestore(canvasId)
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -72,6 +86,55 @@ export function Canvas() {
     updateCursor(canvasPos.x, canvasPos.y)
   }
 
+  // Handle stage click for creating shapes
+  const handleStageClick = async (e: KonvaEventObject<MouseEvent>) => {
+    // If clicked on empty area
+    const clickedOnEmpty = e.target === e.target.getStage()
+
+    if (clickedOnEmpty) {
+      // Deselect shape
+      setSelectedShapeId(null)
+
+      // Create new shape if tool is selected
+      if (selectedTool === 'rectangle') {
+        const stage = stageRef.current
+        if (!stage) return
+
+        const pointerPosition = stage.getPointerPosition()
+        if (!pointerPosition) return
+
+        // Convert screen coordinates to canvas coordinates
+        const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+
+        // Create new rectangle at click position with user's color
+        const newRect = createDefaultRectangle(canvasPos.x, canvasPos.y, userId, userColor)
+
+        // Write to Firestore (will automatically sync back via subscription)
+        try {
+          await createShape(newRect)
+        } catch (error) {
+          console.error('Failed to create shape:', error)
+        }
+      }
+    }
+  }
+
+  // Handle shape selection
+  const handleShapeSelect = (shapeId: string) => {
+    setSelectedShapeId(shapeId)
+    setSelectedTool('select')
+  }
+
+  // Handle shape drag
+  const handleShapeDrag = async (shapeId: string, x: number, y: number) => {
+    // Update in Firestore (will automatically sync back via subscription)
+    try {
+      await updateShape(shapeId, { x, y })
+    } catch (error) {
+      console.error('Failed to update shape position:', error)
+    }
+  }
+
   // Generate grid lines
   const renderGrid = () => {
     const gridSize = 50 // 50px grid
@@ -108,6 +171,9 @@ export function Canvas() {
 
   return (
     <div style={{ width: '100%', height: '100vh', overflow: 'hidden' }}>
+      {/* Toolbar */}
+      <Toolbar selectedTool={selectedTool} onToolSelect={setSelectedTool} />
+
       <Stage
         ref={stageRef}
         width={window.innerWidth}
@@ -120,6 +186,7 @@ export function Canvas() {
         onWheel={handleWheel}
         onDragEnd={handleDragEnd}
         onMouseMove={handleMouseMove}
+        onClick={handleStageClick}
       >
         <Layer>
           {/* Canvas background */}
@@ -135,7 +202,16 @@ export function Canvas() {
           {/* Grid */}
           {renderGrid()}
 
-          {/* Shapes will be rendered here in later PRs */}
+          {/* Render shapes */}
+          {shapes.map((shape) => (
+            <ShapeRenderer
+              key={shape.id}
+              shape={shape}
+              isSelected={shape.id === selectedShapeId}
+              onSelect={() => handleShapeSelect(shape.id)}
+              onDragEnd={(x, y) => handleShapeDrag(shape.id, x, y)}
+            />
+          ))}
         </Layer>
       </Stage>
 
@@ -145,28 +221,3 @@ export function Canvas() {
   )
 }
 
-/**
- * Generate a consistent color for a user based on their ID
- */
-function getUserColor(userId: string): string {
-  const colors = [
-    '#FF6B6B', // Red
-    '#4ECDC4', // Teal
-    '#45B7D1', // Blue
-    '#FFA07A', // Light Salmon
-    '#98D8C8', // Mint
-    '#F7DC6F', // Yellow
-    '#BB8FCE', // Purple
-    '#85C1E2', // Sky Blue
-    '#F8B739', // Orange
-    '#52B788', // Green
-  ]
-
-  let hash = 0
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-
-  const index = Math.abs(hash) % colors.length
-  return colors[index]
-}

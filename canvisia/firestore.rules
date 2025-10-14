@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Canvas objects (shapes)
+    match /canvases/{canvasId}/objects/{objectId} {
+      // Anyone can read shapes
+      allow read: if true;
+
+      // Only authenticated users can create shapes
+      allow create: if request.auth != null
+                    && request.resource.data.createdBy == request.auth.uid;
+
+      // Any authenticated user can edit any shape (collaborative editing)
+      allow update: if request.auth != null;
+
+      // Any authenticated user can delete any shape (collaborative editing)
+      allow delete: if request.auth != null;
+    }
+
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
