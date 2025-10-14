@@ -717,8 +717,8 @@ mindmap
         Tailwind CSS
         lucide-react icons
       State Management
-        React Context
-        Custom Hooks
+        Zustand
+        React Context for Auth
     Backend
       Firebase
         Cloud Firestore

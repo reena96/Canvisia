@@ -15,6 +15,10 @@ collabcanvas/
 ├── public/
 │   └── index.html
 ├── src/
+│   ├── stores/
+│   │   ├── canvasStore.ts
+│   │   ├── authStore.ts (optional - can use React Context)
+│   │   └── presenceStore.ts
 │   ├── components/
 │   │   ├── auth/
 │   │   │   ├── LoginButton.tsx
@@ -118,9 +122,10 @@ collabcanvas/
   - Files modified: `package.json`
   - **Why Konva.js:** Declarative React integration, built-in drag/resize/hit detection, saves 10-15 hours vs PixiJS manual integration
 
-- [ ] **1.4 Install UI dependencies**
-  - Run: `npm install lucide-react` (for icons)
+- [ ] **1.4 Install state management and UI dependencies**
+  - Run: `npm install zustand lucide-react`
   - Files modified: `package.json`
+  - **Why Zustand:** Better performance with 500+ objects via selective subscriptions, simpler than Context+useReducer
 
 - [ ] **🧪 1.5 Install testing framework (Vitest + Testing Library)**
   - Run: `npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom`
@@ -678,10 +683,22 @@ collabcanvas/
 **⭐ Konva.js Advantage:** This PR is 1-2 hours instead of 4-6 hours with PixiJS due to built-in pan/zoom support
 
 #### Subtasks:
-- [ ] **3.1 Create useCanvas hook**
+- [ ] **3.1 Create Zustand canvas store**
   - Files created:
-    - `src/hooks/useCanvas.ts`
-  - Content: Hook to manage canvas state (zoom, pan position), viewport utilities
+    - `src/stores/canvasStore.ts`
+  - Content: Zustand store for canvas state (shapes, viewport, selectedIds)
+  - Example:
+    ```typescript
+    import { create } from 'zustand'
+
+    const useCanvasStore = create((set) => ({
+      shapes: [],
+      selectedIds: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
+      updateViewport: (viewport) => set({ viewport })
+    }))
+    ```
 
 - [ ] **3.2 Create Canvas component with react-konva**
   - Files created:
@@ -689,17 +706,22 @@ collabcanvas/
   - Content:
     ```tsx
     import { Stage, Layer } from 'react-konva'
+    import { useCanvasStore } from '@/stores/canvasStore'
 
-    // Basic structure:
+    // Read viewport from Zustand store
+    const viewport = useCanvasStore(state => state.viewport)
+    const updateViewport = useCanvasStore(state => state.updateViewport)
+
     <Stage
       width={window.innerWidth}
       height={window.innerHeight}
-      scaleX={zoom}
-      scaleY={zoom}
-      x={panX}
-      y={panY}
+      scaleX={viewport.zoom}
+      scaleY={viewport.zoom}
+      x={viewport.x}
+      y={viewport.y}
       draggable={true}  // ✅ Built-in pan!
       onWheel={handleZoom}
+      onDragEnd={(e) => updateViewport({ ...viewport, x: e.target.x(), y: e.target.y() })}
     >
       <Layer>
         {/* Shapes will go here */}

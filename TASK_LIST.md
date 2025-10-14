@@ -13,6 +13,10 @@ collabcanvas/
 ├── public/
 │   └── index.html
 ├── src/
+│   ├── stores/
+│   │   ├── canvasStore.ts
+│   │   ├── authStore.ts
+│   │   └── presenceStore.ts
 │   ├── components/
 │   │   ├── auth/
 │   │   │   ├── LoginButton.tsx
@@ -91,12 +95,12 @@ collabcanvas/
   - Run: `npm install -D @types/node`
   - Files modified: `package.json`, `package-lock.json`
 
-- [ ] **1.3 Install PixiJS**
-  - Run: `npm install pixi.js @pixi/react`
+- [ ] **1.3 Install Konva.js**
+  - Run: `npm install konva react-konva`
   - Files modified: `package.json`
 
-- [ ] **1.4 Install UI dependencies**
-  - Run: `npm install lucide-react` (for icons)
+- [ ] **1.4 Install state management and UI dependencies**
+  - Run: `npm install zustand lucide-react`
   - Files modified: `package.json`
 
 - [ ] **1.5 Create environment file structure**
@@ -233,33 +237,33 @@ collabcanvas/
 
 ### PR #3: Basic Canvas with Pan/Zoom
 
-**Goal:** Implement PixiJS canvas with pan and zoom functionality
+**Goal:** Implement Konva.js canvas with pan and zoom functionality
 
 **Branch:** `feature/canvas-foundation`
 
 **Dependencies:** PR #1, PR #2
 
 #### Subtasks:
-- [ ] **3.1 Create useCanvas hook**
+- [ ] **3.1 Create Zustand canvas store**
   - Files created:
-    - `src/hooks/useCanvas.ts`
-  - Content: Hook to manage PixiJS app lifecycle, initialize/destroy
+    - `src/stores/canvasStore.ts`
+  - Content: Zustand store for canvas state (shapes, viewport, selectedIds)
 
 - [ ] **3.2 Create Canvas component**
   - Files created:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Initialize PixiJS Application
+    - Initialize Konva Stage and Layer
     - Set canvas size (5000x5000)
-    - Create viewport container
     - Handle canvas mount/unmount
+    - Connect to Zustand store
 
 - [ ] **3.3 Implement pan functionality**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Track mouse down/move/up
-    - Update viewport position on drag
+    - Enable Stage dragging
+    - Update Zustand store with viewport position
     - Cursor changes to "grab" when panning
 
 - [ ] **3.4 Implement zoom functionality**
@@ -267,9 +271,10 @@ collabcanvas/
     - `src/components/canvas/Canvas.tsx`
   - Content:
     - Listen to wheel events
-    - Scale viewport based on wheel delta
+    - Scale Stage based on wheel delta
     - Zoom toward mouse position (important!)
     - Clamp zoom between min/max (0.1 - 5.0)
+    - Update Zustand store with zoom level
 
 - [ ] **3.5 Create canvas utility functions**
   - Files created:
@@ -283,15 +288,15 @@ collabcanvas/
   - Files created:
     - `src/components/canvas/CanvasControls.tsx`
   - Content:
-    - Zoom in/out buttons
+    - Zoom in/out buttons (update Zustand store)
     - Reset view button (center and zoom 1.0)
-    - Display current zoom level
+    - Display current zoom level from Zustand store
 
 - [ ] **3.7 Add visual grid (optional but helpful)**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Draw grid lines on canvas
+    - Draw grid lines using Konva Line components
     - Grid updates as you pan/zoom
 
 - [ ] **3.8 Integrate canvas into App**
@@ -306,14 +311,15 @@ collabcanvas/
   - Verify smooth 60 FPS performance
 
 **Files Created/Modified:**
-- Created: `src/hooks/useCanvas.ts`, `src/components/canvas/Canvas.tsx`, `src/components/canvas/CanvasControls.tsx`, `src/utils/canvasUtils.ts`
+- Created: `src/stores/canvasStore.ts`, `src/components/canvas/Canvas.tsx`, `src/components/canvas/CanvasControls.tsx`, `src/utils/canvasUtils.ts`
 - Modified: `src/App.tsx`
 
 **Acceptance Criteria:**
 - [ ] Canvas displays at 5000x5000
-- [ ] Can pan by clicking and dragging
+- [ ] Can pan by clicking and dragging (Stage is draggable)
 - [ ] Can zoom with mouse wheel
 - [ ] Zoom centers on mouse position
+- [ ] Zustand store updates with viewport state
 - [ ] 60 FPS during pan/zoom
 - [ ] Controls work (zoom buttons, reset view)
 
@@ -465,16 +471,17 @@ collabcanvas/
   - Files created:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Renders PixiJS Graphics for each shape
-    - Takes shape data, renders appropriate PixiJS object
-    - Handles rectangle drawing
+    - Renders Konva shapes (Rect, Circle, Line, Text)
+    - Uses React.memo to prevent unnecessary re-renders
+    - Subscribes to specific shape data from Zustand store
 
 - [ ] **5.6 Integrate shape rendering**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
   - Content:
+    - Read shapes from Zustand store with selectors
     - Pass shapes to ShapeRenderer
-    - Update PixiJS stage when shapes change
+    - Konva Layer auto-updates with React re-renders
 
 - [ ] **5.7 Implement Firestore write for new shapes**
   - Files modified:
@@ -494,16 +501,18 @@ collabcanvas/
 - [ ] **5.9 Sync local shape creation to Firestore**
   - Files modified:
     - `src/components/canvas/Canvas.tsx`
+    - `src/stores/canvasStore.ts`
   - Content:
-    - When shape created locally, write to Firestore
-    - Optimistic update (show immediately, sync in background)
+    - When shape created locally, update Zustand store immediately
+    - Write to Firestore in background
+    - Optimistic update pattern
 
-- [ ] **5.10 Sync Firestore shapes to local state**
+- [ ] **5.10 Sync Firestore shapes to Zustand store**
   - Files modified:
-    - `src/components/canvas/Canvas.tsx`
+    - `src/stores/canvasStore.ts`
   - Content:
-    - Listen to useFirestore hook
-    - Update shapes state when Firestore changes
+    - Initialize Firestore listener in store
+    - Update Zustand shapes when Firestore changes
     - Deduplicate (avoid showing same shape twice)
 
 - [ ] **5.11 Test object sync with 2 users**
@@ -1148,21 +1157,22 @@ collabcanvas/
 **Dependencies:** PR #1-11
 
 #### Subtasks:
-- [ ] **12.1 Implement object pooling for PixiJS**
+- [ ] **12.1 Optimize Konva rendering**
   - Files modified:
     - `src/components/canvas/ShapeRenderer.tsx`
   - Content:
-    - Reuse PixiJS Graphics objects instead of recreating
-    - Track which objects are in use
-    - Clear and reuse on shape delete
+    - Use React.memo to prevent unnecessary re-renders
+    - Use Zustand selectors to subscribe only to needed state
+    - Optimize Konva shape props (avoid object recreation)
 
-- [ ] **12.2 Optimize Firestore listeners**
+- [ ] **12.2 Optimize Zustand store and Firestore sync**
   - Files modified:
-    - `src/hooks/useFirestore.ts`
+    - `src/stores/canvasStore.ts`
   - Content:
-    - Use more specific queries (only visible shapes)
-    - Detach listeners when component unmounts
-    - Avoid unnecessary re-renders
+    - Use Zustand selectors everywhere to prevent re-renders
+    - Batch multiple Zustand updates with set((state) => {})
+    - Optimize Firestore listener in store initialization
+    - Only update changed shapes, not entire array
 
 - [ ] **12.3 Implement viewport culling (render only visible objects)**
   - Files modified:
