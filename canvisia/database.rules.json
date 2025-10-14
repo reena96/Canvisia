@@ -7,6 +7,14 @@
           ".write": "$userId === auth.uid"
         }
       }
+    },
+    "presence": {
+      "$canvasId": {
+        ".read": true,
+        "$userId": {
+          ".write": "$userId === auth.uid"
+        }
+      }
     }
   }
 }

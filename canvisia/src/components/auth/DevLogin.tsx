@@ -25,6 +25,7 @@ const TEST_USERS: TestUser[] = DEV_USER_COLORS.map((userColor) => ({
 export function DevLogin() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
 
   // Only show in development mode (emulator auto-connects in firebase.ts)
   const isDevelopment = import.meta.env.DEV
@@ -46,91 +47,87 @@ export function DevLogin() {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '80px',
-        right: '20px',
-        background: 'white',
-        border: '2px solid #ff6b00',
-        borderRadius: '8px',
-        padding: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 9999,
-        minWidth: '200px',
-      }}
-    >
-      <div
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setShowMenu(!showMenu)}
         style={{
-          fontSize: '12px',
+          padding: '0.5rem 1rem',
+          fontSize: '0.9rem',
+          backgroundColor: 'white',
+          border: '2px solid #ff6b00',
+          borderRadius: '4px',
+          cursor: 'pointer',
           fontWeight: 'bold',
           color: '#ff6b00',
-          marginBottom: '12px',
-          textTransform: 'uppercase',
         }}
       >
         🔧 Dev Login
-      </div>
+      </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {TEST_USERS.map((user) => (
-          <button
-            key={user.email}
-            onClick={() => handleLogin(user)}
-            disabled={loading !== null}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid #ddd',
-              background: loading === user.email ? '#f0f0f0' : 'white',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s',
-            }}
-          >
-            <div
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                background: user.color,
-              }}
-            />
-            <span>{loading === user.email ? 'Loading...' : user.displayName}</span>
-          </button>
-        ))}
-      </div>
-
-      {error && (
+      {showMenu && (
         <div
           style={{
-            marginTop: '12px',
-            padding: '8px',
-            background: '#fee',
-            border: '1px solid #fcc',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: '#c00',
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            right: 0,
+            background: 'white',
+            border: '2px solid #ff6b00',
+            borderRadius: '8px',
+            padding: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 9999,
+            minWidth: '180px',
           }}
         >
-          {error}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {TEST_USERS.map((user) => (
+              <button
+                key={user.email}
+                onClick={() => handleLogin(user)}
+                disabled={loading !== null}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  background: loading === user.email ? '#f0f0f0' : 'white',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: user.color,
+                  }}
+                />
+                <span>{loading === user.email ? 'Loading...' : user.displayName}</span>
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <div
+              style={{
+                marginTop: '8px',
+                padding: '6px',
+                background: '#fee',
+                border: '1px solid #fcc',
+                borderRadius: '4px',
+                fontSize: '11px',
+                color: '#c00',
+              }}
+            >
+              {error}
+            </div>
+          )}
         </div>
       )}
-
-      <div
-        style={{
-          marginTop: '12px',
-          fontSize: '11px',
-          color: '#666',
-          borderTop: '1px solid #eee',
-          paddingTop: '8px',
-        }}
-      >
-        💡 Open multiple browser tabs to test multiplayer cursors
-      </div>
     </div>
   )
 }

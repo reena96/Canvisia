@@ -1,6 +1,12 @@
 import { useAuth } from '../auth/AuthProvider'
+import { DevLogin } from '../auth/DevLogin'
+import type { Presence } from '@/types/user'
 
-export function Header() {
+interface HeaderProps {
+  activeUsers?: Presence[]
+}
+
+export function Header({ activeUsers = [] }: HeaderProps) {
   const { user, signOut } = useAuth()
 
   if (!user) return null
@@ -31,7 +37,49 @@ export function Header() {
       }}
     >
       <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Canvisia</h1>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* Presence indicator */}
+        <div
+          style={{
+            background: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+            👥 {activeUsers.filter((u) => u.isActive).length}
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {activeUsers
+              .filter((u) => u.isActive)
+              .slice(0, 5)
+              .map((u) => (
+                <div
+                  key={u.userId}
+                  title={u.userName}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: u.color,
+                    border: '2px solid white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                />
+              ))}
+          </div>
+        </div>
+
+        {/* DevLogin */}
+        <DevLogin />
+
+        {/* User info */}
         {user.photoURL && (
           <img
             src={user.photoURL}

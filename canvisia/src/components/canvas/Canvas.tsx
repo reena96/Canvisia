@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useCallback } from 'react'
+import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { Stage, Layer, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
@@ -6,6 +6,7 @@ import { CANVAS_CONFIG } from '@/config/canvas.config'
 import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
 import { CursorOverlay } from './CursorOverlay'
 import { useCursors } from '@/hooks/useCursors'
+import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
 import { ShapeRenderer } from './ShapeRenderer'
@@ -15,7 +16,11 @@ import { getUserColor } from '@/config/userColors'
 import { throttle } from '@/utils/throttle'
 import type { Shape } from '@/types/shapes'
 
-export function Canvas() {
+interface CanvasProps {
+  onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
+}
+
+export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
@@ -37,6 +42,16 @@ export function Canvas() {
   // Setup cursor tracking
   const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
 
+  // Setup presence tracking
+  const { activeUsers } = usePresence(canvasId, userId, userName, userColor)
+
+  // Notify parent of presence changes
+  useEffect(() => {
+    if (onPresenceChange) {
+      onPresenceChange(activeUsers)
+    }
+  }, [activeUsers, onPresenceChange])
+
   // Setup Firestore sync for shapes
   const { shapes: firestoreShapes, createShape, updateShape } = useFirestore(canvasId)
 
@@ -45,7 +60,7 @@ export function Canvas() {
     return firestoreShapes.map((shape) => ({
       ...shape,
       ...(localShapeUpdates[shape.id] || {}),
-    }))
+    })) as Shape[]
   }, [firestoreShapes, localShapeUpdates])
 
   // Throttled Firestore update function (10-20 updates per second)

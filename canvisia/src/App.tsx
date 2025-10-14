@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import { AuthProvider, useAuth } from './components/auth/AuthProvider'
 import { LoginButton } from './components/auth/LoginButton'
 import { DevLogin } from './components/auth/DevLogin'
 import { Header } from './components/layout/Header'
 import { Canvas } from './components/canvas/Canvas'
 import { CanvasControls } from './components/canvas/CanvasControls'
+import type { Presence } from './types/user'
 
 function AppContent() {
   const { user, loading } = useAuth()
+  const [activeUsers, setActiveUsers] = useState<Presence[]>([])
 
   if (loading) {
     return (
@@ -29,10 +32,9 @@ function AppContent() {
 
   return (
     <div className="app" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
-      <Header />
-      <Canvas />
+      <Header activeUsers={activeUsers} />
+      <Canvas onPresenceChange={setActiveUsers} />
       <CanvasControls />
-      <DevLogin />
     </div>
   )
 }
