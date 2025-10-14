@@ -2,14 +2,14 @@
 
 **📝 NOTE:** This file requires similar updates as TASK_LIST.md for:
 - PR #2: Add routing (/canvas/new), security rules, React Router
-- PR #8: Use Firebase Hosting instead of Vercel
-- PR #13: Use Firebase Cloud Functions (NOT Vercel Functions) for AI security
+- PR #8: Use Firebase Hosting for deployment
+- PR #13: Use Firebase Cloud Functions for AI security
 
 **Key Changes Needed:**
 - Security rules must be in PR #2 (not PR #18)
 - No dashboard in MVP - use /canvas/new for canvas creation
 - AI commands go through Firebase Cloud Functions with JWT verification
-- **Use Firebase Hosting + Cloud Functions (ONE platform, not Vercel)**
+- Deploy with Firebase Hosting + Cloud Functions
 - No .env.production file - configure via `firebase functions:config:set`
 
 For detailed updates, refer to TASK_LIST.md which has been fully updated.
