@@ -33,6 +33,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
 
+  // Error handling state
+  const [error, setError] = useState<string | null>(null)
+
   // Setup canvas and user tracking
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
   const userId = user?.uid || ''
@@ -53,7 +56,49 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   }, [activeUsers, onPresenceChange])
 
   // Setup Firestore sync for shapes
-  const { shapes: firestoreShapes, createShape, updateShape } = useFirestore(canvasId)
+  const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasId)
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Delete key - remove selected shape
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedShapeId) {
+          e.preventDefault()
+          try {
+            await deleteShape(selectedShapeId)
+            setSelectedShapeId(null)
+          } catch (err) {
+            console.error('Failed to delete shape:', err)
+            setError('Failed to delete shape. Please try again.')
+          }
+        }
+      }
+
+      // Escape key - deselect shape
+      if (e.key === 'Escape') {
+        if (selectedShapeId) {
+          e.preventDefault()
+          setSelectedShapeId(null)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedShapeId, deleteShape])
+
+  // Auto-dismiss errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
 
   // Merge Firestore shapes with local optimistic updates
   const shapes = useMemo(() => {
@@ -174,8 +219,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         // Write to Firestore (will automatically sync back via subscription)
         try {
           await createShape(newRect)
-        } catch (error) {
-          console.error('Failed to create shape:', error)
+        } catch (err) {
+          console.error('Failed to create shape:', err)
+          setError('Failed to create shape. Please try again.')
         }
       }
     }
@@ -218,8 +264,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       // Send final position to Firestore (not throttled)
       try {
         await updateShape(shapeId, { x, y })
-      } catch (error) {
-        console.error('Failed to update shape position:', error)
+      } catch (err) {
+        console.error('Failed to update shape position:', err)
+        setError('Failed to save shape position. Please try again.')
       }
     },
     [updateShape, updateShapeLocal]
@@ -263,6 +310,38 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     <div style={{ width: '100%', height: '100vh', overflow: 'hidden' }}>
       {/* Toolbar */}
       <Toolbar selectedTool={selectedTool} onToolSelect={setSelectedTool} />
+
+      {/* Loading indicator */}
+      {loading && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div
+            style={{
+              width: '16px',
+              height: '16px',
+              border: '2px solid #3B82F6',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <span style={{ fontSize: '14px', color: '#1F2937' }}>Loading shapes...</span>
+        </div>
+      )}
 
       <Stage
         ref={stageRef}
@@ -308,6 +387,45 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
       {/* Multiplayer cursors overlay */}
       <CursorOverlay cursors={cursors} viewport={viewport} />
+
+      {/* Error toast notification */}
+      {error && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            backgroundColor: '#ef4444',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 10000,
+            maxWidth: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            animation: 'slideIn 0.3s ease-out',
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>⚠️</span>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              fontSize: '20px',
+              cursor: 'pointer',
+              padding: '0',
+              lineHeight: '1',
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   )
 }
