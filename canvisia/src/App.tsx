@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from './components/auth/AuthProvider'
 import { LoginButton } from './components/auth/LoginButton'
+import { DevLogin } from './components/auth/DevLogin'
 import { Header } from './components/layout/Header'
 import { Canvas } from './components/canvas/Canvas'
 import { CanvasControls } from './components/canvas/CanvasControls'
@@ -21,6 +22,7 @@ function AppContent() {
         <h1>Canvisia</h1>
         <p>Real-time collaborative design tool</p>
         <LoginButton />
+        <DevLogin />
       </div>
     )
   }
@@ -30,6 +32,7 @@ function AppContent() {
       <Header />
       <Canvas />
       <CanvasControls />
+      <DevLogin />
     </div>
   )
 }

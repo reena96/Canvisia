@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "cursors": {
+      "$canvasId": {
+        ".read": true,
+        "$userId": {
+          ".write": "$userId === auth.uid"
+        }
+      }
+    }
+  }
+}

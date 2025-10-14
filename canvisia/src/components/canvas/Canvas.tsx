@@ -3,12 +3,23 @@ import { Stage, Layer, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { CANVAS_CONFIG } from '@/config/canvas.config'
-import { calculateZoom } from '@/utils/canvasUtils'
+import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
+import { CursorOverlay } from './CursorOverlay'
+import { useCursors } from '@/hooks/useCursors'
+import { useAuth } from '@/components/auth/AuthProvider'
 
 export function Canvas() {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
+  const { user } = useAuth()
+
+  // Setup cursor tracking
+  const canvasId = 'default-canvas' // TODO: Get from canvas context/router
+  const userId = user?.uid || ''
+  const userName = user?.displayName || 'Anonymous'
+  const userColor = getUserColor(userId)
+  const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -43,6 +54,22 @@ export function Canvas() {
       x: stage.x(),
       y: stage.y(),
     })
+  }
+
+  // Handle mouse move to broadcast cursor position
+  const handleMouseMove = () => {
+    // Only track cursor if user is authenticated
+    if (!user) return
+
+    const stage = stageRef.current
+    if (!stage) return
+
+    const pointerPosition = stage.getPointerPosition()
+    if (!pointerPosition) return
+
+    // Convert screen coordinates to canvas coordinates
+    const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+    updateCursor(canvasPos.x, canvasPos.y)
   }
 
   // Generate grid lines
@@ -92,6 +119,7 @@ export function Canvas() {
         draggable
         onWheel={handleWheel}
         onDragEnd={handleDragEnd}
+        onMouseMove={handleMouseMove}
       >
         <Layer>
           {/* Canvas background */}
@@ -110,6 +138,35 @@ export function Canvas() {
           {/* Shapes will be rendered here in later PRs */}
         </Layer>
       </Stage>
+
+      {/* Multiplayer cursors overlay */}
+      <CursorOverlay cursors={cursors} viewport={viewport} />
     </div>
   )
+}
+
+/**
+ * Generate a consistent color for a user based on their ID
+ */
+function getUserColor(userId: string): string {
+  const colors = [
+    '#FF6B6B', // Red
+    '#4ECDC4', // Teal
+    '#45B7D1', // Blue
+    '#FFA07A', // Light Salmon
+    '#98D8C8', // Mint
+    '#F7DC6F', // Yellow
+    '#BB8FCE', // Purple
+    '#85C1E2', // Sky Blue
+    '#F8B739', // Orange
+    '#52B788', // Green
+  ]
+
+  let hash = 0
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  const index = Math.abs(hash) % colors.length
+  return colors[index]
 }
