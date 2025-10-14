@@ -289,7 +289,7 @@ collabcanvas/
     - `src/stores/canvasStore.ts`
   - Content: Zustand store for canvas state (shapes, viewport, selectedIds)
 
-- [ ] **3.2 Create Canvas component**
+- [ ] **3.2 Create Canvas component with error handling**
   - Files created:
     - `src/components/canvas/Canvas.tsx`
   - Content:
@@ -297,6 +297,9 @@ collabcanvas/
     - Set canvas size (5000x5000)
     - Handle canvas mount/unmount
     - Connect to Zustand store
+    - **Error handling:** If canvas not found in Firestore:
+      - Show "Canvas not found" error message
+      - Display "Create New Canvas" button → redirects to `/canvas/new`
 
 - [ ] **3.3 Implement pan functionality**
   - Files modified:
@@ -467,7 +470,7 @@ collabcanvas/
 
 ---
 
-### PR #5: Object Creation & Firestore Sync
+### PR #5: Object Creation & Firestore Sync (Rectangle Only)
 
 **Goal:** Create rectangles and sync them across users in real-time
 
@@ -549,11 +552,21 @@ collabcanvas/
 
 - [ ] **5.10 Sync Firestore shapes to Zustand store**
   - Files modified:
-    - `src/stores/canvasStore.ts`
+    - `src/components/canvas/Canvas.tsx`
   - Content:
-    - Initialize Firestore listener in store
+    - **Initialize Firestore listener in Canvas component** (NOT in store)
+    - Pattern:
+      ```typescript
+      useEffect(() => {
+        const unsubscribe = onSnapshot(collection, (snapshot) => {
+          useCanvasStore.setState({ shapes: snapshot.docs.map(d => d.data()) })
+        })
+        return unsubscribe
+      }, [canvasId])
+      ```
     - Update Zustand shapes when Firestore changes
     - Deduplicate (avoid showing same shape twice)
+    - **Why outside store:** Keeps Zustand pure, easier to test, React lifecycle handles cleanup
 
 - [ ] **5.11 Test object sync with 2 users**
   - Action:

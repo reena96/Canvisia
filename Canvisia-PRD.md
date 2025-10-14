@@ -91,6 +91,12 @@ navigate(`/canvas/${canvasRef.id}`)
 - `/canvas/new` - Creates new canvas, redirects to `/canvas/{id}`
 - `/canvas/{id}` - Canvas editor
 
+**Error Handling:**
+- **Canvas Not Found:** If user visits `/canvas/invalid-id-12345` (canvas doesn't exist):
+  - Show error message: "Canvas not found. It may have been deleted or the URL is incorrect."
+  - Display "Create New Canvas" button → redirects to `/canvas/new`
+  - Don't auto-redirect (user may have mistyped URL)
+
 ---
 
 ## MVP Requirements (24-Hour Checkpoint)
@@ -162,12 +168,18 @@ These are non-negotiable for passing the MVP gate:
 
 - **Shape Default Values:**
 
-| Shape | Default Size | Default Color | Placement |
-|-------|-------------|---------------|-----------|
-| Rectangle | 100×100 px | Blue (#4285F4) | Center of viewport or click point |
-| Circle | Radius 50 px (100px diameter) | Red (#DB4437) | Center of viewport or click point |
-| Line | 150px horizontal | Black (#000000) | Center of viewport or click point |
-| Text | "Hello World", 16px | Black (#000000) | Center of viewport or click point |
+| Shape | Default Size | Default Color | Placement | When Implemented |
+|-------|-------------|---------------|-----------|------------------|
+| Rectangle | 100×100 px | Blue (#4285F4) | Center of viewport or click point | PR #5 (MVP) |
+| Circle | Radius 50 px (100px diameter) | Red (#DB4437) | Center of viewport or click point | PR #9 (Post-MVP) |
+| Line | 150px horizontal | Black (#000000) | Center of viewport or click point | PR #10 (Post-MVP) |
+| Text | "Hello World", 16px | Black (#000000) | Center of viewport or click point | PR #11 (Post-MVP) |
+
+**MVP Shape Strategy:**
+- **24-hour checkpoint:** Rectangle only (fastest path to proving all core functionality)
+- **Why one shape for MVP:** Meets "at least one shape type" requirement, proves creation/sync/drag/select/delete
+- **Post-MVP:** Add Circle (PR #9), Line (PR #10), Text (PR #11) on Days 2-4
+- **Implementation is trivial** once Rectangle works - just different Konva components
 
 - **Object Manipulation:**
   - Move (click and drag)
@@ -654,17 +666,16 @@ export const executeAICommand = functions.https.onRequest(async (req, res) => {
    ```
 
 3. **Firestore → Zustand Sync Pattern**
-   - ⚠️ PITFALL: Syncing in components causes race conditions
-   - ✅ SOLUTION: Sync in store initialization
+   - ⚠️ PITFALL: Initializing Firestore listener inside the store (tight coupling, harder to test)
+   - ✅ SOLUTION: Initialize listeners in React components (see pattern in "Zustand + Firestore Sync Pattern" section above)
    ```typescript
-   // Initialize store with Firestore listener
-   const useCanvasStore = create((set) => {
-     // Subscribe to Firestore once at store level
-     onSnapshot(collection, (snapshot) => {
-       set({ shapes: snapshot.docs.map(doc => doc.data()) })
+   // In Canvas.tsx (NOT in the store)
+   useEffect(() => {
+     const unsubscribe = onSnapshot(collection, (snapshot) => {
+       useCanvasStore.setState({ shapes: snapshot.docs.map(d => d.data()) })
      })
-     return { shapes: [], addShape: ... }
-   })
+     return unsubscribe
+   }, [canvasId])
    ```
 
 4. **Actions vs Selectors**
