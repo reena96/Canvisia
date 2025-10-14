@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/services/firebase'
+import { DEV_USER_COLORS } from '@/config/userColors'
 
 interface TestUser {
   email: string
@@ -14,26 +15,12 @@ interface TestUser {
   color: string
 }
 
-const TEST_USERS: TestUser[] = [
-  {
-    email: 'alice@test.com',
-    password: 'password123',
-    displayName: 'Alice',
-    color: '#FF6B6B',
-  },
-  {
-    email: 'bob@test.com',
-    password: 'password123',
-    displayName: 'Bob',
-    color: '#4ECDC4',
-  },
-  {
-    email: 'charlie@test.com',
-    password: 'password123',
-    displayName: 'Charlie',
-    color: '#45B7D1',
-  },
-]
+const TEST_USERS: TestUser[] = DEV_USER_COLORS.map((userColor) => ({
+  email: `${userColor.displayName.toLowerCase()}@test.com`,
+  password: 'password123',
+  displayName: userColor.displayName,
+  color: userColor.color,
+}))
 
 export function DevLogin() {
   const [loading, setLoading] = useState<string | null>(null)

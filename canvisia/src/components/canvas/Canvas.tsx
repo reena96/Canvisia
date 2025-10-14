@@ -11,6 +11,7 @@ import { Toolbar, type Tool } from './Toolbar'
 import { ShapeRenderer } from './ShapeRenderer'
 import { createDefaultRectangle } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
+import { getUserColor } from '@/config/userColors'
 
 export function Canvas() {
   const stageRef = useRef<any>(null)
@@ -26,7 +27,7 @@ export function Canvas() {
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
   const userId = user?.uid || ''
   const userName = user?.displayName || 'Anonymous'
-  const userColor = getUserColor(userId)
+  const userColor = getUserColor(userName)
 
   // Setup cursor tracking
   const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
@@ -220,28 +221,3 @@ export function Canvas() {
   )
 }
 
-/**
- * Generate a consistent color for a user based on their ID
- */
-function getUserColor(userId: string): string {
-  const colors = [
-    '#FF6B6B', // Red
-    '#4ECDC4', // Teal
-    '#45B7D1', // Blue
-    '#FFA07A', // Light Salmon
-    '#98D8C8', // Mint
-    '#F7DC6F', // Yellow
-    '#BB8FCE', // Purple
-    '#85C1E2', // Sky Blue
-    '#F8B739', // Orange
-    '#52B788', // Green
-  ]
-
-  let hash = 0
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-
-  const index = Math.abs(hash) % colors.length
-  return colors[index]
-}
