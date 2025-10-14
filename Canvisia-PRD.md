@@ -928,7 +928,6 @@ Based on project guidance and pitfalls for real-time newcomers:
 - [ ] Firebase project set up?
 - [ ] Claude API key obtained?
 - [ ] GitHub repo created?
-- [ ] Vercel account ready?
 - [ ] Development environment ready (Node, npm/yarn)?
 
 ---

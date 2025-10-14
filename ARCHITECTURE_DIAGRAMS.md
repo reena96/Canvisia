@@ -15,9 +15,9 @@ graph TB
         AIPanel[AI Panel<br/>Natural Language Input]
     end
 
-    subgraph "Vercel Edge Network"
-        Static[Static Assets<br/>HTML/CSS/JS]
-        API[Serverless Functions<br/>/api/*]
+    subgraph "Firebase Platform"
+        Hosting[Firebase Hosting<br/>Static Assets]
+        Functions[Cloud Functions<br/>Node.js Runtime]
     end
 
     subgraph "Firebase Services"
@@ -34,8 +34,8 @@ graph TB
     UI --> AuthUI
     UI --> AIPanel
 
-    UI -->|Deploy| Static
-    Static -->|Serve| UI
+    UI -->|Deploy| Hosting
+    Hosting -->|Serve| UI
 
     AuthUI -->|Sign In/Out| Auth
     Auth -->|User Session| AuthUI
@@ -46,10 +46,10 @@ graph TB
     Canvas -->|Cursor Movement| RTDB
     RTDB -->|Other Users' Cursors| Canvas
 
-    AIPanel -->|Command| API
-    API -->|Function Calls| Claude
-    Claude -->|Actions| API
-    API -->|Execute| Firestore
+    AIPanel -->|Command| Functions
+    Functions -->|Function Calls| Claude
+    Claude -->|Actions| Functions
+    Functions -->|Execute| Firestore
 
     style UI fill:#61dafb
     style Canvas fill:#98d8f0
@@ -57,8 +57,8 @@ graph TB
     style Firestore fill:#ffca28
     style RTDB fill:#ffca28
     style Claude fill:#d4a373
-    style API fill:#000000
-    style Static fill:#000000
+    style Functions fill:#ffca28
+    style Hosting fill:#ffca28
 ```
 
 ---
@@ -229,7 +229,7 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant AIPanel
-    participant API Route
+    participant Cloud Function
     participant Firebase Auth
     participant Claude API
     participant Firestore
@@ -237,32 +237,32 @@ sequenceDiagram
 
     User->>AIPanel: Type "create a red circle"
     AIPanel->>AIPanel: Get Firebase Auth JWT
-    AIPanel->>API Route: POST /api/ai/execute-command<br/>Authorization: Bearer {JWT}
-    Note over API Route: Vercel Serverless Function
+    AIPanel->>Cloud Function: POST executeAICommand<br/>Authorization: Bearer {JWT}
+    Note over Cloud Function: Firebase Cloud Function
 
-    API Route->>Firebase Auth: Verify JWT token
-    Firebase Auth->>API Route: Token valid, return userId
+    Cloud Function->>Firebase Auth: Verify JWT token
+    Firebase Auth->>Cloud Function: Token valid, return userId
 
-    API Route->>API Route: Get canvas state from Firestore
-    API Route->>Claude API: Send prompt + canvas context
+    Cloud Function->>Cloud Function: Get canvas state from Firestore
+    Cloud Function->>Claude API: Send prompt + canvas context
     Note over Claude API: Function calling enabled<br/>API key server-side only
 
     Claude API->>Claude API: Parse intent
-    Claude API->>API Route: Return function call
-    Note over API Route: {function: "createShape",<br/>args: {type: "circle", color: "red"}}
+    Claude API->>Cloud Function: Return function call
+    Note over Cloud Function: {function: "createShape",<br/>args: {type: "circle", color: "red"}}
 
-    API Route->>Firestore: createShape() via Admin SDK
+    Cloud Function->>Firestore: createShape() via Admin SDK
     Note over Firestore: canvases/{id}/objects/{shapeId}
 
     Firestore-->>Canvas: onSnapshot() triggered
     Canvas->>Canvas: Render new circle
 
-    API Route->>AIPanel: Success response
+    Cloud Function->>AIPanel: Success response
     AIPanel->>User: Show "Created red circle ✓"
 
     Note over User,Canvas: AI-created object syncs<br/>to all users via Firestore
-    Note over API Route,Claude API: ✅ Claude API key never<br/>exposed to client
-    Note over API Route: Firebase Cloud Function<br/>no credential setup needed
+    Note over Cloud Function,Claude API: ✅ Claude API key never<br/>exposed to client
+    Note over Cloud Function: Firebase Cloud Function<br/>no credential setup needed
 ```
 
 ---
@@ -671,7 +671,7 @@ graph TB
     end
 
     subgraph "Server Side"
-        VercelFunc[Vercel Functions<br/>/api/*]
+        CloudFunc[Firebase Cloud Functions<br/>executeAICommand]
         SecretKeys[Secret Keys<br/>CLAUDE_API_KEY]
     end
 
@@ -694,12 +694,12 @@ graph TB
     ClientApp -->|Read/Write + JWT| RTDBRules
     RTDBRules -->|Validated| RTDB
 
-    ClientApp -->|POST /api/ai/command| VercelFunc
-    VercelFunc -->|API Key| ClaudeAPI
-    VercelFunc -->|Write as admin| Firestore
+    ClientApp -->|POST executeAICommand + JWT| CloudFunc
+    CloudFunc -->|API Key| ClaudeAPI
+    CloudFunc -->|Write as admin| Firestore
 
     PublicKeys -.->|Not secret| ClientApp
-    SecretKeys -.->|Protected| VercelFunc
+    SecretKeys -.->|Protected| CloudFunc
 
     style SecurityRules fill:#ff6b6b
     style RTDBRules fill:#ff6b6b
@@ -734,8 +734,9 @@ mindmap
         Realtime Database
         Firebase Auth
         Firebase Emulators dev
+        Cloud Functions
       Serverless
-        Vercel Functions
+        Firebase Cloud Functions
         Node.js runtime
     AI/ML
       Anthropic Claude
@@ -756,7 +757,7 @@ mindmap
         Git Hooks
       CI/CD
         GitHub Actions
-        Vercel Deploy
+        Firebase Deploy
       Security
         Environment Variables
         .gitignore
@@ -785,8 +786,8 @@ mindmap
 - **Why:** Cursor updates at 20/sec would cost $3.89/hour with Firestore, nearly free with RTDB
 
 ### 3. **Server-Side AI Processing**
-- **Pattern:** Client → Vercel Function → Claude API → Firestore
-- **Why:** Protects Claude API key, enables rate limiting, adds validation layer
+- **Pattern:** Client → Firebase Cloud Function → Claude API → Firestore
+- **Why:** Protects Claude API key, enables rate limiting, adds validation layer, native Firebase integration
 
 ### 4. **Optimistic Updates**
 - **Strategy:** Update local state immediately, sync to Firestore in background

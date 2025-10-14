@@ -2004,7 +2004,7 @@ collabcanvas/
     - Get Claude API key
     - Configure environment variables
     - Run locally
-    - Deploy to Vercel
+    - Deploy to Firebase Hosting
 
 - [ ] **18.7 Add screenshots to repo**
   - Files created:
@@ -2072,7 +2072,7 @@ collabcanvas/
 - [ ] **18.13 Final deployment**
   - Action:
     - Merge all PRs to main
-    - Verify Vercel auto-deploys
+    - Deploy with `firebase deploy`
     - Test deployed app one more time
     - Share link!
 
