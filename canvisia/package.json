@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "bash scripts/dev.sh",
     "dev:emulator": "firebase emulators:start --import=./.emulator-data --export-on-exit",
     "dev:with-emulators": "concurrently \"npm run dev:emulator\" \"npm run dev\"",
     "seed-users": "tsx scripts/seed-emulator-users.ts",

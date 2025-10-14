@@ -10,7 +10,7 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
 import { ShapeRenderer } from './ShapeRenderer'
 import { createDefaultRectangle } from '@/utils/shapeDefaults'
-import type { Shape } from '@/types/shapes'
+import { useFirestore } from '@/hooks/useFirestore'
 
 export function Canvas() {
   const stageRef = useRef<any>(null)
@@ -18,17 +18,21 @@ export function Canvas() {
   const updateViewport = useCanvasStore((state) => state.updateViewport)
   const { user } = useAuth()
 
-  // Local state for shapes and tools
-  const [shapes, setShapes] = useState<Shape[]>([])
+  // Local state for tools and selection
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
 
-  // Setup cursor tracking
+  // Setup canvas and user tracking
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
   const userId = user?.uid || ''
   const userName = user?.displayName || 'Anonymous'
   const userColor = getUserColor(userId)
+
+  // Setup cursor tracking
   const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
+
+  // Setup Firestore sync for shapes
+  const { shapes, createShape, updateShape } = useFirestore(canvasId)
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -82,7 +86,7 @@ export function Canvas() {
   }
 
   // Handle stage click for creating shapes
-  const handleStageClick = (e: KonvaEventObject<MouseEvent>) => {
+  const handleStageClick = async (e: KonvaEventObject<MouseEvent>) => {
     // If clicked on empty area
     const clickedOnEmpty = e.target === e.target.getStage()
 
@@ -103,7 +107,13 @@ export function Canvas() {
 
         // Create new rectangle at click position
         const newRect = createDefaultRectangle(canvasPos.x, canvasPos.y, userId)
-        setShapes((prev) => [...prev, newRect])
+
+        // Write to Firestore (will automatically sync back via subscription)
+        try {
+          await createShape(newRect)
+        } catch (error) {
+          console.error('Failed to create shape:', error)
+        }
       }
     }
   }
@@ -115,12 +125,13 @@ export function Canvas() {
   }
 
   // Handle shape drag
-  const handleShapeDrag = (shapeId: string, x: number, y: number) => {
-    setShapes((prev) =>
-      prev.map((shape) =>
-        shape.id === shapeId ? { ...shape, x, y } : shape
-      )
-    )
+  const handleShapeDrag = async (shapeId: string, x: number, y: number) => {
+    // Update in Firestore (will automatically sync back via subscription)
+    try {
+      await updateShape(shapeId, { x, y })
+    } catch (error) {
+      console.error('Failed to update shape position:', error)
+    }
   }
 
   // Generate grid lines
