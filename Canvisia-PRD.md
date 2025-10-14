@@ -437,7 +437,7 @@ service cloud.firestore {
 - Production-ready security for MVP deployment
 - Still "public via URL" - any authenticated user can access any canvas
 
-**AI:** Anthropic Claude API (via Vercel Functions)
+**AI:** Anthropic Claude API (via Firebase Cloud Functions)
 **Why:**
 - Excellent function calling support
 - Strong instruction following
@@ -446,72 +446,87 @@ service cloud.firestore {
 
 **AI Security Architecture:**
 ```
-Client → Vercel Function (with Firebase JWT)
-       → Verify Auth Token
+Client → Firebase Cloud Function (with Firebase JWT)
+       → Verify Auth Token (built-in Firebase context)
        → Claude API (API key hidden server-side)
        → Execute commands via Firestore Admin SDK
        → Return result to client
 ```
 
-**Vercel Function Pattern:**
+**Firebase Cloud Function Pattern:**
 ```typescript
-// /api/ai/execute-command.ts
-export default async function handler(req, res) {
-  // 1. Extract Firebase Auth token from header
+// functions/src/index.ts
+import * as functions from 'firebase-functions'
+import * as admin from 'firebase-admin'
+import Anthropic from '@anthropic-ai/sdk'
+
+admin.initializeApp() // No credentials needed!
+
+export const executeAICommand = functions.https.onRequest(async (req, res) => {
+  // 1. Verify Firebase Auth token
   const token = req.headers.authorization?.split('Bearer ')[1]
   if (!token) return res.status(401).json({ error: 'Unauthorized' })
 
   try {
-    // 2. Verify token with Firebase Admin SDK
+    // 2. Verify token (native Firebase Admin SDK)
     const decodedToken = await admin.auth().verifyIdToken(token)
     const userId = decodedToken.uid
 
-    // 3. Call Claude API (server-side, API key protected)
-    const aiResponse = await callClaude(req.body.command, req.body.canvasState)
+    // 3. Call Claude API (API key from Firebase config)
+    const anthropic = new Anthropic({
+      apiKey: functions.config().anthropic.api_key
+    })
+    const aiResponse = await anthropic.messages.create({...})
 
-    // 4. Execute AI commands as admin (bypasses Firestore security rules)
-    await executeAICommands(aiResponse, req.body.canvasId, userId)
+    // 4. Execute AI commands (native Firestore access)
+    await admin.firestore().collection('canvases').doc(req.body.canvasId)...
 
     return res.status(200).json({ success: true })
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' })
   }
-}
+})
 ```
 
-**Why server-side AI:**
+**Why Firebase Cloud Functions:**
 - ✅ Claude API key never exposed to client
+- ✅ Native Firebase integration (no credential setup)
 - ✅ Prevents abuse and cost overruns
 - ✅ Rate limiting per user possible
 - ✅ Can validate commands before executing
+- ✅ One platform (simpler than Vercel + Firebase)
 
 ### Deployment
-**Frontend:** Vercel
+**Frontend & Backend:** Firebase (Hosting + Cloud Functions)
 **Why:**
-- Zero-config deployment for React
-- Automatic HTTPS
-- Edge network for low latency
-- Excellent DX
-- Environment variables configured in Vercel dashboard (no `.env.production` file in repo)
-
-**Backend:** Firebase (fully managed)
+- ✅ One platform for everything (Hosting, Functions, Firestore, Auth)
+- ✅ Native integration (no credential setup for Functions)
+- ✅ Automatic HTTPS via Firebase Hosting
+- ✅ Global CDN for low latency
+- ✅ Simple deployment: `firebase deploy`
+- ✅ Generous free tier (10 GB storage, 2M function invocations/month)
 
 **Environment Variables:**
-- **Development:** `.env.local` (gitignored)
-- **Production:** Vercel Dashboard → Settings → Environment Variables
-  ```
+- **Development:** `.env.local` (gitignored, for Firebase config)
+- **Production Firebase Config:**
+  ```bash
+  # Client-side Firebase config (public, in code)
   VITE_FIREBASE_API_KEY=...
   VITE_FIREBASE_AUTH_DOMAIN=...
   VITE_FIREBASE_PROJECT_ID=...
-  ANTHROPIC_API_KEY=... (server-side only, NOT prefixed with VITE_)
+
+  # Server-side (Cloud Functions config - NOT in code)
+  firebase functions:config:set anthropic.api_key="sk-ant-..."
   ```
-- **Why no .env.production:** Security risk if accidentally committed to repo
+- **Why Firebase Functions Config:** Secrets stored server-side, accessed via `functions.config().anthropic.api_key`
+- **No `.env.production` file:** All config in Firebase Console or `firebase functions:config`
 
 ### Development Tools
 - TypeScript (type safety, better DX)
 - Zustand (state management)
 - Vitest + Testing Library (testing)
-- Firebase Emulator (local development & testing)
+- Firebase Emulators (local development for Auth, Firestore, RTDB, Functions)
+- Firebase CLI (deployment and function management)
 - ESLint + Prettier (code quality)
 - Git + GitHub (version control)
 
@@ -796,9 +811,9 @@ Based on project guidance and pitfalls for real-time newcomers:
 
 1. **Setup (2 hours)**
    - Initialize React + TypeScript project
-   - Set up Firebase (Firestore + Auth)
+   - Set up Firebase (Firestore + Auth + Hosting + Functions)
    - **Implement Firestore security rules** (authenticated users only)
-   - Deploy placeholder to Vercel
+   - Deploy placeholder to Firebase Hosting
    - Set up Google Sign-In authentication
    - Create `/canvas/new` route for canvas creation
 

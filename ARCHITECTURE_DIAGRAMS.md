@@ -262,6 +262,7 @@ sequenceDiagram
 
     Note over User,Canvas: AI-created object syncs<br/>to all users via Firestore
     Note over API Route,Claude API: ✅ Claude API key never<br/>exposed to client
+    Note over API Route: Firebase Cloud Function<br/>no credential setup needed
 ```
 
 ---
@@ -430,22 +431,21 @@ graph TB
     subgraph "Development"
         Dev[Developer Machine<br/>npm run dev]
         DevEnv[.env.local<br/>Local secrets]
-        Emulator[Firebase Emulators<br/>Auth, Firestore, RTDB]
+        Emulator[Firebase Emulators<br/>Auth, Firestore, RTDB, Functions]
     end
 
     subgraph "Version Control"
         GitHub[GitHub Repository<br/>github.com/reena96/Canvisia]
-        Actions[GitHub Actions<br/>CI/CD Pipeline]
     end
 
-    subgraph "Vercel Platform"
-        VercelBuild[Build Process<br/>Vite build]
-        VercelDeploy[Deploy to Edge<br/>Global CDN]
-        VercelEnv[Environment Variables<br/>Production secrets]
-        VercelFunc[Serverless Functions<br/>/api/* routes]
+    subgraph "Firebase Platform"
+        Build[Build Process<br/>Vite build]
+        Hosting[Firebase Hosting<br/>Global CDN]
+        Functions[Cloud Functions<br/>Node.js runtime]
+        FunctionsConfig[Functions Config<br/>Secrets via Firebase CLI]
     end
 
-    subgraph "Production Firebase"
+    subgraph "Production Firebase Services"
         ProdAuth[Firebase Auth<br/>Production]
         ProdFirestore[Cloud Firestore<br/>Production]
         ProdRTDB[Realtime Database<br/>Production]
@@ -463,32 +463,35 @@ graph TB
     end
 
     Dev -->|git push| GitHub
-    GitHub -->|webhook| Actions
-    Actions -->|deploy| VercelBuild
-    VercelBuild --> VercelDeploy
-    VercelDeploy --> VercelFunc
+    GitHub -->|firebase deploy| Build
+    Build --> Hosting
+    Build --> Functions
 
     Dev --> Emulator
     DevEnv --> Dev
 
-    VercelEnv --> VercelFunc
+    FunctionsConfig --> Functions
 
-    Browser1 -->|HTTPS| VercelDeploy
-    Browser2 -->|HTTPS| VercelDeploy
-    Browser3 -->|HTTPS| VercelDeploy
+    Browser1 -->|HTTPS| Hosting
+    Browser2 -->|HTTPS| Hosting
+    Browser3 -->|HTTPS| Hosting
 
-    VercelDeploy -->|static assets| Browser1
-    VercelFunc --> ProdClaude
+    Hosting -->|static assets| Browser1
+    Browser1 -->|API calls| Functions
+    Functions --> ProdClaude
 
     Browser1 --> ProdAuth
     Browser1 --> ProdFirestore
     Browser1 --> ProdRTDB
+    Functions --> ProdAuth
+    Functions --> ProdFirestore
 
     ProdAuth --> GoogleOAuth
 
     style Dev fill:#98d8f0
     style GitHub fill:#333333
-    style VercelDeploy fill:#000000
+    style Hosting fill:#ffca28
+    style Functions fill:#ffca28
     style ProdAuth fill:#ffca28
     style ProdClaude fill:#d4a373
 ```

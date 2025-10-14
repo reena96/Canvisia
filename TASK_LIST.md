@@ -775,7 +775,7 @@ collabcanvas/
 
 ### PR #8: Deployment & MVP Verification
 
-**Goal:** Deploy to Vercel and verify MVP requirements
+**Goal:** Deploy to Firebase Hosting and verify MVP requirements
 
 **Branch:** `feature/deployment`
 
@@ -788,22 +788,23 @@ collabcanvas/
     - Verify RTDB rules require authentication (from PR #2)
   - **NOTE:** Security rules should already be deployed from PR #2!
 
-- [ ] **8.2 Set up Vercel project**
-  - Action: Go to Vercel.com
-    - Import GitHub repo
-    - Configure build settings (Vite)
-    - Add environment variables
-
-- [ ] **8.3 Configure Vercel deployment**
+- [ ] **8.2 Configure Firebase Hosting**
   - Files created:
-    - `vercel.json` (optional, for SPA routing)
+    - `firebase.json` (hosting config)
+    - `.firebaserc` (project config)
   - Content:
-    - Redirect all routes to index.html
+    - Configure rewrites for SPA routing (redirect all to index.html)
+    - Set public directory to `dist` (Vite output)
 
-- [ ] **8.4 Deploy to Vercel**
-  - Action: Push to main branch (or trigger deploy)
+- [ ] **8.3 Build production bundle**
+  - Action: Run `npm run build`
+  - Verify dist/ folder created
+  - Check bundle size
+
+- [ ] **8.4 Deploy to Firebase Hosting**
+  - Action: Run `firebase deploy --only hosting`
   - Verify deployment succeeds
-  - Get public URL
+  - Get public URL (e.g., canvisia.web.app)
 
 - [ ] **8.5 Test deployed app**
   - Action: Open deployed URL
@@ -848,12 +849,12 @@ collabcanvas/
     - [ ] Deployed and publicly accessible
 
 **Files Created/Modified:**
-- Created: `vercel.json`, `MVP_CHECKLIST.md`
+- Created: `firebase.json`, `.firebaserc`, `MVP_CHECKLIST.md`
 - Modified: `README.md`
 
 **Acceptance Criteria:**
-- [ ] App is deployed at public URL
-- [ ] Environment variables configured in Vercel dashboard (no .env.production file)
+- [ ] App is deployed at public Firebase Hosting URL
+- [ ] Firebase Hosting configured for SPA routing
 - [ ] All MVP requirements verified and working
 - [ ] **Security rules already deployed** (from PR #2)
 - [ ] Security tested: unauthenticated access denied
@@ -1288,36 +1289,49 @@ collabcanvas/
 
 ### PR #13: AI Integration - Basic Setup with Security
 
-**Goal:** Set up Claude API with server-side execution and Firebase Auth verification
+**Goal:** Set up Claude API with Firebase Cloud Functions and Firebase Auth verification
 
 **Branch:** `feature/ai-setup`
 
 **Dependencies:** PR #1-12
 
-**⚠️ CRITICAL: AI commands MUST go through Vercel Functions with Firebase Auth verification!**
+**⚠️ CRITICAL: AI commands MUST go through Firebase Cloud Functions with Firebase Auth verification!**
 
 #### Subtasks:
-- [ ] **13.1 Install Anthropic SDK and Firebase Admin**
-  - Run: `npm install @anthropic-ai/sdk firebase-admin`
-  - Files modified: `package.json`
+- [ ] **13.1 Initialize Firebase Functions**
+  - Run: `firebase init functions`
+  - Select TypeScript
+  - Files created: `functions/` directory
+  - Install dependencies in functions/
 
-- [ ] **13.2 Add Claude API key to environment (server-side only)**
-  - Files modified:
-    - `.env.local` (add ANTHROPIC_API_KEY - NOT prefixed with VITE_)
-    - `.env.example` (add placeholder)
-  - Action: Get API key from Anthropic Console
+- [ ] **13.2 Install Anthropic SDK in Cloud Functions**
+  - Run: `cd functions && npm install @anthropic-ai/sdk`
+  - Files modified: `functions/package.json`
+  - **NOTE:** firebase-admin is already installed by default
+
+- [ ] **13.3 Configure Claude API key (server-side only)**
+  - Action: Set Firebase Functions config
+    ```bash
+    firebase functions:config:set anthropic.api_key="sk-ant-..."
+    ```
   - **NOTE:** Client-side code should NEVER access Claude API directly
-  - Add to Vercel Dashboard: Environment Variables → ANTHROPIC_API_KEY
+  - Access in code via: `functions.config().anthropic.api_key`
 
-- [ ] **13.3 Create Vercel Function for AI commands**
+- [ ] **13.4 Create Firebase Cloud Function for AI commands**
   - Files created:
-    - `api/ai/execute-command.ts`
+    - `functions/src/index.ts`
   - Content:
     ```typescript
-    import { Anthropic } from '@anthropic-ai/sdk'
+    import * as functions from 'firebase-functions'
     import * as admin from 'firebase-admin'
+    import Anthropic from '@anthropic-ai/sdk'
 
-    export default async function handler(req, res) {
+    admin.initializeApp() // No credentials needed!
+
+    export const executeAICommand = functions.https.onRequest(async (req, res) => {
+      // Enable CORS
+      res.set('Access-Control-Allow-Origin', '*')
+
       // 1. Verify Firebase Auth token
       const token = req.headers.authorization?.split('Bearer ')[1]
       if (!token) return res.status(401).json({ error: 'Unauthorized' })
@@ -1327,7 +1341,9 @@ collabcanvas/
         const userId = decodedToken.uid
 
         // 2. Call Claude API
-        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+        const anthropic = new Anthropic({
+          apiKey: functions.config().anthropic.api_key
+        })
         const response = await anthropic.messages.create({
           model: 'claude-3-5-sonnet-20241022',
           max_tokens: 1024,
@@ -1342,10 +1358,10 @@ collabcanvas/
       } catch (error) {
         return res.status(401).json({ error: 'Invalid token' })
       }
-    }
+    })
     ```
 
-- [ ] **13.4 Define AI types**
+- [ ] **13.5 Define AI types**
   - Files created:
     - `src/types/ai.ts`
   - Content:
@@ -1353,7 +1369,7 @@ collabcanvas/
     - `AIFunctionCall` type
     - Tool schemas
 
-- [ ] **13.5 Create function calling schemas**
+- [ ] **13.6 Create function calling schemas**
   - Files modified:
     - `src/services/claude.ts`
   - Content:
@@ -1361,7 +1377,7 @@ collabcanvas/
     - JSON schema for each function
     - Match Claude's function calling format
 
-- [ ] **13.6 Create AIPanel component**
+- [ ] **13.7 Create AIPanel component**
   - Files created:
     - `src/components/ai/AIPanel.tsx`
   - Content:
@@ -1369,7 +1385,7 @@ collabcanvas/
     - Shows AI chat interface
     - Open/close button
 
-- [ ] **13.7 Create AIInput component**
+- [ ] **13.8 Create AIInput component**
   - Files created:
     - `src/components/ai/AIInput.tsx`
   - Content:
@@ -1377,7 +1393,7 @@ collabcanvas/
     - Send button
     - Show recent commands (history)
 
-- [ ] **13.8 Create AIStatusIndicator component**
+- [ ] **13.9 Create AIStatusIndicator component**
   - Files created:
     - `src/components/ai/AIStatusIndicator.tsx`
   - Content:
@@ -1385,7 +1401,7 @@ collabcanvas/
     - Shows errors
     - Shows success messages
 
-- [ ] **13.9 Create useAI hook (client-side)**
+- [ ] **13.10 Create useAI hook (client-side)**
   - Files created:
     - `src/hooks/useAI.ts`
   - Content:
@@ -1394,8 +1410,9 @@ collabcanvas/
       // Get Firebase Auth token
       const token = await auth.currentUser?.getIdToken()
 
-      // Call Vercel Function
-      const response = await fetch('/api/ai/execute-command', {
+      // Call Firebase Cloud Function
+      const functionUrl = 'https://us-central1-YOUR_PROJECT.cloudfunctions.net/executeAICommand'
+      const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1414,20 +1431,25 @@ collabcanvas/
   - Parse function calls from response
   - Handle errors with clear messages
 
-- [ ] **13.10 Integrate AI panel into app**
+- [ ] **13.11 Deploy Cloud Functions**
+  - Action: Run `firebase deploy --only functions`
+  - Get Cloud Function URL
+  - Test function with curl
+
+- [ ] **13.12 Integrate AI panel into app**
   - Files modified:
     - `src/App.tsx`
   - Content:
     - Render AIPanel
     - Connect useAI hook
 
-- [ ] **13.11 Test AI security**
+- [ ] **13.13 Test AI security**
   - Action:
-    - Try calling `/api/ai/execute-command` without auth token (should fail with 401)
+    - Try calling Cloud Function without auth token (should fail with 401)
     - Sign in and send AI command
     - Verify token is validated server-side
 
-- [ ] **13.12 Test basic AI flow**
+- [ ] **13.14 Test basic AI flow**
   - Action:
     - Open AI panel
     - Type "hello"
@@ -1436,18 +1458,20 @@ collabcanvas/
     - Verify no Claude API key exposed in client code
 
 **Files Created/Modified:**
-- Created: `api/ai/execute-command.ts`, `src/types/ai.ts`, `src/components/ai/AIPanel.tsx`, `src/components/ai/AIInput.tsx`, `src/components/ai/AIStatusIndicator.tsx`, `src/hooks/useAI.ts`
-- Modified: `.env.local`, `.env.example`, `package.json`, `src/App.tsx`
+- Created: `functions/src/index.ts`, `functions/package.json`, `src/types/ai.ts`, `src/components/ai/AIPanel.tsx`, `src/components/ai/AIInput.tsx`, `src/components/ai/AIStatusIndicator.tsx`, `src/hooks/useAI.ts`
+- Modified: `package.json`, `src/App.tsx`
 
 **Acceptance Criteria:**
-- [ ] Claude API integration works via Vercel Function
-- [ ] Firebase Auth token verified server-side
-- [ ] **Claude API key NEVER exposed to client**
+- [ ] Firebase Cloud Functions deployed successfully
+- [ ] Claude API integration works via Cloud Function
+- [ ] Firebase Auth token verified server-side (native Admin SDK)
+- [ ] **Claude API key NEVER exposed to client** (stored in Firebase config)
 - [ ] Unauthenticated requests rejected with 401
 - [ ] AI panel displays and opens/closes
 - [ ] Can send messages to Claude (authenticated users only)
 - [ ] Function calling schemas defined
 - [ ] No errors in console
+- [ ] **No Firebase Admin credential setup needed** (native integration)
 
 ---
 
