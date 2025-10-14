@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Stage, Layer, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
@@ -7,12 +7,21 @@ import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
 import { CursorOverlay } from './CursorOverlay'
 import { useCursors } from '@/hooks/useCursors'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { Toolbar, type Tool } from './Toolbar'
+import { ShapeRenderer } from './ShapeRenderer'
+import { createDefaultRectangle } from '@/utils/shapeDefaults'
+import type { Shape } from '@/types/shapes'
 
 export function Canvas() {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
   const { user } = useAuth()
+
+  // Local state for shapes and tools
+  const [shapes, setShapes] = useState<Shape[]>([])
+  const [selectedTool, setSelectedTool] = useState<Tool>('select')
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
 
   // Setup cursor tracking
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
@@ -72,6 +81,48 @@ export function Canvas() {
     updateCursor(canvasPos.x, canvasPos.y)
   }
 
+  // Handle stage click for creating shapes
+  const handleStageClick = (e: KonvaEventObject<MouseEvent>) => {
+    // If clicked on empty area
+    const clickedOnEmpty = e.target === e.target.getStage()
+
+    if (clickedOnEmpty) {
+      // Deselect shape
+      setSelectedShapeId(null)
+
+      // Create new shape if tool is selected
+      if (selectedTool === 'rectangle') {
+        const stage = stageRef.current
+        if (!stage) return
+
+        const pointerPosition = stage.getPointerPosition()
+        if (!pointerPosition) return
+
+        // Convert screen coordinates to canvas coordinates
+        const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+
+        // Create new rectangle at click position
+        const newRect = createDefaultRectangle(canvasPos.x, canvasPos.y, userId)
+        setShapes((prev) => [...prev, newRect])
+      }
+    }
+  }
+
+  // Handle shape selection
+  const handleShapeSelect = (shapeId: string) => {
+    setSelectedShapeId(shapeId)
+    setSelectedTool('select')
+  }
+
+  // Handle shape drag
+  const handleShapeDrag = (shapeId: string, x: number, y: number) => {
+    setShapes((prev) =>
+      prev.map((shape) =>
+        shape.id === shapeId ? { ...shape, x, y } : shape
+      )
+    )
+  }
+
   // Generate grid lines
   const renderGrid = () => {
     const gridSize = 50 // 50px grid
@@ -108,6 +159,9 @@ export function Canvas() {
 
   return (
     <div style={{ width: '100%', height: '100vh', overflow: 'hidden' }}>
+      {/* Toolbar */}
+      <Toolbar selectedTool={selectedTool} onToolSelect={setSelectedTool} />
+
       <Stage
         ref={stageRef}
         width={window.innerWidth}
@@ -120,6 +174,7 @@ export function Canvas() {
         onWheel={handleWheel}
         onDragEnd={handleDragEnd}
         onMouseMove={handleMouseMove}
+        onClick={handleStageClick}
       >
         <Layer>
           {/* Canvas background */}
@@ -135,7 +190,16 @@ export function Canvas() {
           {/* Grid */}
           {renderGrid()}
 
-          {/* Shapes will be rendered here in later PRs */}
+          {/* Render shapes */}
+          {shapes.map((shape) => (
+            <ShapeRenderer
+              key={shape.id}
+              shape={shape}
+              isSelected={shape.id === selectedShapeId}
+              onSelect={() => handleShapeSelect(shape.id)}
+              onDragEnd={(x, y) => handleShapeDrag(shape.id, x, y)}
+            />
+          ))}
         </Layer>
       </Stage>
 
