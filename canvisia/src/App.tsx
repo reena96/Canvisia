@@ -1,10 +1,45 @@
-function App() {
+import { AuthProvider, useAuth } from './components/auth/AuthProvider'
+import { LoginButton } from './components/auth/LoginButton'
+import { Header } from './components/layout/Header'
+import { Canvas } from './components/canvas/Canvas'
+import { CanvasControls } from './components/canvas/CanvasControls'
+
+function AppContent() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <h1>Canvisia</h1>
+        <p>Real-time collaborative design tool</p>
+        <LoginButton />
+      </div>
+    )
+  }
+
   return (
-    <div className="app">
-      <h1>Canvisia</h1>
-      <p>Real-time collaborative design tool</p>
+    <div className="app" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+      <Header />
+      <Canvas />
+      <CanvasControls />
     </div>
-  );
+  )
 }
 
-export default App;
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}
+
+export default App
