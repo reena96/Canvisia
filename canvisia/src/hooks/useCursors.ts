@@ -38,6 +38,11 @@ export function useCursors(
 
   // Subscribe to cursor updates and setup cleanup
   useEffect(() => {
+    // Guard: don't setup cursors if userId is not available
+    if (!canvasId || !userId) {
+      return
+    }
+
     // Setup automatic cleanup on disconnect
     void setupCursorCleanup(canvasId, userId)
 
