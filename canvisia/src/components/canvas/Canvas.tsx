@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useMemo, useCallback } from 'react'
 import { Stage, Layer, Line, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
@@ -12,6 +12,8 @@ import { ShapeRenderer } from './ShapeRenderer'
 import { createDefaultRectangle } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
+import { throttle } from '@/utils/throttle'
+import type { Shape } from '@/types/shapes'
 
 export function Canvas() {
   const stageRef = useRef<any>(null)
@@ -23,6 +25,9 @@ export function Canvas() {
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
 
+  // Optimistic updates: store local shape updates that haven't synced to Firestore yet
+  const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
+
   // Setup canvas and user tracking
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
   const userId = user?.uid || ''
@@ -33,7 +38,49 @@ export function Canvas() {
   const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
 
   // Setup Firestore sync for shapes
-  const { shapes, createShape, updateShape } = useFirestore(canvasId)
+  const { shapes: firestoreShapes, createShape, updateShape } = useFirestore(canvasId)
+
+  // Merge Firestore shapes with local optimistic updates
+  const shapes = useMemo(() => {
+    return firestoreShapes.map((shape) => ({
+      ...shape,
+      ...(localShapeUpdates[shape.id] || {}),
+    }))
+  }, [firestoreShapes, localShapeUpdates])
+
+  // Throttled Firestore update function (10-20 updates per second)
+  // Using 50ms = 20 updates/sec, 100ms = 10 updates/sec
+  const updateShapeThrottled = useMemo(
+    () =>
+      throttle((shapeId: string, updates: Partial<Shape>) => {
+        updateShape(shapeId, updates).catch((error) => {
+          console.error('Throttled shape update failed:', error)
+        })
+      }, 50), // 20 updates per second
+    [updateShape]
+  )
+
+  // Optimistic local update (immediate UI feedback)
+  const updateShapeLocal = useCallback((shapeId: string, updates: Partial<Shape>) => {
+    setLocalShapeUpdates((prev) => ({
+      ...prev,
+      [shapeId]: { ...(prev[shapeId] || {}), ...updates },
+    }))
+  }, [])
+
+  // Clear local updates when Firestore syncs back
+  useMemo(() => {
+    // When firestoreShapes change, clear local updates for those shapes
+    setLocalShapeUpdates((prev) => {
+      const updated = { ...prev }
+      firestoreShapes.forEach((shape) => {
+        if (updated[shape.id]) {
+          delete updated[shape.id]
+        }
+      })
+      return updated
+    })
+  }, [firestoreShapes])
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -125,15 +172,43 @@ export function Canvas() {
     setSelectedTool('select')
   }
 
-  // Handle shape drag
-  const handleShapeDrag = async (shapeId: string, x: number, y: number) => {
-    // Update in Firestore (will automatically sync back via subscription)
-    try {
-      await updateShape(shapeId, { x, y })
-    } catch (error) {
-      console.error('Failed to update shape position:', error)
-    }
-  }
+  // Handle shape drag move (optimistic + throttled)
+  const handleShapeDragMove = useCallback(
+    (shapeId: string, x: number, y: number) => {
+      // Optimistic: update local state immediately for instant feedback
+      updateShapeLocal(shapeId, { x, y })
+
+      // Throttled: sync to Firestore (max 20 updates/sec)
+      updateShapeThrottled(shapeId, { x, y })
+
+      // Update cursor position during drag (since event bubbling is prevented)
+      const stage = stageRef.current
+      if (stage && user) {
+        const pointerPosition = stage.getPointerPosition()
+        if (pointerPosition) {
+          const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+          updateCursor(canvasPos.x, canvasPos.y)
+        }
+      }
+    },
+    [updateShapeLocal, updateShapeThrottled, user, viewport, updateCursor]
+  )
+
+  // Handle shape drag end (ensure final position is persisted)
+  const handleShapeDragEnd = useCallback(
+    async (shapeId: string, x: number, y: number) => {
+      // Update local state
+      updateShapeLocal(shapeId, { x, y })
+
+      // Send final position to Firestore (not throttled)
+      try {
+        await updateShape(shapeId, { x, y })
+      } catch (error) {
+        console.error('Failed to update shape position:', error)
+      }
+    },
+    [updateShape, updateShapeLocal]
+  )
 
   // Generate grid lines
   const renderGrid = () => {
@@ -209,7 +284,8 @@ export function Canvas() {
               shape={shape}
               isSelected={shape.id === selectedShapeId}
               onSelect={() => handleShapeSelect(shape.id)}
-              onDragEnd={(x, y) => handleShapeDrag(shape.id, x, y)}
+              onDragMove={(x, y) => handleShapeDragMove(shape.id, x, y)}
+              onDragEnd={(x, y) => handleShapeDragEnd(shape.id, x, y)}
             />
           ))}
         </Layer>

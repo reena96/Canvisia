@@ -5,22 +5,31 @@ interface ShapeRendererProps {
   shape: Shape
   isSelected?: boolean
   onSelect?: () => void
+  onDragMove?: (x: number, y: number) => void
   onDragEnd?: (x: number, y: number) => void
 }
 
-export function ShapeRenderer({ shape, isSelected, onSelect, onDragEnd }: ShapeRendererProps) {
-  const handleDragEnd = (e: any) => {
-    e.cancelBubble = true // Prevent event from bubbling to Stage
-    const node = e.target
-    onDragEnd?.(node.x(), node.y())
-  }
-
+export function ShapeRenderer({
+  shape,
+  isSelected,
+  onSelect,
+  onDragMove,
+  onDragEnd,
+}: ShapeRendererProps) {
   const handleDragStart = (e: any) => {
     e.cancelBubble = true // Prevent Stage from dragging while shape is being dragged
   }
 
   const handleDragMove = (e: any) => {
     e.cancelBubble = true // Prevent Stage from dragging during shape drag
+    const node = e.target
+    onDragMove?.(node.x(), node.y())
+  }
+
+  const handleDragEnd = (e: any) => {
+    e.cancelBubble = true // Prevent event from bubbling to Stage
+    const node = e.target
+    onDragEnd?.(node.x(), node.y())
   }
 
   switch (shape.type) {
