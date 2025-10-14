@@ -1,5 +1,5 @@
 // Firebase Configuration
-// This will be filled in PR #2 after creating Firebase project
+// Get config from environment variables (Vite uses VITE_ prefix)
 
 export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -8,10 +8,17 @@ export const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+}
 
-// Firebase will be initialized in PR #2
-// export const app = initializeApp(firebaseConfig);
-// export const auth = getAuth(app);
-// export const firestore = getFirestore(app);
-// export const rtdb = getDatabase(app);
+// Validate config
+export function validateFirebaseConfig() {
+  const required = ['apiKey', 'authDomain', 'projectId', 'appId']
+  const missing = required.filter((key) => !firebaseConfig[key as keyof typeof firebaseConfig])
+
+  if (missing.length > 0) {
+    console.error('Missing Firebase config:', missing)
+    return false
+  }
+  return true
+}

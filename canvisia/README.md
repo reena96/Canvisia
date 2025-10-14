@@ -73,6 +73,10 @@ Canvisia enables multiple users to work simultaneously on a shared canvas with r
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build locally
 - `npm run lint` - Run ESLint
+- `npm test` - Run tests in watch mode
+- `npm run test:ui` - Run tests with UI
+- `npm run test:coverage` - Run tests with coverage report
+- `npm run emulators` - Start Firebase emulators (for integration testing)
 
 ## Project Structure
 
