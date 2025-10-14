@@ -52,7 +52,10 @@ export function useCursors(
     // Cleanup on unmount
     return () => {
       unsubscribe()
-      removeCursor(canvasId, userId)
+      // Try to remove cursor on unmount, but don't fail if permission denied
+      removeCursor(canvasId, userId).catch((error) => {
+        console.debug('Manual cursor cleanup failed (onDisconnect will handle it):', error)
+      })
     }
   }, [canvasId, userId])
 

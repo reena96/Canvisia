@@ -6,10 +6,10 @@ import type { CursorPosition } from '@/types/user'
 
 // Mock the RTDB service
 vi.mock('@/services/rtdb', () => ({
-  updateCursorPosition: vi.fn(),
+  updateCursorPosition: vi.fn().mockResolvedValue(undefined),
   subscribeToCursors: vi.fn(),
-  setupCursorCleanup: vi.fn(),
-  removeCursor: vi.fn(),
+  setupCursorCleanup: vi.fn().mockResolvedValue(undefined),
+  removeCursor: vi.fn().mockResolvedValue(undefined),
 }))
 
 describe('useCursors', () => {
