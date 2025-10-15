@@ -78,7 +78,9 @@ export function ShapeRenderer({
       return (
         <KonvaLine
           id={shape.id}
-          points={[shape.x, shape.y, shape.x2, shape.y2]}
+          x={shape.x}
+          y={shape.y}
+          points={[0, 0, shape.x2 - shape.x, shape.y2 - shape.y]}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? shape.strokeWidth + 1 : shape.strokeWidth}
           rotation={shape.rotation}
