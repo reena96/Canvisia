@@ -15,6 +15,10 @@ import {
   createDefaultCircle,
   createDefaultLine,
   createDefaultText,
+  createDefaultTriangle,
+  createDefaultPentagon,
+  createDefaultHexagon,
+  createDefaultStar,
 } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
@@ -302,6 +306,18 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
             break
           case 'text':
             newShape = createDefaultText(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'triangle':
+            newShape = createDefaultTriangle(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'pentagon':
+            newShape = createDefaultPentagon(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'hexagon':
+            newShape = createDefaultHexagon(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'star':
+            newShape = createDefaultStar(canvasPos.x, canvasPos.y, userId, userColor)
             break
         }
 

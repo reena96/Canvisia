@@ -1,4 +1,4 @@
-import { Rect, Circle as KonvaCircle, Line as KonvaLine, Text as KonvaText } from 'react-konva'
+import { Rect, Circle as KonvaCircle, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar } from 'react-konva'
 import type { Shape } from '@/types/shapes'
 
 interface ShapeRendererProps {
@@ -103,6 +103,91 @@ export function ShapeRenderer({
           fontSize={shape.fontSize}
           fontFamily={shape.fontFamily || 'Arial'}
           fill={isSelected ? '#3B82F6' : shape.fill}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        />
+      )
+
+    case 'triangle':
+      return (
+        <RegularPolygon
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          sides={3}
+          radius={shape.radius}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        />
+      )
+
+    case 'pentagon':
+      return (
+        <RegularPolygon
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          sides={5}
+          radius={shape.radius}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        />
+      )
+
+    case 'hexagon':
+      return (
+        <RegularPolygon
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          sides={6}
+          radius={shape.radius}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        />
+      )
+
+    case 'star':
+      return (
+        <KonvaStar
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          numPoints={shape.numPoints}
+          innerRadius={shape.innerRadius}
+          outerRadius={shape.outerRadius}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
           draggable
           onClick={onSelect}

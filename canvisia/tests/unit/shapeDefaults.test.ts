@@ -4,6 +4,10 @@ import {
   createDefaultCircle,
   createDefaultLine,
   createDefaultText,
+  createDefaultTriangle,
+  createDefaultPentagon,
+  createDefaultHexagon,
+  createDefaultStar,
 } from '@/utils/shapeDefaults'
 
 describe('Shape Defaults', () => {
@@ -156,6 +160,108 @@ describe('Shape Defaults', () => {
       const text = createDefaultText(0, 0)
       expect(text.createdBy).toBeDefined()
       expect(text.updatedAt).toBeDefined()
+    })
+  })
+
+  describe('createDefaultTriangle', () => {
+    it('should create triangle with correct position', () => {
+      const triangle = createDefaultTriangle(100, 200)
+      expect(triangle.x).toBe(100)
+      expect(triangle.y).toBe(200)
+    })
+
+    it('should create triangle with default radius', () => {
+      const triangle = createDefaultTriangle(0, 0)
+      expect(triangle.radius).toBe(50)
+    })
+
+    it('should create triangle with green color', () => {
+      const triangle = createDefaultTriangle(0, 0)
+      expect(triangle.fill).toBe('#10B981') // Green
+    })
+
+    it('should set type to triangle', () => {
+      const triangle = createDefaultTriangle(0, 0)
+      expect(triangle.type).toBe('triangle')
+    })
+  })
+
+  describe('createDefaultPentagon', () => {
+    it('should create pentagon with correct position', () => {
+      const pentagon = createDefaultPentagon(100, 200)
+      expect(pentagon.x).toBe(100)
+      expect(pentagon.y).toBe(200)
+    })
+
+    it('should create pentagon with default radius', () => {
+      const pentagon = createDefaultPentagon(0, 0)
+      expect(pentagon.radius).toBe(50)
+    })
+
+    it('should create pentagon with purple color', () => {
+      const pentagon = createDefaultPentagon(0, 0)
+      expect(pentagon.fill).toBe('#8B5CF6') // Purple
+    })
+
+    it('should set type to pentagon', () => {
+      const pentagon = createDefaultPentagon(0, 0)
+      expect(pentagon.type).toBe('pentagon')
+    })
+  })
+
+  describe('createDefaultHexagon', () => {
+    it('should create hexagon with correct position', () => {
+      const hexagon = createDefaultHexagon(100, 200)
+      expect(hexagon.x).toBe(100)
+      expect(hexagon.y).toBe(200)
+    })
+
+    it('should create hexagon with default radius', () => {
+      const hexagon = createDefaultHexagon(0, 0)
+      expect(hexagon.radius).toBe(50)
+    })
+
+    it('should create hexagon with orange color', () => {
+      const hexagon = createDefaultHexagon(0, 0)
+      expect(hexagon.fill).toBe('#F59E0B') // Orange
+    })
+
+    it('should set type to hexagon', () => {
+      const hexagon = createDefaultHexagon(0, 0)
+      expect(hexagon.type).toBe('hexagon')
+    })
+  })
+
+  describe('createDefaultStar', () => {
+    it('should create star with correct position', () => {
+      const star = createDefaultStar(100, 200)
+      expect(star.x).toBe(100)
+      expect(star.y).toBe(200)
+    })
+
+    it('should create star with default outer radius', () => {
+      const star = createDefaultStar(0, 0)
+      expect(star.outerRadius).toBe(50)
+    })
+
+    it('should create star with default inner radius', () => {
+      const star = createDefaultStar(0, 0)
+      expect(star.innerRadius).toBe(25)
+    })
+
+    it('should create 5-pointed star', () => {
+      const star = createDefaultStar(0, 0)
+      expect(star.numPoints).toBe(5)
+    })
+
+    it('should create star with yellow color', () => {
+      const star = createDefaultStar(0, 0)
+      expect(star.fill).toBe('#FBBF24') // Yellow
+    })
+
+    it('should set type to star', () => {
+      const star = createDefaultStar(0, 0)
+      expect(star.type).toBe('star')
     })
   })
 })

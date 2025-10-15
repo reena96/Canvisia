@@ -1,7 +1,7 @@
 // Shape Types
 export interface BaseShape {
   id: string;
-  type: 'rectangle' | 'circle' | 'line' | 'text';
+  type: 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star';
   x: number;
   y: number;
   createdBy: string;
@@ -43,4 +43,38 @@ export interface Text extends BaseShape {
   fill: string;
 }
 
-export type Shape = Rectangle | Circle | Line | Text;
+export interface Triangle extends BaseShape {
+  type: 'triangle';
+  radius: number; // Size (distance from center to vertex)
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface Pentagon extends BaseShape {
+  type: 'pentagon';
+  radius: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface Hexagon extends BaseShape {
+  type: 'hexagon';
+  radius: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface Star extends BaseShape {
+  type: 'star';
+  outerRadius: number;
+  innerRadius: number;
+  numPoints: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export type Shape = Rectangle | Circle | Line | Text | Triangle | Pentagon | Hexagon | Star;

@@ -1,4 +1,4 @@
-import type { Rectangle, Circle, Line, Text } from '@/types/shapes'
+import type { Rectangle, Circle, Line, Text, Triangle, Pentagon, Hexagon, Star } from '@/types/shapes'
 
 /**
  * Creates a default rectangle shape with specified position
@@ -102,6 +102,112 @@ export function createDefaultText(
     y,
     text: 'Double-click to edit',
     fontSize: 16,
+    fill: color,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default triangle shape with specified position
+ * @param x - X coordinate (center)
+ * @param y - Y coordinate (center)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the triangle (optional, defaults to green)
+ * @returns Triangle shape with default properties
+ */
+export function createDefaultTriangle(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#10B981'
+): Triangle {
+  return {
+    id: crypto.randomUUID(),
+    type: 'triangle',
+    x,
+    y,
+    radius: 50,
+    fill: color,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default pentagon shape with specified position
+ * @param x - X coordinate (center)
+ * @param y - Y coordinate (center)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the pentagon (optional, defaults to purple)
+ * @returns Pentagon shape with default properties
+ */
+export function createDefaultPentagon(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#8B5CF6'
+): Pentagon {
+  return {
+    id: crypto.randomUUID(),
+    type: 'pentagon',
+    x,
+    y,
+    radius: 50,
+    fill: color,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default hexagon shape with specified position
+ * @param x - X coordinate (center)
+ * @param y - Y coordinate (center)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the hexagon (optional, defaults to orange)
+ * @returns Hexagon shape with default properties
+ */
+export function createDefaultHexagon(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#F59E0B'
+): Hexagon {
+  return {
+    id: crypto.randomUUID(),
+    type: 'hexagon',
+    x,
+    y,
+    radius: 50,
+    fill: color,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default star shape with specified position
+ * @param x - X coordinate (center)
+ * @param y - Y coordinate (center)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the star (optional, defaults to yellow)
+ * @returns Star shape with default properties (5-pointed)
+ */
+export function createDefaultStar(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#FBBF24'
+): Star {
+  return {
+    id: crypto.randomUUID(),
+    type: 'star',
+    x,
+    y,
+    outerRadius: 50,
+    innerRadius: 25,
+    numPoints: 5,
     fill: color,
     createdBy: userId,
     updatedAt: new Date().toISOString(),

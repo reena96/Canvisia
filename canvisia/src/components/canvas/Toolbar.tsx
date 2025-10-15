@@ -1,4 +1,4 @@
-type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text'
+type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -56,6 +56,30 @@ export function Toolbar({ selectedTool, onToolSelect, zoom, onZoomIn, onZoomOut,
         label="Text"
         selected={selectedTool === 'text'}
         onClick={() => onToolSelect('text')}
+      />
+      <ToolButton
+        icon="△"
+        label="Triangle"
+        selected={selectedTool === 'triangle'}
+        onClick={() => onToolSelect('triangle')}
+      />
+      <ToolButton
+        icon="⬟"
+        label="Pentagon"
+        selected={selectedTool === 'pentagon'}
+        onClick={() => onToolSelect('pentagon')}
+      />
+      <ToolButton
+        icon="⬡"
+        label="Hexagon"
+        selected={selectedTool === 'hexagon'}
+        onClick={() => onToolSelect('hexagon')}
+      />
+      <ToolButton
+        icon="★"
+        label="Star"
+        selected={selectedTool === 'star'}
+        onClick={() => onToolSelect('star')}
       />
 
       {/* Divider */}
