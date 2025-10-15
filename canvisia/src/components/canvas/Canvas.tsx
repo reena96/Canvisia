@@ -31,7 +31,6 @@ import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
 import { throttle } from '@/utils/throttle'
 import type { Shape } from '@/types/shapes'
-import { getShapeName } from '@/utils/shapeNames'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
@@ -46,8 +45,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   // Local state for tools and selection
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
-  const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null)
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null)
 
   // Pan state (for spacebar + drag)
   const [isPanning, setIsPanning] = useState(false)
@@ -208,7 +205,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     if (selectedTool === 'hand') {
       setIsPanning(true)
       document.body.style.cursor = 'grab'
-    } else if (isPanning && selectedTool !== 'hand') {
+    } else if (isPanning) {
       setIsPanning(false)
       setPanStart(null)
       document.body.style.cursor = 'default'
@@ -218,7 +215,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   // Handle spacebar for panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isPanning && selectedTool !== 'hand') {
+      if (e.code === 'Space' && !isPanning) {
         e.preventDefault()
         setIsPanning(true)
         document.body.style.cursor = 'grab'
@@ -249,9 +246,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
-
-    // Always track mouse position for tooltips
-    setMousePosition(pointerPosition)
 
     // Handle panning with spacebar + drag
     if (isPanning) {
@@ -603,11 +597,11 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
           if (!selectedShape) return
 
           const updates: Partial<Shape> = {}
-          if ('fill' in selectedShape) {
-            updates.fill = color
+          if ('fill' in selectedShape && selectedShape.fill !== undefined) {
+            (updates as any).fill = color
           }
-          if ('stroke' in selectedShape) {
-            updates.stroke = color
+          if ('stroke' in selectedShape && selectedShape.stroke !== undefined) {
+            (updates as any).stroke = color
           }
           if (Object.keys(updates).length > 0) {
             updateShapeLocal(selectedShapeId, updates)
@@ -680,11 +674,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
               onDragEnd={(x, y) => handleShapeDragEnd(shape.id, x, y)}
               onMouseEnter={() => {
                 console.log('Mouse entered shape:', shape.type, shape.id)
-                setHoveredShapeId(shape.id)
               }}
               onMouseLeave={() => {
                 console.log('Mouse left shape')
-                setHoveredShapeId(null)
               }}
             />
           ))}

@@ -1,4 +1,4 @@
-import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group, Arc, Path } from 'react-konva'
+import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
 import type { Shape } from '@/types/shapes'
 
 interface ShapeRendererProps {

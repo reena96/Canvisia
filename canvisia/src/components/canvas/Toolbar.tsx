@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Maximize, Hand } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
-import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
+import { shapeIcons } from '@/utils/generateShapeIcons'
 
 type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 

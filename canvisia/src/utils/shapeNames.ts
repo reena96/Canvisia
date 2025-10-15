@@ -38,8 +38,6 @@ export function getShapeName(shape: Shape): string {
     case 'bentConnector':
       return 'Bent Connector'
     default:
-      // Exhaustive type check
-      const _exhaustive: never = shape
       return 'Unknown'
   }
 }
