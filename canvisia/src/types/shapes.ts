@@ -1,7 +1,7 @@
 // Shape Types
 export interface BaseShape {
   id: string;
-  type: 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
+  type: 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
   x: number;
   y: number;
   createdBy: string;
@@ -22,6 +22,43 @@ export interface Rectangle extends BaseShape {
 export interface Circle extends BaseShape {
   type: 'circle';
   radius: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface Ellipse extends BaseShape {
+  type: 'ellipse';
+  radiusX: number;
+  radiusY: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface RoundedRectangle extends BaseShape {
+  type: 'roundedRectangle';
+  width: number;
+  height: number;
+  cornerRadius: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface Cylinder extends BaseShape {
+  type: 'cylinder';
+  width: number;
+  height: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface Diamond extends BaseShape {
+  type: 'diamond';
+  width: number;
+  height: number;
   fill: string;
   stroke?: string;
   strokeWidth?: number;
@@ -107,4 +144,4 @@ export interface BidirectionalArrow extends BaseShape {
   pointerWidth?: number;
 }
 
-export type Shape = Rectangle | Circle | Line | Text | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;
+export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Diamond | Line | Text | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;

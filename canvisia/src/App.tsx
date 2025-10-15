@@ -4,7 +4,6 @@ import { LoginButton } from './components/auth/LoginButton'
 import { DevLogin } from './components/auth/DevLogin'
 import { Header } from './components/layout/Header'
 import { Canvas } from './components/canvas/Canvas'
-import { CanvasControls } from './components/canvas/CanvasControls'
 import type { Presence } from './types/user'
 
 function AppContent() {
@@ -34,7 +33,6 @@ function AppContent() {
     <div className="app" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
       <Header activeUsers={activeUsers} />
       <Canvas onPresenceChange={setActiveUsers} />
-      <CanvasControls />
     </div>
   )
 }

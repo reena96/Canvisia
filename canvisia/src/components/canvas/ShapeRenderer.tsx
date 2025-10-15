@@ -1,4 +1,4 @@
-import { Rect, Circle as KonvaCircle, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow } from 'react-konva'
+import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group, Arc, Path } from 'react-konva'
 import type { Shape } from '@/types/shapes'
 
 interface ShapeRendererProps {
@@ -71,6 +71,129 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      )
+
+    case 'ellipse':
+      return (
+        <KonvaEllipse
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          radiusX={shape.radiusX}
+          radiusY={shape.radiusY}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      )
+
+    case 'roundedRectangle':
+      return (
+        <Rect
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          width={shape.width}
+          height={shape.height}
+          cornerRadius={shape.cornerRadius}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      )
+
+    case 'cylinder':
+      // Draw a cylinder using Group with ellipses and rectangle
+      const topEllipseHeight = shape.width / 4
+      return (
+        <Group
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        >
+          {/* Cylinder body */}
+          <Rect
+            x={0}
+            y={topEllipseHeight / 2}
+            width={shape.width}
+            height={shape.height - topEllipseHeight}
+            fill={shape.fill}
+            stroke={isSelected ? '#3B82F6' : shape.stroke}
+            strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          />
+          {/* Top ellipse */}
+          <KonvaEllipse
+            x={shape.width / 2}
+            y={topEllipseHeight / 2}
+            radiusX={shape.width / 2}
+            radiusY={topEllipseHeight / 2}
+            fill={shape.fill}
+            stroke={isSelected ? '#3B82F6' : shape.stroke}
+            strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          />
+          {/* Bottom ellipse */}
+          <KonvaEllipse
+            x={shape.width / 2}
+            y={shape.height - topEllipseHeight / 2}
+            radiusX={shape.width / 2}
+            radiusY={topEllipseHeight / 2}
+            fill={shape.fill}
+            stroke={isSelected ? '#3B82F6' : shape.stroke}
+            strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          />
+        </Group>
+      )
+
+    case 'diamond':
+      return (
+        <Rect
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          width={shape.width}
+          height={shape.height}
+          offsetX={shape.width / 2}
+          offsetY={shape.height / 2}
+          fill={shape.fill}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={45}
           draggable
           onClick={onSelect}
           onTap={onSelect}

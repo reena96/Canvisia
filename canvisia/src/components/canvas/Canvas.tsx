@@ -13,6 +13,10 @@ import { ShapeRenderer } from './ShapeRenderer'
 import {
   createDefaultRectangle,
   createDefaultCircle,
+  createDefaultEllipse,
+  createDefaultRoundedRectangle,
+  createDefaultCylinder,
+  createDefaultDiamond,
   createDefaultLine,
   createDefaultText,
   createDefaultTriangle,
@@ -199,10 +203,22 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     }
   }
 
+  // Update panning state when hand tool is selected
+  useEffect(() => {
+    if (selectedTool === 'hand') {
+      setIsPanning(true)
+      document.body.style.cursor = 'grab'
+    } else if (isPanning && selectedTool !== 'hand') {
+      setIsPanning(false)
+      setPanStart(null)
+      document.body.style.cursor = 'default'
+    }
+  }, [selectedTool])
+
   // Handle spacebar for panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isPanning) {
+      if (e.code === 'Space' && !isPanning && selectedTool !== 'hand') {
         e.preventDefault()
         setIsPanning(true)
         document.body.style.cursor = 'grab'
@@ -210,7 +226,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' && selectedTool !== 'hand') {
         setIsPanning(false)
         setPanStart(null)
         document.body.style.cursor = 'default'
@@ -309,6 +325,18 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
             break
           case 'circle':
             newShape = createDefaultCircle(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'ellipse':
+            newShape = createDefaultEllipse(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'roundedRectangle':
+            newShape = createDefaultRoundedRectangle(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'cylinder':
+            newShape = createDefaultCylinder(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'diamond':
+            newShape = createDefaultDiamond(canvasPos.x, canvasPos.y, userId, userColor)
             break
           case 'line':
             newShape = createDefaultLine(canvasPos.x, canvasPos.y, userId, userColor)
@@ -507,6 +535,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     updateViewport(newViewport)
   }, [viewport, updateViewport])
 
+  const handleResetView = useCallback(() => {
+    updateViewport({
+      x: 0,
+      y: 0,
+      zoom: CANVAS_CONFIG.DEFAULT_ZOOM,
+    })
+  }, [updateViewport])
+
   // Generate infinite grid dots based on viewport (Figma-style)
   const renderGrid = () => {
     const gridSize = 50
@@ -555,6 +591,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        onResetView={handleResetView}
         selectedShapeColor={selectedShapeId ? (() => {
           const selectedShape = shapes.find(s => s.id === selectedShapeId)
           if (!selectedShape) return undefined
@@ -657,38 +694,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       {/* Multiplayer cursors overlay */}
       <CursorOverlay cursors={cursors} viewport={viewport} />
 
-      {/* Shape hover tooltip */}
-      {hoveredShapeId && mousePosition && (() => {
-        const hoveredShape = shapes.find(s => s.id === hoveredShapeId)
-        if (!hoveredShape) {
-          console.log('Hovered shape not found:', hoveredShapeId)
-          return null
-        }
-
-        const shapeName = getShapeName(hoveredShape)
-        console.log('Rendering tooltip:', shapeName, 'at', mousePosition)
-
-        return (
-          <div
-            style={{
-              position: 'absolute',
-              left: `${mousePosition.x + 10}px`,
-              top: `${mousePosition.y - 30}px`,
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '500',
-              pointerEvents: 'none',
-              zIndex: 10000,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {shapeName}
-          </div>
-        )
-      })()}
 
       {/* Error toast notification */}
       {error && (

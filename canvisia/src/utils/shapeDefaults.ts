@@ -1,4 +1,4 @@
-import type { Rectangle, Circle, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BidirectionalArrow, BentConnector } from '@/types/shapes'
+import type { Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Diamond, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BidirectionalArrow, BentConnector } from '@/types/shapes'
 
 /**
  * Creates a default rectangle shape with specified position
@@ -12,7 +12,7 @@ export function createDefaultRectangle(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#3B82F6'
+  color: string = '#1F2937'
 ): Rectangle {
   return {
     id: crypto.randomUUID(),
@@ -21,7 +21,9 @@ export function createDefaultRectangle(
     y,
     width: 100,
     height: 100,
-    fill: color,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -39,7 +41,7 @@ export function createDefaultCircle(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#EF4444'
+  color: string = '#1F2937'
 ): Circle {
   return {
     id: crypto.randomUUID(),
@@ -47,7 +49,9 @@ export function createDefaultCircle(
     x,
     y,
     radius: 50,
-    fill: color,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -65,7 +69,7 @@ export function createDefaultLine(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#000000'
+  color: string = '#1F2937'
 ): Line {
   return {
     id: crypto.randomUUID(),
@@ -75,7 +79,7 @@ export function createDefaultLine(
     x2: x + 150, // 150px horizontal line
     y2: y,
     stroke: color,
-    strokeWidth: 2,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -93,7 +97,7 @@ export function createDefaultText(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#000000'
+  color: string = '#1F2937'
 ): Text {
   return {
     id: crypto.randomUUID(),
@@ -120,7 +124,7 @@ export function createDefaultTriangle(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#10B981'
+  color: string = '#1F2937'
 ): Triangle {
   return {
     id: crypto.randomUUID(),
@@ -128,7 +132,9 @@ export function createDefaultTriangle(
     x,
     y,
     radius: 50,
-    fill: color,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -146,7 +152,7 @@ export function createDefaultPentagon(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#8B5CF6'
+  color: string = '#1F2937'
 ): Pentagon {
   return {
     id: crypto.randomUUID(),
@@ -154,7 +160,9 @@ export function createDefaultPentagon(
     x,
     y,
     radius: 50,
-    fill: color,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -172,7 +180,7 @@ export function createDefaultHexagon(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#F59E0B'
+  color: string = '#1F2937'
 ): Hexagon {
   return {
     id: crypto.randomUUID(),
@@ -180,7 +188,9 @@ export function createDefaultHexagon(
     x,
     y,
     radius: 50,
-    fill: color,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -198,7 +208,7 @@ export function createDefaultStar(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#FBBF24'
+  color: string = '#1F2937'
 ): Star {
   return {
     id: crypto.randomUUID(),
@@ -208,7 +218,9 @@ export function createDefaultStar(
     outerRadius: 50,
     innerRadius: 25,
     numPoints: 5,
-    fill: color,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -226,7 +238,7 @@ export function createDefaultArrow(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#000000'
+  color: string = '#1F2937'
 ): Arrow {
   return {
     id: crypto.randomUUID(),
@@ -236,7 +248,7 @@ export function createDefaultArrow(
     x2: x + 150, // 150px horizontal arrow
     y2: y,
     stroke: color,
-    strokeWidth: 2,
+    strokeWidth: 3,
     pointerLength: 10,
     pointerWidth: 10,
     createdBy: userId,
@@ -256,7 +268,7 @@ export function createDefaultBidirectionalArrow(
   x: number,
   y: number,
   userId: string = 'anonymous',
-  color: string = '#000000'
+  color: string = '#1F2937'
 ): BidirectionalArrow {
   return {
     id: crypto.randomUUID(),
@@ -266,7 +278,7 @@ export function createDefaultBidirectionalArrow(
     x2: x + 150, // 150px horizontal arrow
     y2: y,
     stroke: color,
-    strokeWidth: 2,
+    strokeWidth: 3,
     pointerLength: 10,
     pointerWidth: 10,
     createdBy: userId,
@@ -304,7 +316,124 @@ export function createDefaultBentConnector(
     bendX,
     bendY,
     stroke: color,
-    strokeWidth: 2,
+    strokeWidth: 3,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default ellipse shape with specified position
+ * @param x - X coordinate (center)
+ * @param y - Y coordinate (center)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the ellipse (optional, defaults to teal)
+ * @returns Ellipse shape with default properties
+ */
+export function createDefaultEllipse(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#1F2937'
+): Ellipse {
+  return {
+    id: crypto.randomUUID(),
+    type: 'ellipse',
+    x,
+    y,
+    radiusX: 50,
+    radiusY: 75,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default rounded rectangle shape with specified position
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the rounded rectangle (optional, defaults to indigo)
+ * @returns RoundedRectangle shape with default properties
+ */
+export function createDefaultRoundedRectangle(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#1F2937'
+): RoundedRectangle {
+  return {
+    id: crypto.randomUUID(),
+    type: 'roundedRectangle',
+    x,
+    y,
+    width: 100,
+    height: 100,
+    cornerRadius: 10,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default cylinder shape with specified position
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the cylinder (optional, defaults to cyan)
+ * @returns Cylinder shape with default properties
+ */
+export function createDefaultCylinder(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#1F2937'
+): Cylinder {
+  return {
+    id: crypto.randomUUID(),
+    type: 'cylinder',
+    x,
+    y,
+    width: 100,
+    height: 120,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default diamond shape with specified position
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Fill color for the diamond (optional, defaults to pink)
+ * @returns Diamond shape with default properties
+ */
+export function createDefaultDiamond(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#1F2937'
+): Diamond {
+  return {
+    id: crypto.randomUUID(),
+    type: 'diamond',
+    x,
+    y,
+    width: 100,
+    height: 100,
+    fill: '#FFFFFF',
+    stroke: color,
+    strokeWidth: 3,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }

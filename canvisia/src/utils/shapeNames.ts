@@ -11,6 +11,14 @@ export function getShapeName(shape: Shape): string {
       return 'Rectangle'
     case 'circle':
       return 'Circle'
+    case 'ellipse':
+      return 'Ellipse'
+    case 'roundedRectangle':
+      return 'Rounded Rectangle'
+    case 'cylinder':
+      return 'Cylinder'
+    case 'diamond':
+      return 'Diamond'
     case 'line':
       return 'Line'
     case 'text':
