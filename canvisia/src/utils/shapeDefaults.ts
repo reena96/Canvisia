@@ -1,4 +1,4 @@
-import type { Rectangle, Circle, Line, Text, Triangle, Pentagon, Hexagon, Star } from '@/types/shapes'
+import type { Rectangle, Circle, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BentConnector } from '@/types/shapes'
 
 /**
  * Creates a default rectangle shape with specified position
@@ -209,6 +209,72 @@ export function createDefaultStar(
     innerRadius: 25,
     numPoints: 5,
     fill: color,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default arrow connector with specified start position
+ * @param x - X coordinate (start point)
+ * @param y - Y coordinate (start point)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Stroke color for the arrow (optional, defaults to black)
+ * @returns Arrow shape with default properties (150px horizontal with arrowhead)
+ */
+export function createDefaultArrow(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#000000'
+): Arrow {
+  return {
+    id: crypto.randomUUID(),
+    type: 'arrow',
+    x,
+    y,
+    x2: x + 150, // 150px horizontal arrow
+    y2: y,
+    stroke: color,
+    strokeWidth: 2,
+    pointerLength: 10,
+    pointerWidth: 10,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default bent connector with specified start position
+ * @param x - X coordinate (start point)
+ * @param y - Y coordinate (start point)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Stroke color for the connector (optional, defaults to gray)
+ * @returns BentConnector shape with default properties (L-shaped connector)
+ */
+export function createDefaultBentConnector(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#6B7280'
+): BentConnector {
+  const x2 = x + 150
+  const y2 = y + 100
+  // Calculate bend point (midpoint horizontally, at start Y for L-shape)
+  const bendX = (x + x2) / 2
+  const bendY = y
+
+  return {
+    id: crypto.randomUUID(),
+    type: 'bentConnector',
+    x,
+    y,
+    x2,
+    y2,
+    bendX,
+    bendY,
+    stroke: color,
+    strokeWidth: 2,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }

@@ -8,6 +8,8 @@ import {
   createDefaultPentagon,
   createDefaultHexagon,
   createDefaultStar,
+  createDefaultArrow,
+  createDefaultBentConnector,
 } from '@/utils/shapeDefaults'
 
 describe('Shape Defaults', () => {
@@ -262,6 +264,67 @@ describe('Shape Defaults', () => {
     it('should set type to star', () => {
       const star = createDefaultStar(0, 0)
       expect(star.type).toBe('star')
+    })
+  })
+
+  describe('createDefaultArrow', () => {
+    it('should create arrow with correct start position', () => {
+      const arrow = createDefaultArrow(100, 200)
+      expect(arrow.x).toBe(100)
+      expect(arrow.y).toBe(200)
+    })
+
+    it('should create horizontal arrow with 150px length', () => {
+      const arrow = createDefaultArrow(0, 0)
+      expect(arrow.x2).toBe(150)
+      expect(arrow.y2).toBe(0)
+    })
+
+    it('should create arrow with black stroke', () => {
+      const arrow = createDefaultArrow(0, 0)
+      expect(arrow.stroke).toBe('#000000')
+    })
+
+    it('should create arrow with default pointer dimensions', () => {
+      const arrow = createDefaultArrow(0, 0)
+      expect(arrow.pointerLength).toBe(10)
+      expect(arrow.pointerWidth).toBe(10)
+    })
+
+    it('should set type to arrow', () => {
+      const arrow = createDefaultArrow(0, 0)
+      expect(arrow.type).toBe('arrow')
+    })
+  })
+
+  describe('createDefaultBentConnector', () => {
+    it('should create bent connector with correct start position', () => {
+      const bent = createDefaultBentConnector(100, 200)
+      expect(bent.x).toBe(100)
+      expect(bent.y).toBe(200)
+    })
+
+    it('should create bent connector with end point', () => {
+      const bent = createDefaultBentConnector(0, 0)
+      expect(bent.x2).toBe(150)
+      expect(bent.y2).toBe(100)
+    })
+
+    it('should create bent connector with midpoint bend', () => {
+      const bent = createDefaultBentConnector(0, 0)
+      // Bend should be at midpoint horizontally, at start Y
+      expect(bent.bendX).toBe(75) // (0 + 150) / 2
+      expect(bent.bendY).toBe(0)
+    })
+
+    it('should create bent connector with gray stroke', () => {
+      const bent = createDefaultBentConnector(0, 0)
+      expect(bent.stroke).toBe('#6B7280')
+    })
+
+    it('should set type to bentConnector', () => {
+      const bent = createDefaultBentConnector(0, 0)
+      expect(bent.type).toBe('bentConnector')
     })
   })
 })
