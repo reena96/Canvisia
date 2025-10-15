@@ -45,8 +45,6 @@ export function Toolbar({
         alignItems: 'center',
         gap: '6px',
         zIndex: 1000,
-        maxWidth: 'calc(100vw - 40px)',
-        overflowX: 'auto',
       }}
     >
       {/* Basic Tools */}

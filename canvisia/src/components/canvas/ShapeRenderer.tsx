@@ -1,4 +1,5 @@
-import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
+import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, Image as KonvaImage, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
+import { useState, useEffect } from 'react'
 import type { Shape } from '@/types/shapes'
 
 interface ShapeRendererProps {
@@ -226,7 +227,13 @@ export function ShapeRenderer({
         />
       )
 
-    case 'text':
+    case 'text': {
+      const fontStyle = shape.fontStyle || 'normal'
+      const isBold = fontStyle === 'bold'
+      const isItalic = fontStyle === 'italic'
+      const fontWeight = isBold ? 'bold' : 'normal'
+      const fontStyleValue = isItalic ? 'italic' : 'normal'
+
       return (
         <KonvaText
           id={shape.id}
@@ -235,6 +242,11 @@ export function ShapeRenderer({
           text={shape.text}
           fontSize={shape.fontSize}
           fontFamily={shape.fontFamily || 'Arial'}
+          fontStyle={`${fontStyleValue} ${fontWeight}`}
+          textDecoration={shape.textDecoration || 'none'}
+          align={shape.align || 'left'}
+          verticalAlign={shape.verticalAlign || 'top'}
+          width={shape.width}
           fill={isSelected ? '#3B82F6' : shape.fill}
           rotation={shape.rotation}
           draggable
@@ -247,6 +259,38 @@ export function ShapeRenderer({
           onMouseLeave={onMouseLeave}
         />
       )
+    }
+
+    case 'image': {
+      const [image] = useState(() => {
+        const img = new window.Image()
+        img.src = shape.src
+        return img
+      })
+
+      return (
+        <KonvaImage
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          image={image}
+          width={shape.width}
+          height={shape.height}
+          opacity={shape.opacity !== undefined ? shape.opacity : 1}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+          stroke={isSelected ? '#3B82F6' : undefined}
+          strokeWidth={isSelected ? 2 : 0}
+        />
+      )
+    }
 
     case 'triangle':
       return (

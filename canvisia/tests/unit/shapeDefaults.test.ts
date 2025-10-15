@@ -27,9 +27,11 @@ describe('Shape Defaults', () => {
       expect(rect.height).toBe(100)
     })
 
-    it('should create rectangle with default color', () => {
+    it('should create rectangle with white fill and dark stroke', () => {
       const rect = createDefaultRectangle(0, 0)
-      expect(rect.fill).toBe('#3B82F6') // Blue
+      expect(rect.fill).toBe('#FFFFFF') // White fill
+      expect(rect.stroke).toBe('#1F2937') // Dark gray stroke
+      expect(rect.strokeWidth).toBe(3)
     })
 
     it('should generate unique IDs', () => {
@@ -62,9 +64,11 @@ describe('Shape Defaults', () => {
       expect(circle.radius).toBe(50)
     })
 
-    it('should create circle with red color', () => {
+    it('should create circle with white fill and dark stroke', () => {
       const circle = createDefaultCircle(0, 0)
-      expect(circle.fill).toBe('#EF4444') // Red
+      expect(circle.fill).toBe('#FFFFFF') // White fill
+      expect(circle.stroke).toBe('#1F2937') // Dark gray stroke
+      expect(circle.strokeWidth).toBe(3)
     })
 
     it('should generate unique IDs', () => {
@@ -98,14 +102,10 @@ describe('Shape Defaults', () => {
       expect(line.y2).toBe(0)
     })
 
-    it('should create line with black stroke', () => {
+    it('should create line with dark stroke', () => {
       const line = createDefaultLine(0, 0)
-      expect(line.stroke).toBe('#000000') // Black
-    })
-
-    it('should create line with default stroke width', () => {
-      const line = createDefaultLine(0, 0)
-      expect(line.strokeWidth).toBe(2)
+      expect(line.stroke).toBe('#1F2937') // Dark gray
+      expect(line.strokeWidth).toBe(3)
     })
 
     it('should generate unique IDs', () => {
@@ -143,9 +143,9 @@ describe('Shape Defaults', () => {
       expect(text.fontSize).toBe(16)
     })
 
-    it('should create text with black color', () => {
+    it('should create text with dark gray color', () => {
       const text = createDefaultText(0, 0)
-      expect(text.fill).toBe('#000000') // Black
+      expect(text.fill).toBe('#1F2937') // Dark gray
     })
 
     it('should generate unique IDs', () => {
@@ -178,9 +178,11 @@ describe('Shape Defaults', () => {
       expect(triangle.radius).toBe(50)
     })
 
-    it('should create triangle with green color', () => {
+    it('should create triangle with white fill and dark stroke', () => {
       const triangle = createDefaultTriangle(0, 0)
-      expect(triangle.fill).toBe('#10B981') // Green
+      expect(triangle.fill).toBe('#FFFFFF') // White fill
+      expect(triangle.stroke).toBe('#1F2937') // Dark gray stroke
+      expect(triangle.strokeWidth).toBe(3)
     })
 
     it('should set type to triangle', () => {
@@ -201,9 +203,11 @@ describe('Shape Defaults', () => {
       expect(pentagon.radius).toBe(50)
     })
 
-    it('should create pentagon with purple color', () => {
+    it('should create pentagon with white fill and dark stroke', () => {
       const pentagon = createDefaultPentagon(0, 0)
-      expect(pentagon.fill).toBe('#8B5CF6') // Purple
+      expect(pentagon.fill).toBe('#FFFFFF') // White fill
+      expect(pentagon.stroke).toBe('#1F2937') // Dark gray stroke
+      expect(pentagon.strokeWidth).toBe(3)
     })
 
     it('should set type to pentagon', () => {
@@ -224,9 +228,11 @@ describe('Shape Defaults', () => {
       expect(hexagon.radius).toBe(50)
     })
 
-    it('should create hexagon with orange color', () => {
+    it('should create hexagon with white fill and dark stroke', () => {
       const hexagon = createDefaultHexagon(0, 0)
-      expect(hexagon.fill).toBe('#F59E0B') // Orange
+      expect(hexagon.fill).toBe('#FFFFFF') // White fill
+      expect(hexagon.stroke).toBe('#1F2937') // Dark gray stroke
+      expect(hexagon.strokeWidth).toBe(3)
     })
 
     it('should set type to hexagon', () => {
@@ -257,9 +263,11 @@ describe('Shape Defaults', () => {
       expect(star.numPoints).toBe(5)
     })
 
-    it('should create star with yellow color', () => {
+    it('should create star with white fill and dark stroke', () => {
       const star = createDefaultStar(0, 0)
-      expect(star.fill).toBe('#FBBF24') // Yellow
+      expect(star.fill).toBe('#FFFFFF') // White fill
+      expect(star.stroke).toBe('#1F2937') // Dark gray stroke
+      expect(star.strokeWidth).toBe(3)
     })
 
     it('should set type to star', () => {
@@ -281,9 +289,10 @@ describe('Shape Defaults', () => {
       expect(arrow.y2).toBe(0)
     })
 
-    it('should create arrow with black stroke', () => {
+    it('should create arrow with dark stroke', () => {
       const arrow = createDefaultArrow(0, 0)
-      expect(arrow.stroke).toBe('#000000')
+      expect(arrow.stroke).toBe('#1F2937') // Dark gray
+      expect(arrow.strokeWidth).toBe(3)
     })
 
     it('should create arrow with default pointer dimensions', () => {
@@ -342,9 +351,10 @@ describe('Shape Defaults', () => {
       expect(arrow.y2).toBe(0)
     })
 
-    it('should create bidirectional arrow with black stroke', () => {
+    it('should create bidirectional arrow with dark stroke', () => {
       const arrow = createDefaultBidirectionalArrow(0, 0)
-      expect(arrow.stroke).toBe('#000000')
+      expect(arrow.stroke).toBe('#1F2937') // Dark gray
+      expect(arrow.strokeWidth).toBe(3)
     })
 
     it('should create bidirectional arrow with default pointer dimensions', () => {

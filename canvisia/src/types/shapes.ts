@@ -1,7 +1,7 @@
 // Shape Types
 export interface BaseShape {
   id: string;
-  type: 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
+  type: 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'image' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
   x: number;
   y: number;
   createdBy: string;
@@ -78,6 +78,19 @@ export interface Text extends BaseShape {
   fontSize: number;
   fontFamily?: string;
   fill: string;
+  fontStyle?: 'normal' | 'bold' | 'italic';
+  textDecoration?: 'none' | 'underline' | 'line-through';
+  align?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  width?: number; // For text wrapping
+}
+
+export interface Image extends BaseShape {
+  type: 'image';
+  src: string; // Image URL or data URL
+  width: number;
+  height: number;
+  opacity?: number;
 }
 
 export interface Triangle extends BaseShape {
@@ -144,4 +157,4 @@ export interface BidirectionalArrow extends BaseShape {
   pointerWidth?: number;
 }
 
-export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Diamond | Line | Text | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;
+export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Diamond | Line | Text | Image | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;
