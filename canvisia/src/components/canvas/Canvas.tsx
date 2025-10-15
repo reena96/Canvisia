@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Stage, Layer, Line } from 'react-konva'
+import { Stage, Layer, Circle } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
@@ -340,10 +340,10 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     [updateShape, updateShapeLocal]
   )
 
-  // Generate infinite grid lines based on viewport
+  // Generate infinite grid dots based on viewport (Figma-style)
   const renderGrid = () => {
     const gridSize = 50
-    const lines: React.ReactElement[] = []
+    const dots: React.ReactElement[] = []
 
     // Calculate visible canvas area in canvas coordinates
     const startX = Math.floor(-viewport.x / viewport.zoom / gridSize) * gridSize
@@ -351,33 +351,23 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     const startY = Math.floor(-viewport.y / viewport.zoom / gridSize) * gridSize
     const endY = Math.ceil((window.innerHeight - viewport.y) / viewport.zoom / gridSize) * gridSize
 
-    // Render vertical lines
+    // Render dots at grid intersections
     for (let x = startX; x <= endX; x += gridSize) {
-      lines.push(
-        <Line
-          key={`v-${x}`}
-          points={[x, startY, x, endY]}
-          stroke="#e5e5e5"
-          strokeWidth={1 / viewport.zoom}
-          listening={false}
-        />
-      )
+      for (let y = startY; y <= endY; y += gridSize) {
+        dots.push(
+          <Circle
+            key={`dot-${x}-${y}`}
+            x={x}
+            y={y}
+            radius={1.5 / viewport.zoom}
+            fill="#d1d5db"
+            listening={false}
+          />
+        )
+      }
     }
 
-    // Render horizontal lines
-    for (let y = startY; y <= endY; y += gridSize) {
-      lines.push(
-        <Line
-          key={`h-${y}`}
-          points={[startX, y, endX, y]}
-          stroke="#e5e5e5"
-          strokeWidth={1 / viewport.zoom}
-          listening={false}
-        />
-      )
-    }
-
-    return lines
+    return dots
   }
 
   return (
