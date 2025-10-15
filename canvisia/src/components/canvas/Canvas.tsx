@@ -10,7 +10,12 @@ import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
 import { ShapeRenderer } from './ShapeRenderer'
-import { createDefaultRectangle } from '@/utils/shapeDefaults'
+import {
+  createDefaultRectangle,
+  createDefaultCircle,
+  createDefaultLine,
+  createDefaultText,
+} from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
 import { throttle } from '@/utils/throttle'
@@ -272,7 +277,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       setSelectedShapeId(null)
 
       // Create new shape if tool is selected
-      if (selectedTool === 'rectangle') {
+      if (selectedTool !== 'select') {
         const stage = stageRef.current
         if (!stage) return
 
@@ -282,15 +287,32 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         // Convert screen coordinates to canvas coordinates
         const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
 
-        // Create new rectangle at click position with user's color
-        const newRect = createDefaultRectangle(canvasPos.x, canvasPos.y, userId, userColor)
+        // Create shape based on selected tool
+        let newShape: Shape | null = null
+
+        switch (selectedTool) {
+          case 'rectangle':
+            newShape = createDefaultRectangle(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'circle':
+            newShape = createDefaultCircle(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'line':
+            newShape = createDefaultLine(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'text':
+            newShape = createDefaultText(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+        }
 
         // Write to Firestore (will automatically sync back via subscription)
-        try {
-          await createShape(newRect)
-        } catch (err) {
-          console.error('Failed to create shape:', err)
-          setError('Failed to create shape. Please try again.')
+        if (newShape) {
+          try {
+            await createShape(newShape)
+          } catch (err) {
+            console.error('Failed to create shape:', err)
+            setError('Failed to create shape. Please try again.')
+          }
         }
       }
     }

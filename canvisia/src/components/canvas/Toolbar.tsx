@@ -44,21 +44,18 @@ export function Toolbar({ selectedTool, onToolSelect, zoom, onZoomIn, onZoomOut,
         label="Circle"
         selected={selectedTool === 'circle'}
         onClick={() => onToolSelect('circle')}
-        disabled
       />
       <ToolButton
         icon="/"
         label="Line"
         selected={selectedTool === 'line'}
         onClick={() => onToolSelect('line')}
-        disabled
       />
       <ToolButton
         icon="T"
         label="Text"
         selected={selectedTool === 'text'}
         onClick={() => onToolSelect('text')}
-        disabled
       />
 
       {/* Divider */}
