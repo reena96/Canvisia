@@ -228,11 +228,10 @@ export function ShapeRenderer({
       )
 
     case 'text': {
-      const fontStyle = shape.fontStyle || 'normal'
-      const isBold = fontStyle === 'bold'
-      const isItalic = fontStyle === 'italic'
-      const fontWeight = isBold ? 'bold' : 'normal'
-      const fontStyleValue = isItalic ? 'italic' : 'normal'
+      // Combine fontWeight and fontStyle for Konva
+      const fontStyleValue = shape.fontWeight === 700
+        ? (shape.fontStyle === 'italic' ? 'bold italic' : 'bold')
+        : (shape.fontStyle === 'italic' ? 'italic' : 'normal')
 
       return (
         <KonvaText
@@ -241,12 +240,12 @@ export function ShapeRenderer({
           y={shape.y}
           text={shape.text}
           fontSize={shape.fontSize}
-          fontFamily={shape.fontFamily || 'Arial'}
-          fontStyle={`${fontStyleValue} ${fontWeight}`}
-          textDecoration={shape.textDecoration || 'none'}
-          align={shape.align || 'left'}
-          verticalAlign={shape.verticalAlign || 'top'}
+          fontFamily={shape.fontFamily}
+          fontStyle={fontStyleValue}
+          textDecoration={shape.textDecoration}
+          align={shape.align}
           width={shape.width}
+          lineHeight={shape.lineHeight}
           fill={isSelected ? '#3B82F6' : shape.fill}
           rotation={shape.rotation}
           draggable

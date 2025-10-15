@@ -76,13 +76,14 @@ export interface Text extends BaseShape {
   type: 'text';
   text: string;
   fontSize: number;
-  fontFamily?: string;
+  fontFamily: string; // Now required
   fill: string;
-  fontStyle?: 'normal' | 'bold' | 'italic';
-  textDecoration?: 'none' | 'underline' | 'line-through';
-  align?: 'left' | 'center' | 'right';
-  verticalAlign?: 'top' | 'middle' | 'bottom';
-  width?: number; // For text wrapping
+  fontWeight: number; // 400 (normal), 700 (bold)
+  fontStyle: 'normal' | 'italic';
+  textDecoration: 'none' | 'underline' | 'line-through';
+  align: 'left' | 'center' | 'right';
+  lineHeight: number; // Multiplier: 1.0, 1.2, 1.5, etc.
+  width: number; // Now required
 }
 
 export interface Image extends BaseShape {

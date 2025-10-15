@@ -106,7 +106,14 @@ export function createDefaultText(
     y,
     text: 'Double-click to edit',
     fontSize: 16,
+    fontFamily: 'Inter',
     fill: color,
+    fontWeight: 400,
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    align: 'left',
+    lineHeight: 1.2,
+    width: 200, // Default width
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
