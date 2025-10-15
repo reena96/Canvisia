@@ -79,17 +79,24 @@
 
 ## 5. Key Learnings
 
-1. **Invest 70% in Planning:** Thorough upfront planning eliminated backtracking during implementation.
+**Where Human Developer Excelled:**
+- 📋 **Planning & Architecture** - 70-80% time invested in upfront planning eliminated backtracking
+- 🎯 **Requirement Clarification** - Proactively identified AI confusion, corrected misunderstandings early
+- 🎨 **UX Vision** - Clear direction ("Make it like Figma"), guided refinement to professional quality
+- ✅ **Testing & Validation** - Caught deployment issues, tested multi-user scenarios, verified production sync
+- 🎚️ **Scope Management** - Resisted feature creep, prioritized core features, deferred non-essential tools
+- 🔧 **Tool Configuration** - Set up Firebase, managed API keys, configured Claude Code with proper permissions
+- 🔍 **Code Reading & Debugging** - Read generated code to understand behavior, documented all debugging in docs/bugfix
 
-2. **Prompt Precision Matters:** "Remove toggle buttons" (clear) vs. "Make toolbar better" (vague) — specificity drives accuracy.
+**General Insights:**
 
-3. **Tests Amplify AI Effectiveness:** With 128 tests as guardrails, AI refactored fearlessly. Zoom limit changes broke 6 tests, caught immediately.
+1. **Prompt Precision Matters:** "Remove toggle buttons" (clear) vs. "Make toolbar better" (vague) — specificity drives accuracy.
 
-4. **Human Role Shifts to Strategy:** AI handled implementation; human focused on architecture, UX vision, and validation.
+2. **Tests Amplify AI Effectiveness:** With 128 tests as guardrails, AI refactored fearlessly. Zoom limit changes broke 6 tests, caught immediately.
 
-5. **Version Control Enables Experimentation:** When AI's first zoom implementation was too extreme, git made reverting trivial.
+3. **Version Control Enables Experimentation:** When AI's first zoom implementation was too extreme, git made reverting trivial.
 
-6. **Documentation Accelerates Iteration:** AI-maintained task lists and commit logs made resuming work after breaks seamless.
+4. **Documentation Accelerates Iteration:** AI-maintained task lists and commit logs made resuming work after breaks seamless.
 
 ---
 
