@@ -51,6 +51,11 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
 
+  // Text creation state (for drag-to-create)
+  const [isCreatingText, setIsCreatingText] = useState(false)
+  const [textStartPos, setTextStartPos] = useState<{ x: number; y: number } | null>(null)
+  const [_textPreviewWidth, setTextPreviewWidth] = useState(0)
+
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
 
@@ -263,6 +268,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       return
     }
 
+    // Handle text drag creation
+    if (isCreatingText && textStartPos) {
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      const width = Math.abs(canvasPos.x - textStartPos.x)
+      setTextPreviewWidth(width)
+      return
+    }
+
     // Only track cursor if user is authenticated
     if (!user) return
 
@@ -271,23 +284,66 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     updateCursor(canvasPos.x, canvasPos.y)
   }
 
-  // Handle mouse down for panning
-  const handleMouseDown = (_e: KonvaEventObject<MouseEvent>) => {
+  // Handle mouse down for panning and text creation
+  const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
+    const stage = stageRef.current
+    if (!stage) return
+
+    // Handle panning
     if (isPanning) {
-      const stage = stageRef.current
-      if (!stage) return
       const pointerPosition = stage.getPointerPosition()
       if (pointerPosition) {
         setPanStart(pointerPosition)
       }
+      return
+    }
+
+    // Handle text tool drag start
+    const clickedOnEmpty = e.target === e.target.getStage()
+    if (clickedOnEmpty && selectedTool === 'text') {
+      const pointerPosition = stage.getPointerPosition()
+      if (!pointerPosition) return
+
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      setIsCreatingText(true)
+      setTextStartPos(canvasPos)
+      setTextPreviewWidth(0)
     }
   }
 
-  // Handle mouse up for panning
-  const handleMouseUp = () => {
+  // Handle mouse up for panning and text creation
+  const handleMouseUp = async () => {
+    const stage = stageRef.current
+    if (!stage) return
+
+    // Handle panning
     if (isPanning) {
       setPanStart(null)
       document.body.style.cursor = 'grab'
+      return
+    }
+
+    // Handle text creation
+    if (isCreatingText && textStartPos) {
+      const pointerPosition = stage.getPointerPosition()
+      if (!pointerPosition) return
+
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      const width = Math.max(Math.abs(canvasPos.x - textStartPos.x), 50) // Minimum 50px
+
+      const newShape = createDefaultText(textStartPos.x, textStartPos.y, userId, userColor)
+      newShape.width = width
+
+      try {
+        await createShape(newShape)
+      } catch (err) {
+        console.error('Failed to create text:', err)
+        setError('Failed to create text. Please try again.')
+      }
+
+      setIsCreatingText(false)
+      setTextStartPos(null)
+      setTextPreviewWidth(0)
     }
   }
 
@@ -300,8 +356,8 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       // Deselect shape
       setSelectedShapeId(null)
 
-      // Create new shape if tool is selected
-      if (selectedTool !== 'select') {
+      // Create new shape if tool is selected (except text, which uses drag-to-create)
+      if (selectedTool !== 'select' && selectedTool !== 'text') {
         const stage = stageRef.current
         if (!stage) return
 
@@ -335,9 +391,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
             break
           case 'line':
             newShape = createDefaultLine(canvasPos.x, canvasPos.y, userId, userColor)
-            break
-          case 'text':
-            newShape = createDefaultText(canvasPos.x, canvasPos.y, userId, userColor)
             break
           case 'triangle':
             newShape = createDefaultTriangle(canvasPos.x, canvasPos.y, userId, userColor)
