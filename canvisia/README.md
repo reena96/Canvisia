@@ -2,6 +2,10 @@
 
 A real-time collaborative design tool inspired by Figma, with AI-assisted design capabilities.
 
+## Live Demo
+
+**[Launch Canvisia](https://canvisia-ab47b.web.app)** - Try it now! Open the same URL in multiple browser tabs to experience real-time collaboration.
+
 ## Project Overview
 
 Canvisia enables multiple users to work simultaneously on a shared canvas with real-time synchronization and AI-powered design assistance. Built as a 7-day sprint project for Gauntlet AI.
@@ -17,15 +21,15 @@ Canvisia enables multiple users to work simultaneously on a shared canvas with r
 
 ## Features
 
-### MVP (24 Hours)
-- ✅ Basic canvas with pan/zoom (5000×5000px)
-- ✅ Rectangle shape creation
-- ✅ Drag and move objects
-- ✅ Real-time sync between users
-- ✅ Multiplayer cursors with name labels
-- ✅ User presence awareness
-- ✅ Google Sign-In authentication
-- ✅ Deployed and publicly accessible
+### MVP (24 Hours) - COMPLETE
+- ✅ Infinite canvas with pan/zoom and Figma-style navigation
+- ✅ Rectangle shape creation and manipulation
+- ✅ Drag and move objects with real-time sync
+- ✅ Real-time collaboration between multiple users
+- ✅ Multiplayer cursors with name labels and presence awareness
+- ✅ Google Sign-In authentication with Firebase
+- ✅ Deployed to Firebase Hosting and publicly accessible
+- ✅ Professional toolbar with integrated zoom controls
 
 ### Full Project (7 Days)
 - Multiple shape types (Rectangle, Circle, Line, Text)
@@ -127,13 +131,14 @@ MIT
 
 ## Links
 
+- **Live Demo:** https://canvisia-ab47b.web.app
+- **Repository:** https://github.com/reena96/Canvisia
+- **Firebase Console:** https://console.firebase.google.com/project/canvisia-ab47b
 - Documentation: See `../docs/` directory for organized documentation
   - Planning: `../docs/planning/` (PRD, Architecture Diagrams)
   - Tasks: `../docs/tasks/` (Task Lists)
   - Testing: `../docs/testing/` (Test Documentation)
   - Setup: `../docs/setup/` (Environment Setup, Security Guide)
-- Firebase Project: (will be added in PR #2)
-- Live Demo: (will be added in PR #8)
 
 ---
 
