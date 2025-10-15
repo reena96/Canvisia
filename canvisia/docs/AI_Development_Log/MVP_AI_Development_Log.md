@@ -550,6 +550,90 @@ The 95/5 code authorship ratio shows that AI can handle the bulk of implementati
 
 ---
 
-**Project Status:** ✅ MVP Complete
+## Post-MVP Enhancements
+
+### PR #9: Text/Image Shape Support and Toolbar UI Improvements
+**Date:** October 15, 2025
+**Commit:** `a3efcdb` - "Update toolbar UI and add text/image shape support"
+
+#### Features Implemented
+
+1. **Text Formatting Properties**
+   - Added text styling support to Text shape type
+   - Properties: `fontStyle` (normal/bold/italic), `textDecoration` (none/underline/line-through)
+   - Properties: `align` (left/center/right), `verticalAlign` (top/middle/bottom)
+   - Properties: `width` for text wrapping
+   - Updated ShapeRenderer to apply all text formatting properties
+   - Konva Text component now properly renders bold, italic, underline styles
+
+2. **Image Shape Type**
+   - Created new Image interface with `src`, `width`, `height`, `opacity` properties
+   - Added image rendering support in ShapeRenderer using Konva Image component
+   - Images are draggable, rotatable, and support selection
+   - Images show blue selection border when selected
+   - Image loading handled via HTMLImageElement
+
+3. **Toolbar UI Improvements**
+   - Removed horizontal scroll from toolbar for cleaner appearance
+   - Removed `maxWidth` and `overflowX: 'auto'` styles
+   - Toolbar now displays all tools without scrolling
+   - Better visual consistency across screen sizes
+
+4. **Test Updates**
+   - Updated shape defaults tests to match current color scheme
+   - Tests now expect white fill (`#FFFFFF`) with dark stroke (`#1F2937`)
+   - All 128 tests passing
+
+#### Technical Changes
+
+**Files Modified:**
+- `src/types/shapes.ts` - Added text formatting properties and Image type
+- `src/components/canvas/ShapeRenderer.tsx` - Text formatting and image rendering
+- `src/components/canvas/Toolbar.tsx` - Removed scroll behavior
+- `tests/unit/shapeDefaults.test.ts` - Updated color expectations
+
+**Type System Updates:**
+```typescript
+// Text shape now supports formatting
+interface Text extends BaseShape {
+  type: 'text';
+  // ... existing properties
+  fontStyle?: 'normal' | 'bold' | 'italic';
+  textDecoration?: 'none' | 'underline' | 'line-through';
+  align?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  width?: number; // For text wrapping
+}
+
+// New Image shape type
+interface Image extends BaseShape {
+  type: 'image';
+  src: string; // Image URL or data URL
+  width: number;
+  height: number;
+  opacity?: number;
+}
+```
+
+#### Impact
+
+**User Experience:**
+- Text shapes can now be styled (ready for UI implementation)
+- Images can be added to canvas (ready for upload UI)
+- Cleaner toolbar that doesn't require scrolling
+
+**Developer Experience:**
+- Type-safe shape definitions with proper formatting support
+- All rendering logic in place for text/image features
+- Ready for UI controls to be added (text formatting panel, image upload button)
+
+**Next Steps:**
+- Implement text formatting UI panel
+- Add image upload button and functionality
+- Create CSS properties panel for advanced styling
+
+---
+
+**Project Status:** ✅ MVP Complete + Post-MVP Enhancements In Progress
 **Live Demo:** https://canvisia-ab47b.web.app
-**Next Steps:** Post-MVP features (additional shapes, AI integration)
+**Next Steps:** Complete remaining post-MVP features (multi-project support, advanced tools, export)
