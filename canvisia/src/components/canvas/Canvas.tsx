@@ -327,11 +327,33 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   // Handle shape drag move (optimistic + throttled)
   const handleShapeDragMove = useCallback(
     (shapeId: string, x: number, y: number) => {
+      // Find the shape to check its type
+      const shape = shapes.find((s) => s.id === shapeId)
+      if (!shape) return
+
+      // For lines, we need to update both endpoints to preserve length and angle
+      let updates: Partial<Shape>
+      if (shape.type === 'line') {
+        // Calculate offset from old position
+        const dx = x - shape.x
+        const dy = y - shape.y
+        // Update both start and end points
+        updates = {
+          x,
+          y,
+          x2: shape.x2 + dx,
+          y2: shape.y2 + dy,
+        }
+      } else {
+        // For other shapes, just update x and y
+        updates = { x, y }
+      }
+
       // Optimistic: update local state immediately for instant feedback
-      updateShapeLocal(shapeId, { x, y })
+      updateShapeLocal(shapeId, updates)
 
       // Throttled: sync to Firestore (max 20 updates/sec)
-      updateShapeThrottled(shapeId, { x, y })
+      updateShapeThrottled(shapeId, updates)
 
       // Update cursor position during drag (since event bubbling is prevented)
       const stage = stageRef.current
@@ -343,24 +365,46 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         }
       }
     },
-    [updateShapeLocal, updateShapeThrottled, user, viewport, updateCursor]
+    [shapes, updateShapeLocal, updateShapeThrottled, user, viewport, updateCursor]
   )
 
   // Handle shape drag end (ensure final position is persisted)
   const handleShapeDragEnd = useCallback(
     async (shapeId: string, x: number, y: number) => {
+      // Find the shape to check its type
+      const shape = shapes.find((s) => s.id === shapeId)
+      if (!shape) return
+
+      // For lines, we need to update both endpoints to preserve length and angle
+      let updates: Partial<Shape>
+      if (shape.type === 'line') {
+        // Calculate offset from old position
+        const dx = x - shape.x
+        const dy = y - shape.y
+        // Update both start and end points
+        updates = {
+          x,
+          y,
+          x2: shape.x2 + dx,
+          y2: shape.y2 + dy,
+        }
+      } else {
+        // For other shapes, just update x and y
+        updates = { x, y }
+      }
+
       // Update local state
-      updateShapeLocal(shapeId, { x, y })
+      updateShapeLocal(shapeId, updates)
 
       // Send final position to Firestore (not throttled)
       try {
-        await updateShape(shapeId, { x, y })
+        await updateShape(shapeId, updates)
       } catch (err) {
         console.error('Failed to update shape position:', err)
         setError('Failed to save shape position. Please try again.')
       }
     },
-    [updateShape, updateShapeLocal]
+    [shapes, updateShape, updateShapeLocal]
   )
 
   // Zoom control handlers
