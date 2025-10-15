@@ -5,7 +5,6 @@ import { useCanvasStore } from '@/stores/canvasStore'
 import { CANVAS_CONFIG } from '@/config/canvas.config'
 import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
 import { CursorOverlay } from './CursorOverlay'
-import { ZoomControls } from './ZoomControls'
 import { useCursors } from '@/hooks/useCursors'
 import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
@@ -424,7 +423,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       }}
     >
       {/* Toolbar */}
-      <Toolbar selectedTool={selectedTool} onToolSelect={setSelectedTool} />
+      <Toolbar
+        selectedTool={selectedTool}
+        onToolSelect={setSelectedTool}
+        zoom={viewport.zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
+      />
 
       {/* Loading indicator */}
       {loading && (
@@ -493,14 +499,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
       {/* Multiplayer cursors overlay */}
       <CursorOverlay cursors={cursors} viewport={viewport} />
-
-      {/* Zoom controls */}
-      <ZoomControls
-        zoom={viewport.zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetZoom={handleResetZoom}
-      />
 
       {/* Error toast notification */}
       {error && (

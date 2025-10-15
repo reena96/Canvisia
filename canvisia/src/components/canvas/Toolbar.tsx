@@ -3,9 +3,14 @@ type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text'
 interface ToolbarProps {
   selectedTool: Tool
   onToolSelect: (tool: Tool) => void
+  zoom: number
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onResetZoom: () => void
 }
 
-export function Toolbar({ selectedTool, onToolSelect }: ToolbarProps) {
+export function Toolbar({ selectedTool, onToolSelect, zoom, onZoomIn, onZoomOut, onResetZoom }: ToolbarProps) {
+  const zoomPercentage = Math.round(zoom * 100)
   return (
     <div
       style={{
@@ -54,6 +59,50 @@ export function Toolbar({ selectedTool, onToolSelect }: ToolbarProps) {
         selected={selectedTool === 'text'}
         onClick={() => onToolSelect('text')}
         disabled
+      />
+
+      {/* Divider */}
+      <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '4px 0' }} />
+
+      {/* Zoom Controls */}
+      <ToolButton
+        icon="+"
+        label="Zoom In"
+        selected={false}
+        onClick={onZoomIn}
+      />
+      <button
+        onClick={onResetZoom}
+        title="Reset zoom to 100%"
+        style={{
+          width: '48px',
+          height: '32px',
+          border: '1px solid #E5E7EB',
+          borderRadius: '6px',
+          backgroundColor: 'white',
+          color: '#1F2937',
+          fontSize: '12px',
+          fontWeight: '500',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#F9FAFB'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'white'
+        }}
+      >
+        {zoomPercentage}%
+      </button>
+      <ToolButton
+        icon="−"
+        label="Zoom Out"
+        selected={false}
+        onClick={onZoomOut}
       />
     </div>
   )
