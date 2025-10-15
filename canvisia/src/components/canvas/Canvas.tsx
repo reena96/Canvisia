@@ -20,12 +20,14 @@ import {
   createDefaultHexagon,
   createDefaultStar,
   createDefaultArrow,
+  createDefaultBidirectionalArrow,
   createDefaultBentConnector,
 } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
 import { throttle } from '@/utils/throttle'
 import type { Shape } from '@/types/shapes'
+import { getShapeName } from '@/utils/shapeNames'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
@@ -40,6 +42,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   // Local state for tools and selection
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
+  const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null)
 
   // Pan state (for spacebar + drag)
   const [isPanning, setIsPanning] = useState(false)
@@ -324,6 +327,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
           case 'arrow':
             newShape = createDefaultArrow(canvasPos.x, canvasPos.y, userId, userColor)
             break
+          case 'bidirectionalArrow':
+            newShape = createDefaultBidirectionalArrow(canvasPos.x, canvasPos.y, userId, userColor)
+            break
           case 'bentConnector':
             newShape = createDefaultBentConnector(canvasPos.x, canvasPos.y, userId, userColor)
             break
@@ -357,7 +363,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
       // For lines and connectors, we need to update both endpoints to preserve length and angle
       let updates: Partial<Shape>
-      if (shape.type === 'line' || shape.type === 'arrow') {
+      if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
         // Calculate offset from old position
         const dx = x - shape.x
         const dy = y - shape.y
@@ -413,7 +419,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
       // For lines and connectors, we need to update both endpoints to preserve length and angle
       let updates: Partial<Shape>
-      if (shape.type === 'line' || shape.type === 'arrow') {
+      if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
         // Calculate offset from old position
         const dx = x - shape.x
         const dy = y - shape.y
@@ -606,6 +612,8 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
               onSelect={() => handleShapeSelect(shape.id)}
               onDragMove={(x, y) => handleShapeDragMove(shape.id, x, y)}
               onDragEnd={(x, y) => handleShapeDragEnd(shape.id, x, y)}
+              onMouseEnter={() => setHoveredShapeId(shape.id)}
+              onMouseLeave={() => setHoveredShapeId(null)}
             />
           ))}
         </Layer>
@@ -613,6 +621,39 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
       {/* Multiplayer cursors overlay */}
       <CursorOverlay cursors={cursors} viewport={viewport} />
+
+      {/* Shape hover tooltip */}
+      {hoveredShapeId && (() => {
+        const hoveredShape = shapes.find(s => s.id === hoveredShapeId)
+        if (!hoveredShape) return null
+
+        const stage = stageRef.current
+        if (!stage) return null
+
+        const pointerPosition = stage.getPointerPosition()
+        if (!pointerPosition) return null
+
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${pointerPosition.x + 10}px`,
+              top: `${pointerPosition.y - 30}px`,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: '500',
+              pointerEvents: 'none',
+              zIndex: 10000,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {getShapeName(hoveredShape)}
+          </div>
+        )
+      })()}
 
       {/* Error toast notification */}
       {error && (

@@ -9,6 +9,7 @@ import {
   createDefaultHexagon,
   createDefaultStar,
   createDefaultArrow,
+  createDefaultBidirectionalArrow,
   createDefaultBentConnector,
 } from '@/utils/shapeDefaults'
 
@@ -325,6 +326,36 @@ describe('Shape Defaults', () => {
     it('should set type to bentConnector', () => {
       const bent = createDefaultBentConnector(0, 0)
       expect(bent.type).toBe('bentConnector')
+    })
+  })
+
+  describe('createDefaultBidirectionalArrow', () => {
+    it('should create bidirectional arrow with correct start position', () => {
+      const arrow = createDefaultBidirectionalArrow(100, 200)
+      expect(arrow.x).toBe(100)
+      expect(arrow.y).toBe(200)
+    })
+
+    it('should create horizontal bidirectional arrow with 150px length', () => {
+      const arrow = createDefaultBidirectionalArrow(0, 0)
+      expect(arrow.x2).toBe(150)
+      expect(arrow.y2).toBe(0)
+    })
+
+    it('should create bidirectional arrow with black stroke', () => {
+      const arrow = createDefaultBidirectionalArrow(0, 0)
+      expect(arrow.stroke).toBe('#000000')
+    })
+
+    it('should create bidirectional arrow with default pointer dimensions', () => {
+      const arrow = createDefaultBidirectionalArrow(0, 0)
+      expect(arrow.pointerLength).toBe(10)
+      expect(arrow.pointerWidth).toBe(10)
+    })
+
+    it('should set type to bidirectionalArrow', () => {
+      const arrow = createDefaultBidirectionalArrow(0, 0)
+      expect(arrow.type).toBe('bidirectionalArrow')
     })
   })
 })

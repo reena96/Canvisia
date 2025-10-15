@@ -7,6 +7,8 @@ interface ShapeRendererProps {
   onSelect?: () => void
   onDragMove?: (x: number, y: number) => void
   onDragEnd?: (x: number, y: number) => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
 }
 
 export function ShapeRenderer({
@@ -15,6 +17,8 @@ export function ShapeRenderer({
   onSelect,
   onDragMove,
   onDragEnd,
+  onMouseEnter,
+  onMouseLeave,
 }: ShapeRendererProps) {
   const handleDragStart = (e: any) => {
     e.cancelBubble = true // Prevent Stage from dragging while shape is being dragged
@@ -51,6 +55,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -71,6 +77,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -90,6 +98,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -110,6 +120,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -131,6 +143,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -152,6 +166,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -173,6 +189,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -195,6 +213,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -217,6 +237,34 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      )
+
+    case 'bidirectionalArrow':
+      return (
+        <KonvaArrow
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          points={[0, 0, shape.x2 - shape.x, shape.y2 - shape.y]}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? shape.strokeWidth + 1 : shape.strokeWidth}
+          fill={isSelected ? '#3B82F6' : shape.stroke}
+          pointerLength={shape.pointerLength}
+          pointerWidth={shape.pointerWidth}
+          pointerAtBeginning={true}
+          pointerAtEnding={true}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 
@@ -243,6 +291,8 @@ export function ShapeRenderer({
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       )
 

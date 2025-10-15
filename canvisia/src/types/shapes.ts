@@ -1,7 +1,7 @@
 // Shape Types
 export interface BaseShape {
   id: string;
-  type: 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bentConnector';
+  type: 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
   x: number;
   y: number;
   createdBy: string;
@@ -97,4 +97,14 @@ export interface BentConnector extends BaseShape {
   strokeWidth: number;
 }
 
-export type Shape = Rectangle | Circle | Line | Text | Triangle | Pentagon | Hexagon | Star | Arrow | BentConnector;
+export interface BidirectionalArrow extends BaseShape {
+  type: 'bidirectionalArrow';
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+  pointerLength?: number;
+  pointerWidth?: number;
+}
+
+export type Shape = Rectangle | Circle | Line | Text | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;

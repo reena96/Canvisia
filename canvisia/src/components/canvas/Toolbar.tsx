@@ -1,4 +1,4 @@
-type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bentConnector'
+type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -28,7 +28,7 @@ export function Toolbar({ selectedTool, onToolSelect, zoom, onZoomIn, onZoomOut,
       }}
     >
       <ToolButton
-        icon="↖"
+        icon="☝"
         label="Select"
         selected={selectedTool === 'select'}
         onClick={() => onToolSelect('select')}
@@ -86,6 +86,12 @@ export function Toolbar({ selectedTool, onToolSelect, zoom, onZoomIn, onZoomOut,
         label="Arrow"
         selected={selectedTool === 'arrow'}
         onClick={() => onToolSelect('arrow')}
+      />
+      <ToolButton
+        icon="↔"
+        label="Bidirectional Arrow"
+        selected={selectedTool === 'bidirectionalArrow'}
+        onClick={() => onToolSelect('bidirectionalArrow')}
       />
       <ToolButton
         icon="⌙"

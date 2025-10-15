@@ -1,4 +1,4 @@
-import type { Rectangle, Circle, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BentConnector } from '@/types/shapes'
+import type { Rectangle, Circle, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BidirectionalArrow, BentConnector } from '@/types/shapes'
 
 /**
  * Creates a default rectangle shape with specified position
@@ -231,6 +231,36 @@ export function createDefaultArrow(
   return {
     id: crypto.randomUUID(),
     type: 'arrow',
+    x,
+    y,
+    x2: x + 150, // 150px horizontal arrow
+    y2: y,
+    stroke: color,
+    strokeWidth: 2,
+    pointerLength: 10,
+    pointerWidth: 10,
+    createdBy: userId,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Creates a default bidirectional arrow connector with specified start position
+ * @param x - X coordinate (start point)
+ * @param y - Y coordinate (start point)
+ * @param userId - User ID for createdBy field (optional)
+ * @param color - Stroke color for the arrow (optional, defaults to black)
+ * @returns BidirectionalArrow shape with default properties (150px horizontal with arrowheads on both ends)
+ */
+export function createDefaultBidirectionalArrow(
+  x: number,
+  y: number,
+  userId: string = 'anonymous',
+  color: string = '#000000'
+): BidirectionalArrow {
+  return {
+    id: crypto.randomUUID(),
+    type: 'bidirectionalArrow',
     x,
     y,
     x2: x + 150, // 150px horizontal arrow
