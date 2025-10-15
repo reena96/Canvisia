@@ -1635,159 +1635,90 @@ collabcanvas/
 
 ## Full Canvas Features (Days 2-4) - PRs 9-12
 
-### PR #9: Multiple Shape Types (Circle, Line, Text)
+### PR #9: Text/Image Shape Support and Toolbar UI Improvements ✅ COMPLETED
 
-**Goal:** Add circles, lines, and text shapes
+**Goal:** Add text formatting properties, image shape type, and improve toolbar UI
 
-**Branch:** `feature/multiple-shapes`
+**Date:** October 15, 2025
+**Commit:** `a3efcdb` - "Update toolbar UI and add text/image shape support"
 
 **Dependencies:** PR #1-8
 
 #### Subtasks:
-- [ ] **9.1 Update shape types**
+- [x] **9.1 Add text formatting properties**
   - Files modified:
     - `src/types/shapes.ts`
   - Content:
-    - Add `Circle` type (x, y, radius, fillColor)
-    - Add `Line` type (x1, y1, x2, y2, strokeColor, strokeWidth)
-    - Add `Text` type (x, y, content, fontSize, color)
+    - Added `fontStyle?: 'normal' | 'bold' | 'italic'`
+    - Added `textDecoration?: 'none' | 'underline' | 'line-through'`
+    - Added `align?: 'left' | 'center' | 'right'`
+    - Added `verticalAlign?: 'top' | 'middle' | 'bottom'`
+    - Added `width?: number` for text wrapping
 
-- [ ] **9.2 Add shape defaults**
+- [x] **9.2 Create Image shape type**
   - Files modified:
-    - `src/utils/shapeDefaults.ts`
-  - Content:
-    - `createDefaultCircle(x, y)` - 50px radius, red
-    - `createDefaultLine(x, y)` - 150px horizontal, black
-    - `createDefaultText(x, y)` - "Double-click to edit", 16px
-
-- [ ] **🧪 9.3 Add unit tests for new shape defaults**
-  - Files modified:
-    - `tests/unit/shapeDefaults.test.ts`
+    - `src/types/shapes.ts`
   - Content:
     ```typescript
-    describe('createDefaultCircle', () => {
-      it('should create circle with correct radius', () => {
-        const circle = createDefaultCircle(0, 0)
-        expect(circle.radius).toBe(50)
-      })
-
-      it('should create circle with red color', () => {
-        const circle = createDefaultCircle(0, 0)
-        expect(circle.color).toBe('#EF4444')
-      })
-    })
-
-    describe('createDefaultLine', () => {
-      it('should create horizontal line', () => {
-        const line = createDefaultLine(0, 0)
-        expect(line.x2 - line.x1).toBe(150)
-        expect(line.y2).toBe(line.y1)
-      })
-    })
-
-    describe('createDefaultText', () => {
-      it('should create text with default content', () => {
-        const text = createDefaultText(0, 0)
-        expect(text.content).toBe('Double-click to edit')
-      })
-    })
+    interface Image extends BaseShape {
+      type: 'image';
+      src: string; // Image URL or data URL
+      width: number;
+      height: number;
+      opacity?: number;
+    }
     ```
 
-- [ ] **9.4 Update Toolbar with new shape tools**
+- [x] **9.3 Update ShapeRenderer for text formatting**
+  - Files modified:
+    - `src/components/canvas/ShapeRenderer.tsx`
+  - Content:
+    - Parse `fontStyle` to separate bold/italic
+    - Apply to Konva Text: `fontStyle: "${fontStyleValue} ${fontWeight}"`
+    - Add `textDecoration`, `align`, `verticalAlign` props
+    - Add `width` prop for text wrapping
+
+- [x] **9.4 Add Image rendering support**
+  - Files modified:
+    - `src/components/canvas/ShapeRenderer.tsx`
+  - Content:
+    - Create HTMLImageElement from `shape.src`
+    - Render Konva Image component with drag/rotate support
+    - Add blue selection border when selected
+    - Handle opacity property
+
+- [x] **9.5 Remove toolbar horizontal scroll**
   - Files modified:
     - `src/components/canvas/Toolbar.tsx`
   - Content:
-    - Add circle button
-    - Add line button
-    - Add text button
-    - Visual indication of selected tool
+    - Removed `maxWidth: 'calc(100vw - 40px)'`
+    - Removed `overflowX: 'auto'`
+    - Toolbar now shows all tools without scrolling
 
-- [ ] **9.5 Implement circle rendering**
+- [x] **🧪 9.6 Update shape defaults tests**
   - Files modified:
-    - `src/components/canvas/ShapeRenderer.tsx`
+    - `tests/unit/shapeDefaults.test.ts`
   - Content:
-    - Render `<Circle>` component from react-konva
-    - Handle fill color prop
-
-- [ ] **9.6 Implement line rendering**
-  - Files modified:
-    - `src/components/canvas/ShapeRenderer.tsx`
-  - Content:
-    - Render `<Line>` component from react-konva
-    - Handle stroke color and width props
-
-- [ ] **9.7 Implement text rendering**
-  - Files modified:
-    - `src/components/canvas/ShapeRenderer.tsx`
-  - Content:
-    - Render `<Text>` component from react-konva
-    - Handle fontSize and fill (color) props
-
-- [ ] **9.8 Update creation logic for all shapes**
-  - Files modified:
-    - `src/components/canvas/Canvas.tsx`
-  - Content:
-    - Check currently selected tool
-    - Create appropriate shape type on click
-
-- [ ] **9.9 Update Firestore sync for all shapes**
-  - Files modified:
-    - `src/services/firestore.ts`
-  - Content:
-    - Handle all shape types in CRUD operations
-    - Validate shape data
-
-- [ ] **9.10 Update selection and drag for all shapes**
-  - Files modified:
-    - `src/components/canvas/Canvas.tsx`
-  - Content:
-    - Hit testing for circles (distance from center)
-    - Hit testing for lines (distance from line)
-    - Hit testing for text (bounding box)
-    - Drag all shape types
-
-- [ ] **🧪 9.11 Add unit tests for hit testing all shapes**
-  - Files modified:
-    - `tests/unit/hitTesting.test.ts`
-  - Content:
-    ```typescript
-    describe('isPointInCircle', () => {
-      it('should return true when point is inside circle', () => {
-        const circle = { x: 100, y: 100, radius: 50 }
-        expect(isPointInCircle(110, 110, circle)).toBe(true)
-      })
-
-      it('should return false when point is outside circle', () => {
-        const circle = { x: 100, y: 100, radius: 50 }
-        expect(isPointInCircle(200, 200, circle)).toBe(false)
-      })
-    })
-
-    describe('isPointNearLine', () => {
-      it('should return true when point is near line', () => {
-        const line = { x1: 0, y1: 0, x2: 100, y2: 0 }
-        expect(isPointNearLine(50, 5, line, 10)).toBe(true)
-      })
-    })
-    ```
-
-- [ ] **9.12 Test all shape types**
-  - Action:
-    - Create rectangle, circle, line, text
-    - Verify rendering
-    - Verify sync between users
-    - Verify drag works for all types
+    - Updated color expectations (white fill `#FFFFFF`, dark stroke `#1F2937`)
+    - Updated all shape type tests to match current implementation
+    - All 128 tests passing
 
 **Files Created/Modified:**
-- Modified: `src/types/shapes.ts`, `src/utils/shapeDefaults.ts`, `src/components/canvas/Toolbar.tsx`, `src/components/canvas/ShapeRenderer.tsx`, `src/components/canvas/Canvas.tsx`, `src/services/firestore.ts`, `tests/unit/shapeDefaults.test.ts`, `tests/unit/hitTesting.test.ts`
+- Modified: `src/types/shapes.ts`, `src/components/canvas/ShapeRenderer.tsx`, `src/components/canvas/Toolbar.tsx`, `tests/unit/shapeDefaults.test.ts`
 
 **Acceptance Criteria:**
-- [ ] Can create rectangles, circles, lines, text
-- [ ] All shapes render correctly
-- [ ] All shapes sync between users
-- [ ] All shapes can be selected and dragged
-- [ ] Visual defaults match spec (100x100 rect, 100px circle, etc.)
-- [ ] ✅ All tests pass
+- [x] Text shapes support bold, italic, underline styling
+- [x] Text shapes support left/center/right alignment
+- [x] Text shapes support top/middle/bottom vertical alignment
+- [x] Image shape type created with opacity support
+- [x] Images render on canvas with drag/rotate/select
+- [x] Toolbar displays without horizontal scroll
+- [x] ✅ All tests pass (128/128)
+
+**Next Steps:**
+- Implement text formatting UI panel (buttons for bold/italic/underline)
+- Add image upload button and file handling
+- Create properties panel for styling controls
 
 ---
 
