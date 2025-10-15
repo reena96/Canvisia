@@ -1,8 +1,7 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Stage, Layer, Line, Rect } from 'react-konva'
+import { Stage, Layer, Line } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
-import { CANVAS_CONFIG } from '@/config/canvas.config'
 import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
 import { CursorOverlay } from './CursorOverlay'
 import { useCursors } from '@/hooks/useCursors'
@@ -29,6 +28,10 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   // Local state for tools and selection
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
+
+  // Pan state (for spacebar + drag)
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
 
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
@@ -154,7 +157,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     if (!pointerPosition) return
 
     // Calculate zoom delta (negative for zoom in, positive for zoom out)
-    const zoomDelta = -e.evt.deltaY * CANVAS_CONFIG.ZOOM_SENSITIVITY
+    const zoomDelta = -e.evt.deltaY * 0.001
 
     // Calculate new viewport centered on pointer
     const newViewport = calculateZoom(
@@ -168,29 +171,82 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     updateViewport(newViewport)
   }
 
-  // Handle drag end to update viewport position
-  const handleDragEnd = (e: KonvaEventObject<DragEvent>) => {
-    const stage = e.target
-    updateViewport({
-      x: stage.x(),
-      y: stage.y(),
-    })
-  }
+  // Handle spacebar for panning
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isPanning) {
+        e.preventDefault()
+        setIsPanning(true)
+        document.body.style.cursor = 'grab'
+      }
+    }
 
-  // Handle mouse move to broadcast cursor position
-  const handleMouseMove = () => {
-    // Only track cursor if user is authenticated
-    if (!user) return
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsPanning(false)
+        setPanStart(null)
+        document.body.style.cursor = 'default'
+      }
+    }
 
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [isPanning])
+
+  // Handle mouse move to broadcast cursor position and pan
+  const handleMouseMove = (_e: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
     if (!stage) return
 
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
 
+    // Handle panning with spacebar + drag
+    if (isPanning) {
+      if (panStart) {
+        const dx = pointerPosition.x - panStart.x
+        const dy = pointerPosition.y - panStart.y
+        updateViewport({
+          x: viewport.x + dx,
+          y: viewport.y + dy,
+        })
+        setPanStart(pointerPosition)
+        document.body.style.cursor = 'grabbing'
+      }
+      return
+    }
+
+    // Only track cursor if user is authenticated
+    if (!user) return
+
     // Convert screen coordinates to canvas coordinates
     const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
     updateCursor(canvasPos.x, canvasPos.y)
+  }
+
+  // Handle mouse down for panning
+  const handleMouseDown = (_e: KonvaEventObject<MouseEvent>) => {
+    if (isPanning) {
+      const stage = stageRef.current
+      if (!stage) return
+      const pointerPosition = stage.getPointerPosition()
+      if (pointerPosition) {
+        setPanStart(pointerPosition)
+      }
+    }
+  }
+
+  // Handle mouse up for panning
+  const handleMouseUp = () => {
+    if (isPanning) {
+      setPanStart(null)
+      document.body.style.cursor = 'grab'
+    }
   }
 
   // Handle stage click for creating shapes
@@ -272,31 +328,37 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     [updateShape, updateShapeLocal]
   )
 
-  // Generate grid lines
+  // Generate infinite grid lines based on viewport
   const renderGrid = () => {
-    const gridSize = 50 // 50px grid
+    const gridSize = 50
     const lines: React.ReactElement[] = []
 
-    // Vertical lines
-    for (let i = 0; i < CANVAS_CONFIG.WIDTH; i += gridSize) {
+    // Calculate visible canvas area in canvas coordinates
+    const startX = Math.floor(-viewport.x / viewport.zoom / gridSize) * gridSize
+    const endX = Math.ceil((window.innerWidth - viewport.x) / viewport.zoom / gridSize) * gridSize
+    const startY = Math.floor(-viewport.y / viewport.zoom / gridSize) * gridSize
+    const endY = Math.ceil((window.innerHeight - viewport.y) / viewport.zoom / gridSize) * gridSize
+
+    // Render vertical lines
+    for (let x = startX; x <= endX; x += gridSize) {
       lines.push(
         <Line
-          key={`v-${i}`}
-          points={[i, 0, i, CANVAS_CONFIG.HEIGHT]}
-          stroke="#ddd"
+          key={`v-${x}`}
+          points={[x, startY, x, endY]}
+          stroke="#e5e5e5"
           strokeWidth={1 / viewport.zoom}
           listening={false}
         />
       )
     }
 
-    // Horizontal lines
-    for (let i = 0; i < CANVAS_CONFIG.HEIGHT; i += gridSize) {
+    // Render horizontal lines
+    for (let y = startY; y <= endY; y += gridSize) {
       lines.push(
         <Line
-          key={`h-${i}`}
-          points={[0, i, CANVAS_CONFIG.WIDTH, i]}
-          stroke="#ddd"
+          key={`h-${y}`}
+          points={[startX, y, endX, y]}
+          stroke="#e5e5e5"
           strokeWidth={1 / viewport.zoom}
           listening={false}
         />
@@ -307,7 +369,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', overflow: 'hidden' }}>
+    <div
+      style={{
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
+        backgroundColor: 'white',
+      }}
+    >
       {/* Toolbar */}
       <Toolbar selectedTool={selectedTool} onToolSelect={setSelectedTool} />
 
@@ -351,24 +420,15 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         y={viewport.y}
         scaleX={viewport.zoom}
         scaleY={viewport.zoom}
-        draggable
+        draggable={false}
         onWheel={handleWheel}
-        onDragEnd={handleDragEnd}
         onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         onClick={handleStageClick}
       >
         <Layer>
-          {/* Canvas background */}
-          <Rect
-            x={0}
-            y={0}
-            width={CANVAS_CONFIG.WIDTH}
-            height={CANVAS_CONFIG.HEIGHT}
-            fill="white"
-            listening={false}
-          />
-
-          {/* Grid */}
+          {/* Grid lines */}
           {renderGrid()}
 
           {/* Render shapes */}
