@@ -1,16 +1,19 @@
 /**
  * Zoom controls component - positioned in bottom-right corner like Figma
- * Vertical layout with +, percentage, and - stacked
+ * Vertical layout with reset view, +, percentage, and - stacked
  */
+
+import { Maximize } from 'lucide-react'
 
 interface ZoomControlsProps {
   zoomPercentage: number
   onZoomIn: () => void
   onZoomOut: () => void
   onResetZoom: () => void
+  onResetView: () => void
 }
 
-export function ZoomControls({ zoomPercentage, onZoomIn, onZoomOut, onResetZoom }: ZoomControlsProps) {
+export function ZoomControls({ zoomPercentage, onZoomIn, onZoomOut, onResetZoom, onResetView }: ZoomControlsProps) {
   return (
     <div
       style={{
@@ -28,6 +31,33 @@ export function ZoomControls({ zoomPercentage, onZoomIn, onZoomOut, onResetZoom 
         border: '1px solid #E5E7EB',
       }}
     >
+      {/* Reset View */}
+      <button
+        onClick={onResetView}
+        title="Reset View"
+        style={{
+          width: '40px',
+          height: '36px',
+          border: 'none',
+          borderBottom: '1px solid #E5E7EB',
+          backgroundColor: 'white',
+          color: '#1F2937',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#F9FAFB'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'white'
+        }}
+      >
+        <Maximize size={18} />
+      </button>
+
       {/* Zoom In */}
       <button
         onClick={onZoomIn}

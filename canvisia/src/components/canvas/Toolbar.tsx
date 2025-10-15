@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Maximize, Hand } from 'lucide-react'
+import { Hand } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 import { shapeIcons } from '@/utils/generateShapeIcons'
 
@@ -8,7 +8,6 @@ type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRec
 interface ToolbarProps {
   selectedTool: Tool
   onToolSelect: (tool: Tool) => void
-  onResetView: () => void
   selectedShapeColor?: string
   onColorChange?: (color: string) => void
 }
@@ -16,7 +15,6 @@ interface ToolbarProps {
 export function Toolbar({
   selectedTool,
   onToolSelect,
-  onResetView,
   selectedShapeColor,
   onColorChange
 }: ToolbarProps) {
@@ -440,33 +438,6 @@ export function Toolbar({
           <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
         </>
       )}
-
-      {/* View Controls */}
-      <button
-        onClick={onResetView}
-        title="Reset View"
-        style={{
-          width: '40px',
-          height: '40px',
-          border: '2px solid transparent',
-          borderRadius: '6px',
-          backgroundColor: 'white',
-          color: '#1F2937',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#F9FAFB'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'white'
-        }}
-      >
-        <Maximize size={20} />
-      </button>
 
     </div>
   )

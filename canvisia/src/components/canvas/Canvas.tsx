@@ -582,7 +582,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       <Toolbar
         selectedTool={selectedTool}
         onToolSelect={setSelectedTool}
-        onResetView={handleResetView}
         selectedShapeColor={selectedShapeId ? (() => {
           const selectedShape = shapes.find(s => s.id === selectedShapeId)
           if (!selectedShape) return undefined
@@ -615,6 +614,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        onResetView={handleResetView}
       />
 
       {/* Loading indicator */}
