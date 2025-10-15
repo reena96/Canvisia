@@ -145,30 +145,41 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     })
   }, [firestoreShapes])
 
-  // Handle zoom with mouse wheel
+  // Handle scroll - pan or zoom based on modifier keys (Figma-style)
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()
 
     const stage = stageRef.current
     if (!stage) return
 
-    // Get pointer position
-    const pointerPosition = stage.getPointerPosition()
-    if (!pointerPosition) return
+    // Cmd/Ctrl + scroll = zoom (like Figma)
+    if (e.evt.metaKey || e.evt.ctrlKey) {
+      // Get pointer position
+      const pointerPosition = stage.getPointerPosition()
+      if (!pointerPosition) return
 
-    // Calculate zoom delta (negative for zoom in, positive for zoom out)
-    const zoomDelta = -e.evt.deltaY * 0.001
+      // Calculate zoom delta (negative for zoom in, positive for zoom out)
+      const zoomDelta = -e.evt.deltaY * 0.001
 
-    // Calculate new viewport centered on pointer
-    const newViewport = calculateZoom(
-      viewport.zoom,
-      zoomDelta,
-      pointerPosition.x,
-      pointerPosition.y,
-      viewport
-    )
+      // Calculate new viewport centered on pointer
+      const newViewport = calculateZoom(
+        viewport.zoom,
+        zoomDelta,
+        pointerPosition.x,
+        pointerPosition.y,
+        viewport
+      )
 
-    updateViewport(newViewport)
+      updateViewport(newViewport)
+    } else {
+      // Regular scroll = pan up/down (like Figma)
+      // deltaY: positive = scroll down, negative = scroll up
+      // We want: scroll down = move viewport down (canvas moves up)
+      updateViewport({
+        x: viewport.x - e.evt.deltaX,
+        y: viewport.y - e.evt.deltaY,
+      })
+    }
   }
 
   // Handle spacebar for panning
