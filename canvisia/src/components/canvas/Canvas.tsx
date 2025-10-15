@@ -12,6 +12,7 @@ import { Toolbar, type Tool } from './Toolbar'
 import { ZoomControls } from './ZoomControls'
 import { ShapeRenderer } from './ShapeRenderer'
 import { TextEditOverlay } from './TextEditOverlay'
+import { FloatingTextToolbar } from './FloatingTextToolbar'
 import {
   createDefaultRectangle,
   createDefaultCircle,
@@ -32,7 +33,7 @@ import {
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
 import { throttle } from '@/utils/throttle'
-import type { Shape } from '@/types/shapes'
+import type { Shape, Text } from '@/types/shapes'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
@@ -362,6 +363,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     if (clickedOnEmpty) {
       // Deselect shape
       setSelectedShapeId(null)
+      setSelectedTextId(null)
 
       // Create new shape if tool is selected (except text, which uses drag-to-create)
       if (selectedTool !== 'select' && selectedTool !== 'text') {
@@ -437,6 +439,12 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
   // Handle shape selection
   const handleShapeSelect = (shapeId: string) => {
+    const shape = shapes.find(s => s.id === shapeId)
+    if (shape?.type === 'text') {
+      setSelectedTextId(shapeId)
+    } else {
+      setSelectedTextId(null)
+    }
     setSelectedShapeId(shapeId)
     setSelectedTool('select')
   }
@@ -597,6 +605,34 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       zoom: CANVAS_CONFIG.DEFAULT_ZOOM,
     })
   }, [updateViewport])
+
+  // Calculate toolbar position above text shape
+  const calculateToolbarPosition = (shape: Text): { x: number; y: number } => {
+    const screenX = shape.x * viewport.zoom + viewport.x
+    const screenY = shape.y * viewport.zoom + viewport.y
+
+    const toolbarHeight = 60
+    const toolbarWidth = 700 // Approximate
+
+    let x = screenX
+    let y = screenY - toolbarHeight - 12
+
+    // If toolbar would go above screen, show below
+    if (y < 0) {
+      y = screenY + (shape.fontSize * shape.lineHeight * viewport.zoom) + 12
+    }
+
+    // Keep toolbar on screen horizontally
+    const maxX = window.innerWidth - toolbarWidth
+    if (x > maxX) {
+      x = maxX
+    }
+    if (x < 0) {
+      x = 0
+    }
+
+    return { x, y }
+  }
 
   // Generate infinite grid dots based on viewport (Figma-style)
   const renderGrid = () => {
@@ -770,6 +806,55 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
               if (editingShape.text.trim() === '') {
                 deleteShape(editingTextId)
               }
+            }}
+          />
+        )
+      })()}
+
+      {/* Floating Text Toolbar */}
+      {selectedTextId && !editingTextId && (() => {
+        const selectedShape = shapes.find(s => s.id === selectedTextId)
+        if (!selectedShape || selectedShape.type !== 'text') return null
+
+        const position = calculateToolbarPosition(selectedShape)
+
+        return (
+          <FloatingTextToolbar
+            position={position}
+            fontFamily={selectedShape.fontFamily}
+            fontSize={selectedShape.fontSize}
+            fontWeight={selectedShape.fontWeight}
+            fontStyle={selectedShape.fontStyle}
+            textDecoration={selectedShape.textDecoration}
+            align={selectedShape.align}
+            lineHeight={selectedShape.lineHeight}
+            color={selectedShape.fill}
+            onFontFamilyChange={(fontFamily) => {
+              updateShape(selectedTextId, { fontFamily })
+            }}
+            onFontSizeChange={(fontSize) => {
+              updateShape(selectedTextId, { fontSize })
+            }}
+            onToggleBold={() => {
+              const newWeight = selectedShape.fontWeight === 700 ? 400 : 700
+              updateShape(selectedTextId, { fontWeight: newWeight })
+            }}
+            onToggleItalic={() => {
+              const newStyle = selectedShape.fontStyle === 'italic' ? 'normal' : 'italic'
+              updateShape(selectedTextId, { fontStyle: newStyle })
+            }}
+            onToggleUnderline={() => {
+              const newDecoration = selectedShape.textDecoration === 'underline' ? 'none' : 'underline'
+              updateShape(selectedTextId, { textDecoration: newDecoration })
+            }}
+            onAlignChange={(align) => {
+              updateShape(selectedTextId, { align })
+            }}
+            onLineHeightChange={(lineHeight) => {
+              updateShape(selectedTextId, { lineHeight })
+            }}
+            onColorChange={(fill) => {
+              updateShape(selectedTextId, { fill })
             }}
           />
         )
