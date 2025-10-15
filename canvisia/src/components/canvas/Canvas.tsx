@@ -10,6 +10,7 @@ import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
 import { ShapeRenderer } from './ShapeRenderer'
+import { ColorPicker } from './ColorPicker'
 import {
   createDefaultRectangle,
   createDefaultCircle,
@@ -556,6 +557,40 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
       />
+
+      {/* Color Picker - appears when a shape is selected */}
+      {selectedShapeId && (() => {
+        const selectedShape = shapes.find(s => s.id === selectedShapeId)
+        if (!selectedShape) return null
+
+        // Get current color from the shape
+        const currentColor = 'fill' in selectedShape ? selectedShape.fill :
+                            'stroke' in selectedShape ? selectedShape.stroke : '#000000'
+
+        return (
+          <div style={{ position: 'absolute', left: '20px', top: '20px', zIndex: 15 }}>
+            <ColorPicker
+              currentColor={currentColor}
+              onColorChange={(color) => {
+                // Update the shape's color based on its type
+                const updates: Partial<Shape> = {}
+                if ('fill' in selectedShape) {
+                  updates.fill = color
+                }
+                if ('stroke' in selectedShape) {
+                  updates.stroke = color
+                }
+                if (Object.keys(updates).length > 0) {
+                  updateShapeLocal(selectedShapeId, updates)
+                  updateShape(selectedShapeId, updates).catch(err => {
+                    console.error('Failed to update shape color:', err)
+                  })
+                }
+              }}
+            />
+          </div>
+        )
+      })()}
 
       {/* Loading indicator */}
       {loading && (
