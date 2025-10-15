@@ -159,8 +159,8 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       if (!pointerPosition) return
 
       // Calculate zoom delta (negative for zoom in, positive for zoom out)
-      // Increased sensitivity (0.002 vs 0.001) for more responsive touchpad zoom
-      const zoomDelta = -e.evt.deltaY * 0.002
+      // Increased sensitivity (0.005) for Figma-like touchpad zoom
+      const zoomDelta = -e.evt.deltaY * 0.005
 
       // Calculate new viewport centered on pointer
       const newViewport = calculateZoom(
