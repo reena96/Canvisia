@@ -82,7 +82,7 @@
 - ✅ Testing & Validation (caught deployment issues, verified production sync)
 - 🎚️ Scope Management (resisted feature creep, prioritized core features)
 - 🔧 Tool Configuration (Firebase setup, API keys, Claude Code permissions)
-- 🔍 Code Reading & Debugging (understood generated code, documented in docs/bugfix)
+- 🔍 Code Reading & Debugging (understood generated code while debugging and made Claude document our learnings in docs/bugfix)
 
 ---
 
