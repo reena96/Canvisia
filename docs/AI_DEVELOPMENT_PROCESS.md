@@ -66,6 +66,7 @@
 - ✅ Test-driven development (caught regressions automatically)
 - ✅ Error resolution (fixed 10 type errors in one session)
 - ✅ Documentation (clear commit messages, inline comments)
+- ✅ Feature implementation (text formatting keyboard shortcuts: Cmd+B/I/U)
 
 **Where AI Struggled:**
 - ⚠️ Design decisions (needed guidance on zoom limits: 0.01-256x → 0.1-5x)
