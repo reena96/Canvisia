@@ -11,6 +11,7 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
 import { ZoomControls } from './ZoomControls'
 import { ShapeRenderer } from './ShapeRenderer'
+import { TextEditOverlay } from './TextEditOverlay'
 import {
   createDefaultRectangle,
   createDefaultCircle,
@@ -750,6 +751,29 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       {/* Multiplayer cursors overlay */}
       <CursorOverlay cursors={cursors} viewport={viewport} />
 
+      {/* Text Edit Overlay */}
+      {editingTextId && (() => {
+        const editingShape = shapes.find(s => s.id === editingTextId)
+        if (!editingShape || editingShape.type !== 'text') return null
+
+        return (
+          <TextEditOverlay
+            shape={editingShape}
+            stagePosition={{ x: viewport.x, y: viewport.y }}
+            stageScale={viewport.zoom}
+            onTextChange={(text) => {
+              updateShape(editingTextId, { text })
+            }}
+            onExitEdit={() => {
+              setEditingTextId(null)
+              // If text is empty, delete the shape
+              if (editingShape.text.trim() === '') {
+                deleteShape(editingTextId)
+              }
+            }}
+          />
+        )
+      })()}
 
       {/* Error toast notification */}
       {error && (
