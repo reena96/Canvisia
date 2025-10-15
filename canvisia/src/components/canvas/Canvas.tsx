@@ -159,7 +159,8 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       if (!pointerPosition) return
 
       // Calculate zoom delta (negative for zoom in, positive for zoom out)
-      const zoomDelta = -e.evt.deltaY * 0.001
+      // Increased sensitivity (0.002 vs 0.001) for more responsive touchpad zoom
+      const zoomDelta = -e.evt.deltaY * 0.002
 
       // Calculate new viewport centered on pointer
       const newViewport = calculateZoom(
@@ -175,10 +176,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       // Regular scroll = pan up/down (like Figma)
       // deltaY: positive = scroll down, negative = scroll up
       // We want: scroll down = move viewport down (canvas moves up)
-      // Multiply by 2 for more responsive panning like Figma
       updateViewport({
-        x: viewport.x - e.evt.deltaX * 2,
-        y: viewport.y - e.evt.deltaY * 2,
+        x: viewport.x - e.evt.deltaX,
+        y: viewport.y - e.evt.deltaY,
       })
     }
   }
