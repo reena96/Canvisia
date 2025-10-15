@@ -75,20 +75,18 @@
 - ⚠️ Resource awareness (didn't initially consider Firebase free tier limits)
 - ⚠️ Context persistence (occasionally forgot previous session decisions)
 
+**Where Human Developer Excelled:**
+- 📋 Planning & Architecture (70-80% upfront time investment)
+- 🎯 Requirement Clarification (identified AI confusion, corrected early)
+- 🎨 UX Vision ("Make it like Figma", guided to professional quality)
+- ✅ Testing & Validation (caught deployment issues, verified production sync)
+- 🎚️ Scope Management (resisted feature creep, prioritized core features)
+- 🔧 Tool Configuration (Firebase setup, API keys, Claude Code permissions)
+- 🔍 Code Reading & Debugging (understood generated code, documented in docs/bugfix)
+
 ---
 
 ## 5. Key Learnings
-
-**Where Human Developer Excelled:**
-- 📋 **Planning & Architecture** - 70-80% time invested in upfront planning eliminated backtracking
-- 🎯 **Requirement Clarification** - Proactively identified AI confusion, corrected misunderstandings early
-- 🎨 **UX Vision** - Clear direction ("Make it like Figma"), guided refinement to professional quality
-- ✅ **Testing & Validation** - Caught deployment issues, tested multi-user scenarios, verified production sync
-- 🎚️ **Scope Management** - Resisted feature creep, prioritized core features, deferred non-essential tools
-- 🔧 **Tool Configuration** - Set up Firebase, managed API keys, configured Claude Code with proper permissions
-- 🔍 **Code Reading & Debugging** - Read generated code to understand behavior, documented all debugging in docs/bugfix
-
-**General Insights:**
 
 1. **Prompt Precision Matters:** "Remove toggle buttons" (clear) vs. "Make toolbar better" (vague) — specificity drives accuracy.
 
@@ -97,6 +95,8 @@
 3. **Version Control Enables Experimentation:** When AI's first zoom implementation was too extreme, git made reverting trivial.
 
 4. **Documentation Accelerates Iteration:** AI-maintained task lists and commit logs made resuming work after breaks seamless.
+
+5. **Human Role is Strategic:** AI excels at implementation; humans excel at planning, requirements, UX vision, and validation.
 
 ---
 
