@@ -15,6 +15,9 @@ dist-ssr
 # Firebase emulator data
 .emulator-data
 
+# Firebase service account key (contains sensitive credentials)
+serviceAccountKey.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AuthProvider, useAuth } from './components/auth/AuthProvider'
 import { LoginButton } from './components/auth/LoginButton'
 import { DevLogin } from './components/auth/DevLogin'
+import { ProductionTestLogin } from './components/auth/ProductionTestLogin'
 import { Header } from './components/layout/Header'
 import { Canvas } from './components/canvas/Canvas'
 import type { Presence } from './types/user'
@@ -25,6 +26,7 @@ function AppContent() {
         <p>Real-time collaborative design tool</p>
         <LoginButton />
         <DevLogin />
+        <ProductionTestLogin />
       </div>
     )
   }
