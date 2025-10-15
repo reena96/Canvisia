@@ -567,8 +567,10 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         const currentColor = 'fill' in selectedShape ? selectedShape.fill :
                             'stroke' in selectedShape ? selectedShape.stroke : '#000000'
 
+        console.log('Rendering color picker for shape:', selectedShapeId, 'color:', currentColor)
+
         return (
-          <div style={{ position: 'absolute', left: '20px', top: '20px', zIndex: 15 }}>
+          <div style={{ position: 'absolute', left: '90px', top: '80px', zIndex: 1000 }}>
             <ColorPicker
               currentColor={currentColor}
               onColorChange={(color) => {
