@@ -43,6 +43,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null)
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null)
 
   // Pan state (for spacebar + drag)
   const [isPanning, setIsPanning] = useState(false)
@@ -232,6 +233,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
+
+    // Always track mouse position for tooltips
+    setMousePosition(pointerPosition)
 
     // Handle panning with spacebar + drag
     if (isPanning) {
@@ -623,22 +627,16 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       <CursorOverlay cursors={cursors} viewport={viewport} />
 
       {/* Shape hover tooltip */}
-      {hoveredShapeId && (() => {
+      {hoveredShapeId && mousePosition && (() => {
         const hoveredShape = shapes.find(s => s.id === hoveredShapeId)
         if (!hoveredShape) return null
-
-        const stage = stageRef.current
-        if (!stage) return null
-
-        const pointerPosition = stage.getPointerPosition()
-        if (!pointerPosition) return null
 
         return (
           <div
             style={{
               position: 'absolute',
-              left: `${pointerPosition.x + 10}px`,
-              top: `${pointerPosition.y - 30}px`,
+              left: `${mousePosition.x + 10}px`,
+              top: `${mousePosition.y - 30}px`,
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               color: 'white',
               padding: '4px 8px',
