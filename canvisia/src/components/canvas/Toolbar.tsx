@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Hand } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
-import { shapeIcons } from '@/utils/generateShapeIcons'
+import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
 
 type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 
@@ -24,7 +24,7 @@ export function Toolbar({
 
   const circleTools: Tool[] = ['circle', 'ellipse', 'roundedRectangle', 'cylinder']
   const polygonTools: Tool[] = ['rectangle', 'diamond', 'triangle', 'pentagon', 'hexagon', 'star']
-  const arrowTools: Tool[] = ['arrow', 'bidirectionalArrow', 'bentConnector']
+  const arrowTools: Tool[] = ['line', 'arrow', 'bidirectionalArrow', 'bentConnector']
 
   const isCircleSelected = circleTools.includes(selectedTool)
   const isPolygonSelected = polygonTools.includes(selectedTool)
@@ -86,6 +86,16 @@ export function Toolbar({
 
       <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
 
+      {/* Text Tool */}
+      <ToolButton
+        icon={toolIcons.text}
+        label="Text"
+        selected={selectedTool === 'text'}
+        onClick={() => onToolSelect('text')}
+      />
+
+      <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
+
       {/* Circles - Collapsible */}
       <div style={{ position: 'relative', display: 'flex', gap: '4px' }}>
         <ToolButton
@@ -97,42 +107,14 @@ export function Toolbar({
           label="Circles"
           selected={isCircleSelected}
           onClick={() => {
-            if (!circlesExpanded) {
-              setCirclesExpanded(true)
-              setPolygonsExpanded(false)
-              setArrowsExpanded(false)
-            } else {
-              onToolSelect('circle')
-            }
-          }}
-          isImage={true}
-        />
-        <button
-          onClick={() => {
             setCirclesExpanded(!circlesExpanded)
             if (!circlesExpanded) {
               setPolygonsExpanded(false)
               setArrowsExpanded(false)
             }
           }}
-          style={{
-            position: 'absolute',
-            right: '-4px',
-            bottom: '-4px',
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            border: '1px solid #E5E7EB',
-            backgroundColor: 'white',
-            fontSize: '10px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {circlesExpanded ? '▼' : '▶'}
-        </button>
+          isImage={true}
+        />
 
         {circlesExpanded && (
           <div
@@ -207,42 +189,14 @@ export function Toolbar({
           label="Polygons"
           selected={isPolygonSelected}
           onClick={() => {
-            if (!polygonsExpanded) {
-              setPolygonsExpanded(true)
-              setCirclesExpanded(false)
-              setArrowsExpanded(false)
-            } else {
-              onToolSelect('rectangle')
-            }
-          }}
-          isImage={true}
-        />
-        <button
-          onClick={() => {
             setPolygonsExpanded(!polygonsExpanded)
             if (!polygonsExpanded) {
               setCirclesExpanded(false)
               setArrowsExpanded(false)
             }
           }}
-          style={{
-            position: 'absolute',
-            right: '-4px',
-            bottom: '-4px',
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            border: '1px solid #E5E7EB',
-            backgroundColor: 'white',
-            fontSize: '10px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {polygonsExpanded ? '▼' : '▶'}
-        </button>
+          isImage={true}
+        />
 
         {polygonsExpanded && (
           <div
@@ -324,28 +278,17 @@ export function Toolbar({
         )}
       </div>
 
-      {/* Arrows/Connectors - Collapsible */}
+      {/* Lines & Connectors - Collapsible */}
       <div style={{ position: 'relative', display: 'flex', gap: '4px' }}>
         <ToolButton
           icon={isArrowSelected ?
+            selectedTool === 'line' ? toolIcons.line :
             selectedTool === 'arrow' ? shapeIcons.arrow :
             selectedTool === 'bidirectionalArrow' ? shapeIcons.bidirectionalArrow :
-            shapeIcons.bentConnector : shapeIcons.arrow}
-          label="Arrows"
+            selectedTool === 'bentConnector' ? shapeIcons.bentConnector :
+            shapeIcons.lineAndArrow : shapeIcons.lineAndArrow}
+          label="Lines & Connectors"
           selected={isArrowSelected}
-          onClick={() => {
-            if (!arrowsExpanded) {
-              setArrowsExpanded(true)
-              setCirclesExpanded(false)
-              setPolygonsExpanded(false)
-            } else {
-              onToolSelect('arrow')
-            }
-          }}
-          isImage={true}
-        />
-        {/* Expand arrow indicator */}
-        <button
           onClick={() => {
             setArrowsExpanded(!arrowsExpanded)
             if (!arrowsExpanded) {
@@ -353,26 +296,10 @@ export function Toolbar({
               setPolygonsExpanded(false)
             }
           }}
-          style={{
-            position: 'absolute',
-            right: '-4px',
-            bottom: '-4px',
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            border: '1px solid #E5E7EB',
-            backgroundColor: 'white',
-            fontSize: '10px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {arrowsExpanded ? '▼' : '▶'}
-        </button>
+          isImage={selectedTool === 'line' ? false : true}
+        />
 
-        {/* Expanded arrow options */}
+        {/* Expanded line & connector options */}
         {arrowsExpanded && (
           <div
             style={{
@@ -389,6 +316,16 @@ export function Toolbar({
               zIndex: 1001,
             }}
           >
+            <ToolButton
+              icon={toolIcons.line}
+              label="Line"
+              selected={selectedTool === 'line'}
+              onClick={() => {
+                onToolSelect('line')
+                setArrowsExpanded(false)
+              }}
+              isImage={false}
+            />
             <ToolButton
               icon={shapeIcons.arrow}
               label="Arrow"

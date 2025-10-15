@@ -258,6 +258,34 @@ export const shapeIcons = {
       strokeWidth: 2,
     })
   ),
+
+  // Combined line and arrow icon for Lines & Connectors group
+  lineAndArrow: createShapeIcon(() => {
+    const group = new Konva.Group()
+
+    // Line on top
+    group.add(
+      new Konva.Line({
+        points: [10, 30, 90, 30],
+        stroke: '#1F2937',
+        strokeWidth: 2,
+      })
+    )
+
+    // Arrow on bottom
+    group.add(
+      new Konva.Arrow({
+        points: [10, 70, 90, 70],
+        stroke: '#1F2937',
+        strokeWidth: 2,
+        fill: '#1F2937',
+        pointerLength: 10,
+        pointerWidth: 10,
+      })
+    )
+
+    return group
+  }),
 }
 
 // Tool icons (non-shape tools)

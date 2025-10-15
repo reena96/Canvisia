@@ -1,5 +1,5 @@
 import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, Image as KonvaImage, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { Shape } from '@/types/shapes'
 
 interface ShapeRendererProps {
