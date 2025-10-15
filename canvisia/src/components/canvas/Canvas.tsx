@@ -2,8 +2,10 @@ import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { Stage, Layer, Circle } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
+import { CANVAS_CONFIG } from '@/config/canvas.config'
 import { calculateZoom, screenToCanvas } from '@/utils/canvasUtils'
 import { CursorOverlay } from './CursorOverlay'
+import { ZoomControls } from './ZoomControls'
 import { useCursors } from '@/hooks/useCursors'
 import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
@@ -340,6 +342,48 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     [updateShape, updateShapeLocal]
   )
 
+  // Zoom control handlers
+  const handleZoomIn = useCallback(() => {
+    const newZoom = Math.min(viewport.zoom + CANVAS_CONFIG.ZOOM_STEP, CANVAS_CONFIG.MAX_ZOOM)
+    const centerX = window.innerWidth / 2
+    const centerY = window.innerHeight / 2
+    const newViewport = calculateZoom(
+      viewport.zoom,
+      newZoom - viewport.zoom,
+      centerX,
+      centerY,
+      viewport
+    )
+    updateViewport(newViewport)
+  }, [viewport, updateViewport])
+
+  const handleZoomOut = useCallback(() => {
+    const newZoom = Math.max(viewport.zoom - CANVAS_CONFIG.ZOOM_STEP, CANVAS_CONFIG.MIN_ZOOM)
+    const centerX = window.innerWidth / 2
+    const centerY = window.innerHeight / 2
+    const newViewport = calculateZoom(
+      viewport.zoom,
+      newZoom - viewport.zoom,
+      centerX,
+      centerY,
+      viewport
+    )
+    updateViewport(newViewport)
+  }, [viewport, updateViewport])
+
+  const handleResetZoom = useCallback(() => {
+    const centerX = window.innerWidth / 2
+    const centerY = window.innerHeight / 2
+    const newViewport = calculateZoom(
+      viewport.zoom,
+      CANVAS_CONFIG.DEFAULT_ZOOM - viewport.zoom,
+      centerX,
+      centerY,
+      viewport
+    )
+    updateViewport(newViewport)
+  }, [viewport, updateViewport])
+
   // Generate infinite grid dots based on viewport (Figma-style)
   const renderGrid = () => {
     const gridSize = 50
@@ -449,6 +493,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
 
       {/* Multiplayer cursors overlay */}
       <CursorOverlay cursors={cursors} viewport={viewport} />
+
+      {/* Zoom controls */}
+      <ZoomControls
+        zoom={viewport.zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
+      />
 
       {/* Error toast notification */}
       {error && (
