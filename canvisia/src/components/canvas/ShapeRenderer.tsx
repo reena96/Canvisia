@@ -1,4 +1,4 @@
-import { Rect, Circle as KonvaCircle, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar } from 'react-konva'
+import { Rect, Circle as KonvaCircle, Line as KonvaLine, Text as KonvaText, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow } from 'react-konva'
 import type { Shape } from '@/types/shapes'
 
 interface ShapeRendererProps {
@@ -188,6 +188,54 @@ export function ShapeRenderer({
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        />
+      )
+
+    case 'arrow':
+      return (
+        <KonvaArrow
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          points={[0, 0, shape.x2 - shape.x, shape.y2 - shape.y]}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? shape.strokeWidth + 1 : shape.strokeWidth}
+          fill={isSelected ? '#3B82F6' : shape.stroke}
+          pointerLength={shape.pointerLength}
+          pointerWidth={shape.pointerWidth}
+          rotation={shape.rotation}
+          draggable
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+        />
+      )
+
+    case 'bentConnector':
+      return (
+        <KonvaLine
+          id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          points={[
+            0,
+            0,
+            shape.bendX - shape.x,
+            shape.bendY - shape.y,
+            shape.x2 - shape.x,
+            shape.y2 - shape.y,
+          ]}
+          stroke={isSelected ? '#3B82F6' : shape.stroke}
+          strokeWidth={isSelected ? shape.strokeWidth + 1 : shape.strokeWidth}
           rotation={shape.rotation}
           draggable
           onClick={onSelect}

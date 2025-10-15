@@ -19,6 +19,8 @@ import {
   createDefaultPentagon,
   createDefaultHexagon,
   createDefaultStar,
+  createDefaultArrow,
+  createDefaultBentConnector,
 } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
@@ -319,6 +321,12 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
           case 'star':
             newShape = createDefaultStar(canvasPos.x, canvasPos.y, userId, userColor)
             break
+          case 'arrow':
+            newShape = createDefaultArrow(canvasPos.x, canvasPos.y, userId, userColor)
+            break
+          case 'bentConnector':
+            newShape = createDefaultBentConnector(canvasPos.x, canvasPos.y, userId, userColor)
+            break
         }
 
         // Write to Firestore (will automatically sync back via subscription)
@@ -347,9 +355,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       const shape = shapes.find((s) => s.id === shapeId)
       if (!shape) return
 
-      // For lines, we need to update both endpoints to preserve length and angle
+      // For lines and connectors, we need to update both endpoints to preserve length and angle
       let updates: Partial<Shape>
-      if (shape.type === 'line') {
+      if (shape.type === 'line' || shape.type === 'arrow') {
         // Calculate offset from old position
         const dx = x - shape.x
         const dy = y - shape.y
@@ -359,6 +367,18 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
           y,
           x2: shape.x2 + dx,
           y2: shape.y2 + dy,
+        }
+      } else if (shape.type === 'bentConnector') {
+        // For bent connectors, also update the bend point
+        const dx = x - shape.x
+        const dy = y - shape.y
+        updates = {
+          x,
+          y,
+          x2: shape.x2 + dx,
+          y2: shape.y2 + dy,
+          bendX: shape.bendX + dx,
+          bendY: shape.bendY + dy,
         }
       } else {
         // For other shapes, just update x and y
@@ -391,9 +411,9 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       const shape = shapes.find((s) => s.id === shapeId)
       if (!shape) return
 
-      // For lines, we need to update both endpoints to preserve length and angle
+      // For lines and connectors, we need to update both endpoints to preserve length and angle
       let updates: Partial<Shape>
-      if (shape.type === 'line') {
+      if (shape.type === 'line' || shape.type === 'arrow') {
         // Calculate offset from old position
         const dx = x - shape.x
         const dy = y - shape.y
@@ -403,6 +423,18 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
           y,
           x2: shape.x2 + dx,
           y2: shape.y2 + dy,
+        }
+      } else if (shape.type === 'bentConnector') {
+        // For bent connectors, also update the bend point
+        const dx = x - shape.x
+        const dy = y - shape.y
+        updates = {
+          x,
+          y,
+          x2: shape.x2 + dx,
+          y2: shape.y2 + dy,
+          bendX: shape.bendX + dx,
+          bendY: shape.bendY + dy,
         }
       } else {
         // For other shapes, just update x and y

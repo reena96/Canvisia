@@ -1,4 +1,4 @@
-type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star'
+type Tool = 'select' | 'rectangle' | 'circle' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bentConnector'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -80,6 +80,18 @@ export function Toolbar({ selectedTool, onToolSelect, zoom, onZoomIn, onZoomOut,
         label="Star"
         selected={selectedTool === 'star'}
         onClick={() => onToolSelect('star')}
+      />
+      <ToolButton
+        icon="→"
+        label="Arrow"
+        selected={selectedTool === 'arrow'}
+        onClick={() => onToolSelect('arrow')}
+      />
+      <ToolButton
+        icon="⌙"
+        label="Bent Connector"
+        selected={selectedTool === 'bentConnector'}
+        onClick={() => onToolSelect('bentConnector')}
       />
 
       {/* Divider */}
