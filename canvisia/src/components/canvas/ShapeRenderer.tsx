@@ -1,6 +1,7 @@
 import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, Image as KonvaImage, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
 import { useState } from 'react'
 import type { Shape } from '@/types/shapes'
+import { useCanvasStore } from '@/stores/canvasStore'
 
 interface ShapeRendererProps {
   shape: Shape
@@ -233,6 +234,10 @@ export function ShapeRenderer({
         ? (shape.fontStyle === 'italic' ? 'bold italic' : 'bold')
         : (shape.fontStyle === 'italic' ? 'italic' : 'normal')
 
+      const handleDoubleClick = () => {
+        useCanvasStore.getState().setEditingTextId(shape.id)
+      }
+
       return (
         <KonvaText
           id={shape.id}
@@ -251,6 +256,7 @@ export function ShapeRenderer({
           draggable
           onClick={onSelect}
           onTap={onSelect}
+          onDblClick={handleDoubleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
