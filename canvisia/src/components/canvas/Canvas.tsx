@@ -175,9 +175,10 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       // Regular scroll = pan up/down (like Figma)
       // deltaY: positive = scroll down, negative = scroll up
       // We want: scroll down = move viewport down (canvas moves up)
+      // Multiply by 2 for more responsive panning like Figma
       updateViewport({
-        x: viewport.x - e.evt.deltaX,
-        y: viewport.y - e.evt.deltaY,
+        x: viewport.x - e.evt.deltaX * 2,
+        y: viewport.y - e.evt.deltaY * 2,
       })
     }
   }
