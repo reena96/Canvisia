@@ -10,7 +10,6 @@ import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
 import { ShapeRenderer } from './ShapeRenderer'
-import { ColorPicker } from './ColorPicker'
 import {
   createDefaultRectangle,
   createDefaultCircle,
@@ -556,43 +555,31 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        selectedShapeColor={selectedShapeId ? (() => {
+          const selectedShape = shapes.find(s => s.id === selectedShapeId)
+          if (!selectedShape) return undefined
+          return 'fill' in selectedShape ? selectedShape.fill :
+                 'stroke' in selectedShape ? selectedShape.stroke : undefined
+        })() : undefined}
+        onColorChange={selectedShapeId ? (color) => {
+          const selectedShape = shapes.find(s => s.id === selectedShapeId)
+          if (!selectedShape) return
+
+          const updates: Partial<Shape> = {}
+          if ('fill' in selectedShape) {
+            updates.fill = color
+          }
+          if ('stroke' in selectedShape) {
+            updates.stroke = color
+          }
+          if (Object.keys(updates).length > 0) {
+            updateShapeLocal(selectedShapeId, updates)
+            updateShape(selectedShapeId, updates).catch(err => {
+              console.error('Failed to update shape color:', err)
+            })
+          }
+        } : undefined}
       />
-
-      {/* Color Picker - appears when a shape is selected */}
-      {selectedShapeId && (() => {
-        const selectedShape = shapes.find(s => s.id === selectedShapeId)
-        if (!selectedShape) return null
-
-        // Get current color from the shape
-        const currentColor = 'fill' in selectedShape ? selectedShape.fill :
-                            'stroke' in selectedShape ? selectedShape.stroke : '#000000'
-
-        console.log('Rendering color picker for shape:', selectedShapeId, 'color:', currentColor)
-
-        return (
-          <div style={{ position: 'absolute', left: '90px', top: '80px', zIndex: 1000 }}>
-            <ColorPicker
-              currentColor={currentColor}
-              onColorChange={(color) => {
-                // Update the shape's color based on its type
-                const updates: Partial<Shape> = {}
-                if ('fill' in selectedShape) {
-                  updates.fill = color
-                }
-                if ('stroke' in selectedShape) {
-                  updates.stroke = color
-                }
-                if (Object.keys(updates).length > 0) {
-                  updateShapeLocal(selectedShapeId, updates)
-                  updateShape(selectedShapeId, updates).catch(err => {
-                    console.error('Failed to update shape color:', err)
-                  })
-                }
-              }}
-            />
-          </div>
-        )
-      })()}
 
       {/* Loading indicator */}
       {loading && (
