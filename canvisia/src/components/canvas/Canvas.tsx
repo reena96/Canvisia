@@ -540,6 +540,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   return (
     <div
       style={{
+        position: 'relative',
         width: '100%',
         height: '100vh',
         overflow: 'hidden',
@@ -616,8 +617,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
               onSelect={() => handleShapeSelect(shape.id)}
               onDragMove={(x, y) => handleShapeDragMove(shape.id, x, y)}
               onDragEnd={(x, y) => handleShapeDragEnd(shape.id, x, y)}
-              onMouseEnter={() => setHoveredShapeId(shape.id)}
-              onMouseLeave={() => setHoveredShapeId(null)}
+              onMouseEnter={() => {
+                console.log('Mouse entered shape:', shape.type, shape.id)
+                setHoveredShapeId(shape.id)
+              }}
+              onMouseLeave={() => {
+                console.log('Mouse left shape')
+                setHoveredShapeId(null)
+              }}
             />
           ))}
         </Layer>
@@ -629,7 +636,13 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       {/* Shape hover tooltip */}
       {hoveredShapeId && mousePosition && (() => {
         const hoveredShape = shapes.find(s => s.id === hoveredShapeId)
-        if (!hoveredShape) return null
+        if (!hoveredShape) {
+          console.log('Hovered shape not found:', hoveredShapeId)
+          return null
+        }
+
+        const shapeName = getShapeName(hoveredShape)
+        console.log('Rendering tooltip:', shapeName, 'at', mousePosition)
 
         return (
           <div
@@ -648,7 +661,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
               whiteSpace: 'nowrap',
             }}
           >
-            {getShapeName(hoveredShape)}
+            {shapeName}
           </div>
         )
       })()}
