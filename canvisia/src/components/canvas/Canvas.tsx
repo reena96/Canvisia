@@ -41,11 +41,17 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
+  // @ts-ignore - Used in later tasks
+  const editingTextId = useCanvasStore((state) => state.editingTextId)
+  // @ts-ignore - Used in later tasks
+  const setEditingTextId = useCanvasStore((state) => state.setEditingTextId)
   const { user } = useAuth()
 
   // Local state for tools and selection
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
+  // @ts-ignore - Used in later tasks
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
 
   // Pan state (for spacebar + drag)
   const [isPanning, setIsPanning] = useState(false)

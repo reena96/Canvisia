@@ -7,6 +7,7 @@ interface CanvasStore {
   shapes: Shape[]
   selectedIds: string[]
   viewport: Viewport
+  editingTextId: string | null
 
   // Actions
   addShape: (shape: Shape) => void
@@ -21,6 +22,8 @@ interface CanvasStore {
 
   updateViewport: (viewport: Partial<Viewport>) => void
   resetViewport: () => void
+
+  setEditingTextId: (id: string | null) => void
 }
 
 const DEFAULT_VIEWPORT: Viewport = {
@@ -34,6 +37,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   shapes: [],
   selectedIds: [],
   viewport: DEFAULT_VIEWPORT,
+  editingTextId: null,
 
   // Shape actions
   addShape: (shape) =>
@@ -78,4 +82,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     })),
 
   resetViewport: () => set({ viewport: DEFAULT_VIEWPORT }),
+
+  // Text editing actions
+  setEditingTextId: (id) => set({ editingTextId: id }),
 }))
