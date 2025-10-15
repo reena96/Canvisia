@@ -8,10 +8,6 @@ type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRec
 interface ToolbarProps {
   selectedTool: Tool
   onToolSelect: (tool: Tool) => void
-  zoom: number
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onResetZoom: () => void
   onResetView: () => void
   selectedShapeColor?: string
   onColorChange?: (color: string) => void
@@ -20,10 +16,6 @@ interface ToolbarProps {
 export function Toolbar({
   selectedTool,
   onToolSelect,
-  zoom,
-  onZoomIn,
-  onZoomOut,
-  onResetZoom,
   onResetView,
   selectedShapeColor,
   onColorChange
@@ -31,7 +23,6 @@ export function Toolbar({
   const [circlesExpanded, setCirclesExpanded] = useState(false)
   const [polygonsExpanded, setPolygonsExpanded] = useState(false)
   const [arrowsExpanded, setArrowsExpanded] = useState(false)
-  const zoomPercentage = Math.round(zoom * 100)
 
   const circleTools: Tool[] = ['circle', 'ellipse', 'roundedRectangle', 'cylinder']
   const polygonTools: Tool[] = ['rectangle', 'diamond', 'triangle', 'pentagon', 'hexagon', 'star']
@@ -54,10 +45,10 @@ export function Toolbar({
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '6px',
         zIndex: 1000,
         maxWidth: 'calc(100vw - 40px)',
-        flexWrap: 'wrap',
+        overflowX: 'auto',
       }}
     >
       {/* Basic Tools */}
@@ -477,49 +468,6 @@ export function Toolbar({
         <Maximize size={20} />
       </button>
 
-      <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
-
-      {/* Zoom Controls */}
-      <ToolButton
-        icon="+"
-        label="Zoom In"
-        selected={false}
-        onClick={onZoomIn}
-      />
-      <button
-        onClick={onResetZoom}
-        title="Reset zoom to 100%"
-        style={{
-          height: '40px',
-          padding: '0 12px',
-          border: '1px solid #E5E7EB',
-          borderRadius: '6px',
-          backgroundColor: 'white',
-          color: '#1F2937',
-          fontSize: '12px',
-          fontWeight: '500',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s',
-          minWidth: '60px',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#F9FAFB'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'white'
-        }}
-      >
-        {zoomPercentage}%
-      </button>
-      <ToolButton
-        icon="−"
-        label="Zoom Out"
-        selected={false}
-        onClick={onZoomOut}
-      />
     </div>
   )
 }

@@ -1,28 +1,16 @@
+/**
+ * Zoom controls component - positioned in bottom-right corner like Figma
+ * Vertical layout with +, percentage, and - stacked
+ */
+
 interface ZoomControlsProps {
-  zoom: number
+  zoomPercentage: number
   onZoomIn: () => void
   onZoomOut: () => void
   onResetZoom: () => void
 }
 
-export function ZoomControls({ zoom, onZoomIn, onZoomOut, onResetZoom }: ZoomControlsProps) {
-  const zoomPercentage = Math.round(zoom * 100)
-
-  const buttonBaseStyle: React.CSSProperties = {
-    height: '32px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '4px',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151',
-    padding: '0',
-    margin: '0',
-    outline: 'none',
-    transition: 'background-color 0.2s',
-  }
-
+export function ZoomControls({ zoomPercentage, onZoomIn, onZoomOut, onResetZoom }: ZoomControlsProps) {
   return (
     <div
       style={{
@@ -30,69 +18,100 @@ export function ZoomControls({ zoom, onZoomIn, onZoomOut, onResetZoom }: ZoomCon
         bottom: '20px',
         right: '20px',
         display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: '4px',
+        flexDirection: 'column',
+        alignItems: 'stretch',
         backgroundColor: 'white',
-        padding: '6px',
         borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.12)',
+        overflow: 'hidden',
         zIndex: 1000,
+        border: '1px solid #E5E7EB',
       }}
     >
-      {/* Zoom Out Button */}
+      {/* Zoom In */}
       <button
-        onClick={onZoomOut}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+        onClick={onZoomIn}
+        title="Zoom In"
         style={{
-          ...buttonBaseStyle,
-          width: '32px',
+          width: '40px',
+          height: '36px',
+          border: 'none',
+          borderBottom: '1px solid #E5E7EB',
+          backgroundColor: 'white',
+          color: '#1F2937',
+          fontSize: '16px',
+          cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '20px',
-          lineHeight: '1',
+          transition: 'all 0.2s',
         }}
-        title="Zoom out (Cmd/Ctrl + Scroll down)"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#F9FAFB'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'white'
+        }}
       >
-        −
+        +
       </button>
 
-      {/* Zoom Percentage Display + Reset */}
+      {/* Zoom Percentage */}
       <button
         onClick={onResetZoom}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
-        style={{
-          ...buttonBaseStyle,
-          minWidth: '65px',
-          paddingLeft: '12px',
-          paddingRight: '12px',
-          textAlign: 'center',
-        }}
         title="Reset zoom to 100%"
+        style={{
+          width: '40px',
+          height: '32px',
+          border: 'none',
+          borderBottom: '1px solid #E5E7EB',
+          backgroundColor: 'white',
+          color: '#6B7280',
+          fontSize: '10px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#F9FAFB'
+          e.currentTarget.style.color = '#1F2937'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'white'
+          e.currentTarget.style.color = '#6B7280'
+        }}
       >
         {zoomPercentage}%
       </button>
 
-      {/* Zoom In Button */}
+      {/* Zoom Out */}
       <button
-        onClick={onZoomIn}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+        onClick={onZoomOut}
+        title="Zoom Out"
         style={{
-          ...buttonBaseStyle,
-          width: '32px',
+          width: '40px',
+          height: '36px',
+          border: 'none',
+          backgroundColor: 'white',
+          color: '#1F2937',
+          fontSize: '16px',
+          cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '20px',
-          lineHeight: '1',
+          transition: 'all 0.2s',
         }}
-        title="Zoom in (Cmd/Ctrl + Scroll up)"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#F9FAFB'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'white'
+        }}
       >
-        +
+        −
       </button>
     </div>
   )

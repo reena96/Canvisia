@@ -9,6 +9,7 @@ import { useCursors } from '@/hooks/useCursors'
 import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
+import { ZoomControls } from './ZoomControls'
 import { ShapeRenderer } from './ShapeRenderer'
 import {
   createDefaultRectangle,
@@ -581,10 +582,6 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       <Toolbar
         selectedTool={selectedTool}
         onToolSelect={setSelectedTool}
-        zoom={viewport.zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetZoom={handleResetZoom}
         onResetView={handleResetView}
         selectedShapeColor={selectedShapeId ? (() => {
           const selectedShape = shapes.find(s => s.id === selectedShapeId)
@@ -610,6 +607,14 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
             })
           }
         } : undefined}
+      />
+
+      {/* Zoom Controls - Bottom Right Corner */}
+      <ZoomControls
+        zoomPercentage={Math.round(viewport.zoom * 100)}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
       />
 
       {/* Loading indicator */}
