@@ -2,9 +2,19 @@
 
 A real-time collaborative design tool inspired by Figma, with AI-assisted design capabilities.
 
-## Demo : https://drive.google.com/file/d/1Im_A9GCxmqQDllFEEBICk45meSEwSxdY/view?usp=sharing
+# Links
+- **Live Demo:** https://canvisia-ab47b.web.app
+- **Repository:** https://github.com/reena96/Canvisia
+- **Firebase Console:** https://console.firebase.google.com/project/canvisia-ab47b
+- Documentation: See `../docs/` directory for organized documentation
+  - Planning: `../docs/planning/` (PRD, Architecture Diagrams)
+  - Tasks: `../docs/tasks/` (Task Lists)
+  - Testing: `../docs/testing/` (Test Documentation)
+  - Setup: `../docs/setup/` (Environment Setup, Security Guide)
 
-**[Launch Canvisia](https://canvisia-ab47b.web.app)** - Try it now! Open the same URL in multiple browser tabs to experience real-time collaboration.
+---
+
+**[Launch Canvisia](https://canvisia-ab47b.web.app)** - 
 
 ## Project Overview
 
