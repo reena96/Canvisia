@@ -6,7 +6,7 @@
 
 ---
 
-## 1. Tools & Workflow
+## 1. AI Tools & Workflow
 
 1. **ChatGPT** - Architecture planning and decision-making
 2. **Claude Code** - All implementation (100% of code written)
@@ -14,7 +14,6 @@
    - `/superpowers:brainstorm` - Design refinement
    - `/superpowers:execute-plan` - Controlled implementation with review checkpoints
    - TDD, Debugging, and Testing skills
-
 ---
 
 ## 2. Development Approach
@@ -56,17 +55,15 @@
 
 ## 3. Code Analysis
 
-**AI-Generated:** ~95% of codebase
+**AI-Generated with prompting:** 98% of codebase
 - All React components, hooks, and utilities
 - All Firebase integration (real-time sync, auth, presence)
 - All tests (128 unit tests, 100% passing)
 - All TypeScript configuration
 
-**Human-Written:** ~5%
-- Requirements and feature specifications
-- Firebase project setup and credentials
-- UX feedback ("make it more like Figma")
-- Production testing and validation
+**Human-Written:** 2% of codebase
+- Firebase rules to force it do what I want more precisely.
+- UI/UX feedback when I came across awkward UI issues.
 
 **Metrics:** 15 commits, ~3,500 lines of code, 24-hour development time
 
