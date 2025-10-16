@@ -2,18 +2,14 @@
 
 A real-time collaborative design tool inspired by Figma, with AI-assisted design capabilities.
 
-# Links
-- **Live Demo:** https://canvisia-ab47b.web.app
+## Links
+- **Launch Canvisia:** https://canvisia-ab47b.web.app
 - **Repository:** https://github.com/reena96/Canvisia
 - Documentation: See `../docs/` directory for organized documentation
   - Planning: `../docs/planning/` (PRD, Architecture Diagrams) https://github.com/reena96/Canvisia/tree/main/docs/planning
   - Tasks: `../docs/tasks/` (Task Lists) https://github.com/reena96/Canvisia/tree/main/docs/tasks
   - Testing: `../docs/testing/` (Test Documentation) https://github.com/reena96/Canvisia/tree/main/docs/testing
   - Setup: `../docs/setup/` (Environment Setup, Security Guide) https://github.com/reena96/Canvisia/tree/main/docs/setup
-
----
-
-**[Launch Canvisia](https://canvisia-ab47b.web.app)** - 
 
 ## Project Overview
 
@@ -172,7 +168,6 @@ This is a sprint project for Gauntlet AI. Implementation follows the structured 
 
 MIT
 
-## Links
 
 - **Live Demo:** https://canvisia-ab47b.web.app
 - **Repository:** https://github.com/reena96/Canvisia
