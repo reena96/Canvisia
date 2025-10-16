@@ -1,5 +1,4 @@
 import { useAuth } from '../auth/AuthProvider'
-import { DevLogin } from '../auth/DevLogin'
 import type { Presence } from '@/types/user'
 
 interface HeaderProps {
@@ -75,9 +74,6 @@ export function Header({ activeUsers = [] }: HeaderProps) {
               ))}
           </div>
         </div>
-
-        {/* DevLogin */}
-        <DevLogin />
 
         {/* User info */}
         {user.photoURL && (
