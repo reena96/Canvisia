@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Text } from '@/types/shapes'
 
 interface TextEditOverlayProps {
@@ -17,14 +17,27 @@ export function TextEditOverlay({
   onExitEdit,
 }: TextEditOverlayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [initialWidth, setInitialWidth] = useState<number | null>(null)
 
-  // Calculate screen position
-  const screenX = shape.x * stageScale + stagePosition.x
-  const screenY = shape.y * stageScale + stagePosition.y
+  // Calculate screen position to match selection box (with padding offset)
+  const screenX = shape.x * stageScale + stagePosition.x - 4
+  const screenY = shape.y * stageScale + stagePosition.y - 2
 
-  // Auto-focus and select text on mount
+  // Auto-focus, select text, and measure initial width on mount
   useEffect(() => {
     if (textareaRef.current) {
+      // Measure the initial text width with padding to match selection box
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      if (context) {
+        const fontWeight = shape.fontWeight === 700 ? 'bold' : 'normal'
+        const fontStyle = shape.fontStyle
+        context.font = `${fontStyle} ${fontWeight} ${shape.fontSize * stageScale}px ${shape.fontFamily}`
+        const metrics = context.measureText(shape.text || 'A')
+        // Add 8px for horizontal padding (4px on each side)
+        setInitialWidth(metrics.width + 8)
+      }
+
       textareaRef.current.focus()
       textareaRef.current.select()
     }
@@ -42,11 +55,21 @@ export function TextEditOverlay({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onExitEdit])
 
-  // Auto-resize textarea height based on content
+  // Auto-resize textarea width only (not height)
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      // Save the current height
+      const currentHeight = textareaRef.current.style.height
+
+      // Temporarily set width to auto to measure content
+      textareaRef.current.style.width = 'auto'
+
+      // Get the scroll width and add 8px for padding (4px each side)
+      const newWidth = textareaRef.current.scrollWidth + 8
+      textareaRef.current.style.width = newWidth + 'px'
+
+      // Restore height to ensure it doesn't change
+      textareaRef.current.style.height = currentHeight
     }
   }, [shape.text])
 
@@ -64,8 +87,8 @@ export function TextEditOverlay({
         position: 'fixed',
         left: `${screenX}px`,
         top: `${screenY}px`,
-        width: `${shape.width * stageScale}px`,
-        minHeight: `${shape.fontSize * shape.lineHeight * stageScale}px`,
+        width: initialWidth ? `${initialWidth}px` : `${shape.fontSize * stageScale * 2}px`,
+        height: `${shape.fontSize * shape.lineHeight * stageScale + 4}px`,
         fontFamily: shape.fontFamily,
         fontSize: `${shape.fontSize * stageScale}px`,
         fontWeight,
@@ -79,8 +102,10 @@ export function TextEditOverlay({
         outline: 'none',
         resize: 'none',
         overflow: 'hidden',
-        padding: '2px',
+        padding: '2px 4px',
+        boxSizing: 'border-box',
         zIndex: 9999,
+        whiteSpace: 'nowrap',
       }}
     />
   )

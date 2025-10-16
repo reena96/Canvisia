@@ -1,5 +1,5 @@
 import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, Image as KonvaImage, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Shape } from '@/types/shapes'
 import { useCanvasStore } from '@/stores/canvasStore'
 
@@ -241,20 +241,27 @@ export function ShapeRenderer({
       // Check if this text is currently being edited
       const isEditing = useCanvasStore.getState().editingTextId === shape.id
 
+      const textRef = useRef<any>(null)
+      const [textWidth, setTextWidth] = useState(shape.fontSize * 10)
+
+      // Get actual text width after render (height is fixed)
+      useEffect(() => {
+        if (textRef.current) {
+          const actualWidth = textRef.current.width()
+          if (actualWidth > 0) {
+            setTextWidth(actualWidth)
+          }
+        }
+      }, [shape.text, shape.fontSize, shape.fontFamily, shape.lineHeight])
+
+      // Fixed height based on single line
+      const textHeight = shape.fontSize * shape.lineHeight
+
       return (
-        <KonvaText
+        <Group
           id={shape.id}
           x={shape.x}
           y={shape.y}
-          text={shape.text}
-          fontSize={shape.fontSize}
-          fontFamily={shape.fontFamily}
-          fontStyle={fontStyleValue}
-          textDecoration={shape.textDecoration}
-          align={shape.align}
-          width={shape.width}
-          lineHeight={shape.lineHeight}
-          fill={isSelected ? '#3B82F6' : shape.fill}
           rotation={shape.rotation}
           draggable
           onClick={onSelect}
@@ -265,8 +272,35 @@ export function ShapeRenderer({
           onDragEnd={handleDragEnd}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
-          opacity={isEditing ? 0 : 1}
-        />
+        >
+          {/* Selection box - hide during editing */}
+          {isSelected && !isEditing && (
+            <Rect
+              x={-4}
+              y={-2}
+              width={textWidth + 8}
+              height={textHeight + 4}
+              stroke="#3B82F6"
+              strokeWidth={1}
+              fill="transparent"
+            />
+          )}
+          {/* Text */}
+          <KonvaText
+            ref={textRef}
+            x={0}
+            y={0}
+            text={shape.text}
+            fontSize={shape.fontSize}
+            fontFamily={shape.fontFamily}
+            fontStyle={fontStyleValue}
+            textDecoration={shape.textDecoration}
+            align={shape.align}
+            lineHeight={shape.lineHeight}
+            fill={shape.fill}
+            opacity={isEditing ? 0 : 1}
+          />
+        </Group>
       )
     }
 
