@@ -2,7 +2,7 @@
 
 A real-time collaborative design tool inspired by Figma, with AI-assisted design capabilities.
 
-## Live Demo
+## Demo : https://drive.google.com/file/d/1Im_A9GCxmqQDllFEEBICk45meSEwSxdY/view?usp=sharing
 
 **[Launch Canvisia](https://canvisia-ab47b.web.app)** - Try it now! Open the same URL in multiple browser tabs to experience real-time collaboration.
 
