@@ -8,7 +8,30 @@
 
 ## 1. Tools & Workflow
 
-**AI Tool:** Claude Code (Sonnet 4.5) via terminal CLI
+1. **ChatGPT** - Architecture planning and decision-making
+2. **Claude Code** - All implementation (100% of code written)
+3. **Superpowers Plugin** - Enhanced Claude Code with structured workflows
+   - `/superpowers:brainstorm` - Design refinement
+   - `/superpowers:execute-plan` - Controlled implementation with review checkpoints
+   - TDD, Debugging, and Testing skills
+
+---
+
+## 2. Development Approach
+
+### Phase 1: Planning (70-80% of Day 1)
+- Extensive upfront planning before any code
+- Iterative clarification: "What are you confused about?"
+- Clear scope definition: What it IS and ISN'T
+- **Result:** Zero backtracking during implementation
+
+### Phase 2: Implementation (Remaining time)
+- Claude Code wrote 100% of code
+- Human provided: direction, requirements, UX feedback, testing
+- Frequent deployment and validation
+- **Result:** 63/63 tests passing, production-ready MVP
+
+---
 
 **Workflow:**
 1. Human defines requirements → 2. AI generates implementation plan → 3. AI writes code/tests → 4. AI runs tests and fixes errors → 5. AI commits to git → 6. Human reviews and provides feedback
@@ -17,24 +40,15 @@
 
 ---
 
-## 2. Prompting Strategies
+## 3. Prompting Strategies
 
 **Most Effective Prompts:**
 
-1. **"Implement real-time multiplayer cursors with Firebase"**
-   High-level feature request. AI understood entire stack and implemented end-to-end.
+1. I made Claude document the blockers that were fixed in https://github.com/reena96/Canvisia/tree/main/docs/bugfix. For future PR's, keeping track of design decisions, mistakes made in the past and learnings helped with reducing issues. By documenting key issues, RCA's, resolutions and learnings, I was able to avoid such mistakes later on.
+**"Let's implement PR #7 in TASK_LIST_WITH_TESTS.md. Use your superpowers (skills). Keep in mind the issues we've had so far, which are documented in https://github.com/reena96/Canvisia/tree/main/docs/bugfix. Focus only on PR #7. Do not focus on future PR's. Don't break exisiting design, unless it is an agreed upon design change."**
 
-2. **"Restore the zoom limits to: MIN_ZOOM: 0.1 (10%), MAX_ZOOM: 5.0 (500%)"**
-   Precise constraints eliminated ambiguity. AI updated config, tests, and utils consistently.
+2. When the MVP deadline was extended by a day, I wanted to implement text formatting and text styling that was not part of my original plan. So for that, I used the /brainstorm feature of superpowers. At each key decision point, it asked me for questions, clarifying questions. During this phase, there was no code being written. Once we agreed on a plan, we could proceed to writing the plan and then executing it.
 
-3. **"Run tests and fix any errors"**
-   Test-driven approach. AI autonomously identified 10 type errors and fixed them systematically.
-
-4. **"Remove toggle buttons, clicking main button should expand/collapse"**
-   Clear UX requirement. AI modified only relevant code sections without over-engineering.
-
-5. **"Let's put line in the same section as arrows in the toolbar"**
-   Simple organizational improvement. AI reorganized toolbar logic and maintained consistency.
 
 **Key Pattern:** Be specific about the problem/goal, but trust AI to determine implementation details.
 
@@ -88,15 +102,27 @@
 
 ## 5. Key Learnings
 
-1. **Prompt Precision Matters:** "Remove toggle buttons" (clear) vs. "Make toolbar better" (vague) — specificity drives accuracy.
+## Debugging Journey
 
-2. **Tests Amplify AI Effectiveness:** With 128 tests as guardrails, AI refactored fearlessly. Zoom limit changes broke 6 tests, caught immediately.
+**PR #1-2:** Smooth sailing (setup, auth)
+**PR #4:** First major challenges - Firebase rules, cursor cleanup, SDK versions
+**PR #5+:** Event handling, performance, UX polish
 
-3. **Version Control Enables Experimentation:** When AI's first zoom implementation was too extreme, git made reverting trivial.
+**Key Insight:** From PR #4 onwards, human code reading became critical for debugging production issues AI couldn't observe. Every bug documented in [docs/bugfix](https://github.com/reena96/Canvisia/tree/main/docs/bugfix).
 
-4. **Documentation Accelerates Iteration:** AI-maintained task lists and commit logs made resuming work after breaks seamless.
+### Success Factors
 
-5. **Human Role is Strategic:** AI excels at implementation; humans excel at planning, requirements, UX vision, and validation.
+1. **Heavy upfront planning** (70-80%) eliminated backtracking
+2. **Iterative clarification** aligned AI understanding with intent
+3. **Clear scope boundaries** prevented feature creep
+4. **Explicit tech choices** accelerated implementation
+5. **Frequent validation** caught issues early
+6. **Frequent commits to Github** Version Control Enables Experimentation. Stable versions maintained over time. When AI's first zoom implementation was too extreme, git made reverting trivial.
+7. **Code reading skills** enabled effective debugging
+8. **Prompt Precision Matters:** "Remove toggle buttons" (clear) vs. "Make toolbar better" (vague) — specificity drives accuracy.
+9. **Tests Amplify AI Effectiveness:** With 128 tests as guardrails, AI refactored fearlessly. Zoom limit changes broke 6 tests, caught immediately.
+10. **Documentation Accelerates Iteration:** It also helps with future context for design decisions both for me as a developer and for Claude. AI-maintained task lists, Root cause analysis and commit logs made resuming work after breaks seamless.
+11. **Human Role is Strategic:** AI excels at implementation; humans excel at planning, requirements, UX vision, and validation.
 
 ---
 
