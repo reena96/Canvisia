@@ -66,3 +66,9 @@ body {
     opacity: 1;
   }
 }
+
+/* Text edit overlay placeholder styling */
+textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}

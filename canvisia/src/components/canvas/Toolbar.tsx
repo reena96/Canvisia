@@ -24,7 +24,7 @@ export function Toolbar({
 
   const circleTools: Tool[] = ['circle', 'ellipse', 'roundedRectangle', 'cylinder']
   const polygonTools: Tool[] = ['rectangle', 'diamond', 'triangle', 'pentagon', 'hexagon', 'star']
-  const arrowTools: Tool[] = ['line', 'arrow', 'bidirectionalArrow', 'bentConnector']
+  const arrowTools: Tool[] = ['line', 'arrow', 'bidirectionalArrow']
 
   const isCircleSelected = circleTools.includes(selectedTool)
   const isPolygonSelected = polygonTools.includes(selectedTool)
@@ -91,7 +91,7 @@ export function Toolbar({
         icon={toolIcons.text}
         label="Text"
         selected={selectedTool === 'text'}
-        onClick={() => onToolSelect('text')}
+        onClick={() => onToolSelect(selectedTool === 'text' ? 'select' : 'text')}
       />
 
       <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
@@ -136,40 +136,28 @@ export function Toolbar({
               icon={shapeIcons.circle}
               label="Circle"
               selected={selectedTool === 'circle'}
-              onClick={() => {
-                onToolSelect('circle')
-                setCirclesExpanded(false)
-              }}
+              onClick={() => onToolSelect('circle')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.ellipse}
               label="Ellipse"
               selected={selectedTool === 'ellipse'}
-              onClick={() => {
-                onToolSelect('ellipse')
-                setCirclesExpanded(false)
-              }}
+              onClick={() => onToolSelect('ellipse')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.roundedRectangle}
               label="Rounded Rectangle"
               selected={selectedTool === 'roundedRectangle'}
-              onClick={() => {
-                onToolSelect('roundedRectangle')
-                setCirclesExpanded(false)
-              }}
+              onClick={() => onToolSelect('roundedRectangle')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.cylinder}
               label="Cylinder"
               selected={selectedTool === 'cylinder'}
-              onClick={() => {
-                onToolSelect('cylinder')
-                setCirclesExpanded(false)
-              }}
+              onClick={() => onToolSelect('cylinder')}
               isImage={true}
             />
           </div>
@@ -218,60 +206,42 @@ export function Toolbar({
               icon={shapeIcons.rectangle}
               label="Rectangle"
               selected={selectedTool === 'rectangle'}
-              onClick={() => {
-                onToolSelect('rectangle')
-                setPolygonsExpanded(false)
-              }}
+              onClick={() => onToolSelect('rectangle')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.diamond}
               label="Diamond"
               selected={selectedTool === 'diamond'}
-              onClick={() => {
-                onToolSelect('diamond')
-                setPolygonsExpanded(false)
-              }}
+              onClick={() => onToolSelect('diamond')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.triangle}
               label="Triangle"
               selected={selectedTool === 'triangle'}
-              onClick={() => {
-                onToolSelect('triangle')
-                setPolygonsExpanded(false)
-              }}
+              onClick={() => onToolSelect('triangle')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.pentagon}
               label="Pentagon"
               selected={selectedTool === 'pentagon'}
-              onClick={() => {
-                onToolSelect('pentagon')
-                setPolygonsExpanded(false)
-              }}
+              onClick={() => onToolSelect('pentagon')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.hexagon}
               label="Hexagon"
               selected={selectedTool === 'hexagon'}
-              onClick={() => {
-                onToolSelect('hexagon')
-                setPolygonsExpanded(false)
-              }}
+              onClick={() => onToolSelect('hexagon')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.star}
               label="Star"
               selected={selectedTool === 'star'}
-              onClick={() => {
-                onToolSelect('star')
-                setPolygonsExpanded(false)
-              }}
+              onClick={() => onToolSelect('star')}
               isImage={true}
             />
           </div>
@@ -285,7 +255,6 @@ export function Toolbar({
             selectedTool === 'line' ? toolIcons.line :
             selectedTool === 'arrow' ? shapeIcons.arrow :
             selectedTool === 'bidirectionalArrow' ? shapeIcons.bidirectionalArrow :
-            selectedTool === 'bentConnector' ? shapeIcons.bentConnector :
             shapeIcons.lineAndArrow : shapeIcons.lineAndArrow}
           label="Lines & Connectors"
           selected={isArrowSelected}
@@ -320,40 +289,21 @@ export function Toolbar({
               icon={toolIcons.line}
               label="Line"
               selected={selectedTool === 'line'}
-              onClick={() => {
-                onToolSelect('line')
-                setArrowsExpanded(false)
-              }}
+              onClick={() => onToolSelect('line')}
               isImage={false}
             />
             <ToolButton
               icon={shapeIcons.arrow}
               label="Arrow"
               selected={selectedTool === 'arrow'}
-              onClick={() => {
-                onToolSelect('arrow')
-                setArrowsExpanded(false)
-              }}
+              onClick={() => onToolSelect('arrow')}
               isImage={true}
             />
             <ToolButton
               icon={shapeIcons.bidirectionalArrow}
               label="Bidirectional Arrow"
               selected={selectedTool === 'bidirectionalArrow'}
-              onClick={() => {
-                onToolSelect('bidirectionalArrow')
-                setArrowsExpanded(false)
-              }}
-              isImage={true}
-            />
-            <ToolButton
-              icon={shapeIcons.bentConnector}
-              label="Bent Connector"
-              selected={selectedTool === 'bentConnector'}
-              onClick={() => {
-                onToolSelect('bentConnector')
-                setArrowsExpanded(false)
-              }}
+              onClick={() => onToolSelect('bidirectionalArrow')}
               isImage={true}
             />
           </div>

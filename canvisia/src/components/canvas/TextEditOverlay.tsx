@@ -33,7 +33,8 @@ export function TextEditOverlay({
         const fontWeight = shape.fontWeight === 700 ? 'bold' : 'normal'
         const fontStyle = shape.fontStyle
         context.font = `${fontStyle} ${fontWeight} ${shape.fontSize * stageScale}px ${shape.fontFamily}`
-        const metrics = context.measureText(shape.text || 'A')
+        // Measure placeholder text if shape text is empty
+        const metrics = context.measureText(shape.text || 'Add text')
         // Add 8px for horizontal padding (4px on each side)
         setInitialWidth(metrics.width + 8)
       }
@@ -83,6 +84,7 @@ export function TextEditOverlay({
       value={shape.text}
       onChange={(e) => onTextChange(e.target.value)}
       onBlur={onExitEdit}
+      placeholder="Add text"
       style={{
         position: 'fixed',
         left: `${screenX}px`,

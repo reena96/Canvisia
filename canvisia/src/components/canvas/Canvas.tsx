@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Stage, Layer, Circle } from 'react-konva'
+import { Stage, Layer, Circle, Text as KonvaText, Rect } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { CANVAS_CONFIG } from '@/config/canvas.config'
@@ -59,10 +59,12 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
 
-  // Text creation state (for drag-to-create)
-  const [isCreatingText, setIsCreatingText] = useState(false)
-  const [textStartPos, setTextStartPos] = useState<{ x: number; y: number } | null>(null)
-  const [_textPreviewWidth, setTextPreviewWidth] = useState(0)
+  // Text preview state (shows "Add text" following cursor)
+  const [textPreviewPos, setTextPreviewPos] = useState<{ x: number; y: number } | null>(null)
+  const [isDraggingText, setIsDraggingText] = useState(false)
+
+  // Dragging state (to hide toolbar while dragging)
+  const [isDraggingShape, setIsDraggingShape] = useState(false)
 
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
@@ -259,11 +261,22 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       setPanStart(null)
       document.body.style.cursor = 'default'
     }
-  }, [selectedTool])
+
+    // Clear text preview when switching away from text tool
+    if (selectedTool !== 'text') {
+      setTextPreviewPos(null)
+    }
+  }, [selectedTool, isPanning])
 
   // Handle spacebar for panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't interfere with spacebar when typing in input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
       if (e.code === 'Space' && !isPanning) {
         e.preventDefault()
         setIsPanning(true)
@@ -272,6 +285,12 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      // Don't interfere with spacebar when typing in input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
       if (e.code === 'Space' && selectedTool !== 'hand') {
         setIsPanning(false)
         setPanStart(null)
@@ -286,7 +305,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isPanning])
+  }, [isPanning, selectedTool])
 
   // Handle mouse move to broadcast cursor position and pan
   const handleMouseMove = (_e: KonvaEventObject<MouseEvent>) => {
@@ -311,11 +330,10 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       return
     }
 
-    // Handle text drag creation
-    if (isCreatingText && textStartPos) {
+    // Show text preview when text tool is selected or dragging text
+    if (selectedTool === 'text' || isDraggingText) {
       const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-      const width = Math.abs(canvasPos.x - textStartPos.x)
-      setTextPreviewWidth(width)
+      setTextPreviewPos(canvasPos)
       return
     }
 
@@ -344,21 +362,12 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     // Handle text tool drag start
     const clickedOnEmpty = e.target === e.target.getStage()
     if (clickedOnEmpty && selectedTool === 'text') {
-      const pointerPosition = stage.getPointerPosition()
-      if (!pointerPosition) return
-
-      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-      setIsCreatingText(true)
-      setTextStartPos(canvasPos)
-      setTextPreviewWidth(0)
+      setIsDraggingText(true)
     }
   }
 
   // Handle mouse up for panning and text creation
   const handleMouseUp = async () => {
-    const stage = stageRef.current
-    if (!stage) return
-
     // Handle panning
     if (isPanning) {
       setPanStart(null)
@@ -366,27 +375,25 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
       return
     }
 
-    // Handle text creation
-    if (isCreatingText && textStartPos) {
-      const pointerPosition = stage.getPointerPosition()
-      if (!pointerPosition) return
-
-      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-      const width = Math.max(Math.abs(canvasPos.x - textStartPos.x), 50) // Minimum 50px
-
-      const newShape = createDefaultText(textStartPos.x, textStartPos.y, userId, userColor)
-      newShape.width = width
+    // Handle text drop
+    if (isDraggingText && textPreviewPos) {
+      // Create text at the current preview position
+      const newShape = createDefaultText(textPreviewPos.x, textPreviewPos.y, userId, userColor)
 
       try {
         await createShape(newShape)
+        // Automatically enter edit mode for new text
+        setEditingTextId(newShape.id)
+        setSelectedShapeId(newShape.id)
+        // Switch back to select tool and clear preview
+        setSelectedTool('select')
+        setTextPreviewPos(null)
       } catch (err) {
         console.error('Failed to create text:', err)
         setError('Failed to create text. Please try again.')
       }
 
-      setIsCreatingText(false)
-      setTextStartPos(null)
-      setTextPreviewWidth(0)
+      setIsDraggingText(false)
     }
   }
 
@@ -463,6 +470,8 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         if (newShape) {
           try {
             await createShape(newShape)
+            // Switch back to select tool after creating shape
+            setSelectedTool('select')
           } catch (err) {
             console.error('Failed to create shape:', err)
             setError('Failed to create shape. Please try again.')
@@ -650,11 +659,11 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     const toolbarWidth = 700 // Approximate
 
     let x = screenX
-    let y = screenY - toolbarHeight - 12
+    let y = screenY - toolbarHeight - 1
 
     // If toolbar would go above screen, show below
     if (y < 0) {
-      y = screenY + (shape.fontSize * shape.lineHeight * viewport.zoom) + 12
+      y = screenY + (shape.fontSize * shape.lineHeight * viewport.zoom) + 1
     }
 
     // Keep toolbar on screen horizontally
@@ -806,16 +815,42 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
               shape={shape}
               isSelected={shape.id === selectedShapeId}
               onSelect={() => handleShapeSelect(shape.id)}
-              onDragMove={(x, y) => handleShapeDragMove(shape.id, x, y)}
-              onDragEnd={(x, y) => handleShapeDragEnd(shape.id, x, y)}
-              onMouseEnter={() => {
-                console.log('Mouse entered shape:', shape.type, shape.id)
+              onDragMove={(x, y) => {
+                setIsDraggingShape(true)
+                handleShapeDragMove(shape.id, x, y)
               }}
-              onMouseLeave={() => {
-                console.log('Mouse left shape')
+              onDragEnd={(x, y) => {
+                setIsDraggingShape(false)
+                handleShapeDragEnd(shape.id, x, y)
               }}
             />
           ))}
+
+          {/* Text creation preview */}
+          {selectedTool === 'text' && textPreviewPos && (
+            <>
+              <Rect
+                x={textPreviewPos.x - 4}
+                y={textPreviewPos.y - 2}
+                width={80}
+                height={24}
+                stroke="#3B82F6"
+                strokeWidth={2}
+                dash={[5, 5]}
+                fill="transparent"
+                listening={false}
+              />
+              <KonvaText
+                x={textPreviewPos.x}
+                y={textPreviewPos.y}
+                text="Add text"
+                fontSize={16}
+                fontFamily="Inter"
+                fill="#9ca3af"
+                listening={false}
+              />
+            </>
+          )}
         </Layer>
       </Stage>
 
@@ -846,8 +881,8 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         )
       })()}
 
-      {/* Floating Text Toolbar */}
-      {selectedTextId && !editingTextId && (() => {
+      {/* Floating Text Toolbar - hide while dragging */}
+      {selectedTextId && !isDraggingShape && (() => {
         const selectedShape = shapes.find(s => s.id === selectedTextId)
         if (!selectedShape || selectedShape.type !== 'text') return null
 

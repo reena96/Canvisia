@@ -104,7 +104,7 @@ export function createDefaultText(
     type: 'text',
     x,
     y,
-    text: 'Double-click to edit',
+    text: '',
     fontSize: 16,
     fontFamily: 'Inter',
     fill: color,
