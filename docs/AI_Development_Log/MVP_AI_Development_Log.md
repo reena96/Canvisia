@@ -150,9 +150,68 @@
 - Benefit: Caught issues early, maintained confidence in progress
 - Result: Stable MVP with no major surprises at the end
 
+#### 6. **Direct Problem Statements**
+- Strategy: State problems clearly without over-explaining
+- Example: "Text feature that we did in PR #9 is missing"
+- Benefit: AI can quickly investigate without being led down wrong path
+- Result: Fast identification and resolution of issues
+
+#### 7. **Precise Technical Specifications**
+- Strategy: Provide exact values when you know what you want
+- Example: "Restore the zoom limits to: MIN_ZOOM: 0.1 (10%), MAX_ZOOM: 5.0 (500%)"
+- Benefit: No ambiguity, immediate implementation
+- Result: First-try correctness
+
+#### 8. **UX Improvement Requests**
+- Strategy: Describe desired interaction pattern clearly
+- Example: "Toggle should work if we click on the same box again"
+- Benefit: Clear requirement without dictating implementation details
+- Result: Clean UX improvements
+
+### Best Prompts from Post-MVP Phase
+
+**Most Effective Prompts:**
+
+1. **Problem Identification:** "Text feature that we did in PR #9 is missing"
+   - Direct, no assumptions, lets AI investigate
+
+2. **UX Refinement:** "Right now, only if we click on the triangle we are able to collapse/expand sections. I want to remove that. Toggle should work if we click on the same box again."
+   - Clear current state + desired state + rationale
+
+3. **Precise Technical Spec:** "Restore the zoom limits to: MIN_ZOOM: 0.1 (10%), MAX_ZOOM: 5.0 (500%)"
+   - Exact values = immediate implementation
+
+4. **Organizational Improvement:** "Let's put line in the same section as arrows in the toolbar"
+   - Simple, clear, actionable
+
+5. **Design Direction:** "Let's indicate the symbol to include Line and arrows in the toolbar"
+   - High-level guidance, lets AI figure out implementation
+
+6. **Meta-Level Reflection:** "What are some of my best prompts according to you? What are all the AI Tools we used?"
+   - Asking AI to analyze the process itself
+
+**Common Pattern in Effective Prompts:**
+- Clear, specific, concise
+- State problem or goal, not solution (unless you have exact requirements)
+- Provide context when needed, but don't over-explain
+- Trust AI to handle implementation details
+
 ### What Didn't Work / Needed Adjustment
 
-- *[To be filled based on specific challenges encountered]*
+#### 1. **Vague Visual Descriptions**
+- Problem: "Make the toolbar look better" → unclear what "better" means
+- Solution: Provide specific examples or references ("like Figma")
+- Lesson: Visual/UX feedback needs concrete targets
+
+#### 2. **Assuming AI Remembers Context**
+- Problem: Referencing previous session decisions without restating
+- Solution: Briefly restate key context when starting new sessions
+- Lesson: Each session may need context refresher
+
+#### 3. **Over-Explaining When Unclear**
+- Problem: Long explanations when you're not sure what you want
+- Better: "I'm not sure what I want here. Can you show me options?"
+- Lesson: It's okay to ask AI to explore and present options
 
 ---
 
