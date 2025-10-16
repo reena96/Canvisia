@@ -129,7 +129,7 @@
 ## Conclusion
 
 AI can generate 95% of code when guided by clear requirements and iterative feedback. Success requires:
-- Heavy planning investment (70-80% upfront)
+- Heavy planning investment
 - Specific prompts with clear goals
 - Test-driven development as safety net
 - Human validation of UX and architecture
