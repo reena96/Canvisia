@@ -18,6 +18,9 @@ dist-ssr
 # Firebase service account key (contains sensitive credentials)
 serviceAccountKey.json
 
+# Admin utility scripts
+revoke-tokens.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
