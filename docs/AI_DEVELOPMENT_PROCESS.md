@@ -1,11 +1,7 @@
 # AI-First Development Process
 
 **Project:** Canvisia - Real-time Collaborative Canvas
-
-**Result:** Production-ready application with all MVP requirements met
-
 ---
-
 ## 1. AI Tools & Workflow
 
 1. **ChatGPT** - Architecture planning and decision-making
@@ -53,7 +49,7 @@
 
 ---
 
-## 3. Code Analysis
+## 4. Code Analysis
 
 **AI-Generated with prompting:** 98% of codebase
 - All React components, hooks, and utilities
@@ -69,7 +65,7 @@
 
 ---
 
-## 4. Strengths & Limitations
+## 5. Strengths & Limitations
 
 **Where AI Excelled:**
 - ✅ Boilerplate generation (TypeScript configs, Firebase setup)
@@ -97,9 +93,7 @@
 
 ---
 
-## 5. Key Learnings
-
-## Debugging Journey
+## 6. Debugging Journey
 
 **PR #1-2:** Smooth sailing (setup, auth)
 **PR #4:** First major challenges - Firebase rules, cursor cleanup, SDK versions
@@ -107,14 +101,16 @@
 
 **Key Insight:** From PR #4 onwards, human code reading became critical for debugging production issues AI couldn't observe. Every bug documented in [docs/bugfix](https://github.com/reena96/Canvisia/tree/main/docs/bugfix).
 
-### Success Factors
+---
+
+## 7. Key Learnings
 
 1. **Heavy upfront planning** (70-80%) eliminated backtracking
 2. **Iterative clarification** aligned AI understanding with intent
 3. **Clear scope boundaries** prevented feature creep
 4. **Explicit tech choices** accelerated implementation
 5. **Frequent validation** caught issues early
-6. **Frequent commits to Github** Version Control Enables Experimentation. Stable versions maintained over time. When AI's first zoom implementation was too extreme, git made reverting trivial.
+6. **Frequent commits to Github** VCS enables experimentation just like in traditional software engineering. Same principles apply.
 7. **Code reading skills** enabled effective debugging
 8. **Prompt Precision Matters:** "Remove toggle buttons" (clear) vs. "Make toolbar better" (vague) — specificity drives accuracy.
 9. **Tests Amplify AI Effectiveness:** With 128 tests as guardrails, AI refactored fearlessly. Zoom limit changes broke 6 tests, caught immediately.
@@ -125,7 +121,7 @@
 
 ## Conclusion
 
-AI can generate 95% of code when guided by clear requirements and iterative feedback. Success requires:
+AI can generate more than 95% of code when guided by clear requirements and iterative feedback. Success requires:
 - Heavy planning investment
 - Specific prompts with clear goals
 - Test-driven development as safety net
