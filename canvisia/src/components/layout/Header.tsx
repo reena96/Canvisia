@@ -3,15 +3,21 @@ import type { Presence } from '@/types/user'
 
 interface HeaderProps {
   activeUsers?: Presence[]
+  onSignOut?: () => Promise<void>
 }
 
-export function Header({ activeUsers = [] }: HeaderProps) {
+export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
   const { user, signOut } = useAuth()
 
   if (!user) return null
 
   const handleSignOut = async () => {
     try {
+      // Call custom cleanup handler first if provided
+      if (onSignOut) {
+        await onSignOut()
+      }
+      // Then sign out
       await signOut()
     } catch (error) {
       console.error('Failed to sign out:', error)

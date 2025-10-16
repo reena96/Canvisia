@@ -105,6 +105,7 @@ export async function setUserPresence(
   color: string,
   isActive: boolean
 ): Promise<void> {
+  console.log('🟢 setUserPresence called:', { canvasId, userId, userName, isActive })
   const presenceRef = ref(rtdb, `presence/${canvasId}/${userId}`)
   const presenceData = {
     userId,
@@ -114,6 +115,7 @@ export async function setUserPresence(
     lastSeen: serverTimestamp(),
   }
   await set(presenceRef, presenceData)
+  console.log('✅ Presence set successfully')
 }
 
 /**
@@ -127,11 +129,14 @@ export async function setupPresenceCleanup(
   canvasId: string,
   userId: string
 ): Promise<void> {
+  console.log('🟡 setupPresenceCleanup called:', { canvasId, userId })
   const presenceRef = ref(rtdb, `presence/${canvasId}/${userId}`)
+  // Set isActive to false on disconnect (ORIGINAL WORKING VERSION)
   await onDisconnect(presenceRef).update({
     isActive: false,
     lastSeen: serverTimestamp(),
   })
+  console.log('✅ onDisconnect().update({ isActive: false }) handler set up')
 }
 
 /**
@@ -178,6 +183,26 @@ export async function removePresence(
   canvasId: string,
   userId: string
 ): Promise<void> {
+  console.log('🔴 removePresence called:', { canvasId, userId })
   const presenceRef = ref(rtdb, `presence/${canvasId}/${userId}`)
-  await remove(presenceRef)
+  try {
+    await remove(presenceRef)
+    console.log('✅ Presence removed successfully:', { canvasId, userId })
+  } catch (error) {
+    console.error('❌ Failed to remove presence:', error)
+    throw error
+  }
+}
+
+/**
+ * Remove all presence entries for a user across all canvases
+ * This is useful for cleanup when signing out
+ *
+ * @param userId - ID of the user
+ */
+export async function removeAllUserPresence(userId: string): Promise<void> {
+  // We need to query all canvases to find this user's presence
+  // For now, we'll rely on onDisconnect handlers
+  // This is a placeholder for future enhancement if needed
+  console.debug('removeAllUserPresence called for user:', userId)
 }

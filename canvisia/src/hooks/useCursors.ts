@@ -72,8 +72,17 @@ export function useCursors(
     []
   )
 
+  // Return cleanup function that can be called before sign out
+  const cleanup = async () => {
+    console.log('🔴 Manual cursor cleanup before sign out')
+    if (canvasId && userId) {
+      await removeCursor(canvasId, userId)
+    }
+  }
+
   return {
     cursors,
     updateCursor,
+    cleanup,
   }
 }

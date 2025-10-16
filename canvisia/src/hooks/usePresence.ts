@@ -3,7 +3,6 @@ import {
   setUserPresence,
   subscribeToPresence,
   setupPresenceCleanup,
-  removePresence,
 } from '@/services/rtdb'
 import type { Presence } from '@/types/user'
 
@@ -45,16 +44,26 @@ export function usePresence(
       setActiveUsers(presenceList)
     })
 
-    // Cleanup: remove presence on unmount
+    // Cleanup: set isActive to false on unmount
     return () => {
       unsubscribe()
-      removePresence(canvasId, userId).catch((error) => {
+      // Set user as inactive when component unmounts
+      setUserPresence(canvasId, userId, userName, userColor, false).catch((error) => {
         console.debug('Manual presence cleanup failed (onDisconnect will handle it):', error)
       })
     }
   }, [canvasId, userId, userName, userColor])
 
+  // Return cleanup function that can be called before sign out
+  const cleanup = async () => {
+    console.log('🔴 Manual presence cleanup before sign out')
+    if (canvasId && userId) {
+      await setUserPresence(canvasId, userId, userName, userColor, false)
+    }
+  }
+
   return {
     activeUsers,
+    cleanup,
   }
 }

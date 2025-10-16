@@ -37,9 +37,10 @@ import type { Shape, Text } from '@/types/shapes'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
+  onMountCleanup?: (cleanup: () => Promise<void>) => void
 }
 
-export function Canvas({ onPresenceChange }: CanvasProps = {}) {
+export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
@@ -79,10 +80,10 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
   const userColor = getUserColor(userName)
 
   // Setup cursor tracking
-  const { cursors, updateCursor } = useCursors(canvasId, userId, userName, userColor)
+  const { cursors, updateCursor, cleanup: cleanupCursors } = useCursors(canvasId, userId, userName, userColor)
 
   // Setup presence tracking
-  const { activeUsers } = usePresence(canvasId, userId, userName, userColor)
+  const { activeUsers, cleanup: cleanupPresence } = usePresence(canvasId, userId, userName, userColor)
 
   // Notify parent of presence changes
   useEffect(() => {
@@ -91,12 +92,31 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     }
   }, [activeUsers, onPresenceChange])
 
+  // Provide cleanup function to parent (combines cursor and presence cleanup)
+  useEffect(() => {
+    if (onMountCleanup) {
+      const combinedCleanup = async () => {
+        await Promise.all([
+          cleanupCursors(),
+          cleanupPresence()
+        ])
+      }
+      onMountCleanup(combinedCleanup)
+    }
+  }, [onMountCleanup, cleanupCursors, cleanupPresence])
+
   // Setup Firestore sync for shapes
   const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasId)
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      // Don't interfere with input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
       // Delete key - remove selected shape
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedShapeId) {

@@ -35,8 +35,8 @@ export function TextEditOverlay({
         context.font = `${fontStyle} ${fontWeight} ${shape.fontSize * stageScale}px ${shape.fontFamily}`
         // Measure placeholder text if shape text is empty
         const metrics = context.measureText(shape.text || 'Add text')
-        // Add 8px for horizontal padding (4px on each side)
-        setInitialWidth(metrics.width + 8)
+        // Add 16px for horizontal padding (8px on each side to account for borders and spacing)
+        setInitialWidth(metrics.width + 16)
       }
 
       textareaRef.current.focus()
@@ -56,21 +56,22 @@ export function TextEditOverlay({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onExitEdit])
 
-  // Auto-resize textarea width only (not height)
+  // Auto-resize textarea both width and height
   useEffect(() => {
     if (textareaRef.current) {
-      // Save the current height
-      const currentHeight = textareaRef.current.style.height
+      // Reset height to minimum to get accurate scrollHeight
+      textareaRef.current.style.height = '0px'
+
+      // Set height based on content (scrollHeight includes padding)
+      const newHeight = textareaRef.current.scrollHeight
+      textareaRef.current.style.height = `${newHeight}px`
 
       // Temporarily set width to auto to measure content
       textareaRef.current.style.width = 'auto'
 
-      // Get the scroll width and add 8px for padding (4px each side)
-      const newWidth = textareaRef.current.scrollWidth + 8
-      textareaRef.current.style.width = newWidth + 'px'
-
-      // Restore height to ensure it doesn't change
-      textareaRef.current.style.height = currentHeight
+      // Get the scroll width and add 16px for padding (8px each side to fully cover text)
+      const newWidth = textareaRef.current.scrollWidth + 16
+      textareaRef.current.style.width = `${newWidth}px`
     }
   }, [shape.text])
 
@@ -90,7 +91,6 @@ export function TextEditOverlay({
         left: `${screenX}px`,
         top: `${screenY}px`,
         width: initialWidth ? `${initialWidth}px` : `${shape.fontSize * stageScale * 2}px`,
-        height: `${shape.fontSize * shape.lineHeight * stageScale + 4}px`,
         fontFamily: shape.fontFamily,
         fontSize: `${shape.fontSize * stageScale}px`,
         fontWeight,
@@ -104,10 +104,11 @@ export function TextEditOverlay({
         outline: 'none',
         resize: 'none',
         overflow: 'hidden',
-        padding: '2px 4px',
+        padding: '4px 8px',
         boxSizing: 'border-box',
         zIndex: 9999,
-        whiteSpace: 'nowrap',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
       }}
     />
   )
