@@ -24,6 +24,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Force logout on app version change
+    const APP_VERSION = '1.0.1'
+    const storedVersion = localStorage.getItem('app_version')
+
+    if (storedVersion !== APP_VERSION) {
+      // Version changed, force logout
+      localStorage.setItem('app_version', APP_VERSION)
+      authSignOut().catch(console.error)
+    }
+
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user)
