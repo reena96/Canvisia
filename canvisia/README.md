@@ -31,8 +31,42 @@ Canvisia enables multiple users to work simultaneously on a shared canvas with r
 - ✅ Deployed to Firebase Hosting and publicly accessible
 - ✅ Professional toolbar with integrated zoom controls
 
+### Additional Features in MVP
+Beyond the core MVP requirements, we've implemented several enhanced features:
+
+**Enhanced Toolbar & Navigation:**
+- ✅ Hand tool for dedicated panning mode (Figma-style workflow)
+- ✅ Tooltips on all toolbar buttons for improved discoverability
+- ✅ Collapsible shape groups (Circles, Polygons, Lines & Connectors)
+- ✅ Tool toggle functionality (click to deselect active tool)
+- ✅ Auto-switch to select tool after shape creation
+
+**Comprehensive Shape Library:**
+- ✅ Circles: Circle, Ellipse, Rounded Rectangle, Cylinder
+- ✅ Polygons: Rectangle, Diamond, Triangle, Pentagon, Hexagon, Star
+- ✅ Lines & Connectors: Line, Arrow, Bidirectional Arrow
+
+**Advanced Text Editing (Figma-style):**
+- ✅ Drag-and-drop text creation with visual preview
+- ✅ Auto-enter edit mode on text creation
+- ✅ Floating formatting toolbar with comprehensive controls:
+  - Font family selection (10 fonts including custom Google Fonts)
+  - Font size adjustment
+  - Bold, Italic, Underline styles
+  - Text alignment (left, center, right, justify)
+  - Line height control
+  - Color picker
+- ✅ Keyboard shortcuts (Cmd/Ctrl+B, I, U for formatting)
+- ✅ Placeholder text with auto-delete for empty text boxes
+- ✅ Auto-width text boxes with dynamic resizing
+- ✅ Tightly positioned toolbar (1px gap for precise control)
+
+**User Experience Enhancements:**
+- ✅ Spacebar for temporary pan mode
+- ✅ Non-blocking shape creation (expanded menus stay open)
+- ✅ Visual feedback with "Add text" preview following cursor
+
 ### Full Project (7 Days)
-- Multiple shape types (Rectangle, Circle, Line, Text)
 - Resize and rotate objects
 - Multi-select and layer management
 - AI-assisted design (6+ command types)

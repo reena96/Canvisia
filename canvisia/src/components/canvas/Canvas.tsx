@@ -385,6 +385,7 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
         // Automatically enter edit mode for new text
         setEditingTextId(newShape.id)
         setSelectedShapeId(newShape.id)
+        setSelectedTextId(newShape.id)
         // Switch back to select tool and clear preview
         setSelectedTool('select')
         setTextPreviewPos(null)
