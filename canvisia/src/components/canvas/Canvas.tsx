@@ -176,6 +176,41 @@ export function Canvas({ onPresenceChange }: CanvasProps = {}) {
     })
   }, [firestoreShapes])
 
+  // Handle text formatting keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Only apply shortcuts when text is selected but not editing
+      if (!selectedTextId || editingTextId) return
+
+      const selectedShape = shapes.find(s => s.id === selectedTextId)
+      if (!selectedShape || selectedShape.type !== 'text') return
+
+      // Cmd+B / Ctrl+B - Toggle Bold
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault()
+        const newWeight = selectedShape.fontWeight === 700 ? 400 : 700
+        updateShape(selectedTextId, { fontWeight: newWeight })
+      }
+
+      // Cmd+I / Ctrl+I - Toggle Italic
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault()
+        const newStyle = selectedShape.fontStyle === 'italic' ? 'normal' : 'italic'
+        updateShape(selectedTextId, { fontStyle: newStyle })
+      }
+
+      // Cmd+U / Ctrl+U - Toggle Underline
+      if ((e.metaKey || e.ctrlKey) && e.key === 'u') {
+        e.preventDefault()
+        const newDecoration = selectedShape.textDecoration === 'underline' ? 'none' : 'underline'
+        updateShape(selectedTextId, { textDecoration: newDecoration })
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedTextId, editingTextId, shapes, updateShape])
+
   // Handle scroll - pan or zoom based on modifier keys (Figma-style)
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()

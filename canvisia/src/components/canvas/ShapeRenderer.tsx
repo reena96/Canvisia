@@ -238,6 +238,9 @@ export function ShapeRenderer({
         useCanvasStore.getState().setEditingTextId(shape.id)
       }
 
+      // Check if this text is currently being edited
+      const isEditing = useCanvasStore.getState().editingTextId === shape.id
+
       return (
         <KonvaText
           id={shape.id}
@@ -262,6 +265,7 @@ export function ShapeRenderer({
           onDragEnd={handleDragEnd}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
+          opacity={isEditing ? 0 : 1}
         />
       )
     }
