@@ -178,8 +178,10 @@ describe('useCursors', () => {
 
     unmount()
 
+    // Should unsubscribe from cursor updates
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1)
-    expect(rtdb.removeCursor).toHaveBeenCalledWith(mockCanvasId, mockUserId)
+    // Should NOT remove cursor on unmount - onDisconnect() handles it
+    expect(rtdb.removeCursor).not.toHaveBeenCalled()
   })
 
   it('should update cursors map when new cursors arrive', () => {

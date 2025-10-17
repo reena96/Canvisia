@@ -135,7 +135,7 @@ describe('Shape Defaults', () => {
 
     it('should create text with default content', () => {
       const text = createDefaultText(0, 0)
-      expect(text.text).toBe('Double-click to edit')
+      expect(text.text).toBe('')
     })
 
     it('should create text with default font size', () => {
@@ -175,7 +175,8 @@ describe('Shape Defaults', () => {
 
     it('should create triangle with default radius', () => {
       const triangle = createDefaultTriangle(0, 0)
-      expect(triangle.radius).toBe(50)
+      expect(triangle.radiusX).toBe(50)
+      expect(triangle.radiusY).toBe(50)
     })
 
     it('should create triangle with white fill and dark stroke', () => {
@@ -200,7 +201,8 @@ describe('Shape Defaults', () => {
 
     it('should create pentagon with default radius', () => {
       const pentagon = createDefaultPentagon(0, 0)
-      expect(pentagon.radius).toBe(50)
+      expect(pentagon.radiusX).toBe(50)
+      expect(pentagon.radiusY).toBe(50)
     })
 
     it('should create pentagon with white fill and dark stroke', () => {
@@ -225,7 +227,8 @@ describe('Shape Defaults', () => {
 
     it('should create hexagon with default radius', () => {
       const hexagon = createDefaultHexagon(0, 0)
-      expect(hexagon.radius).toBe(50)
+      expect(hexagon.radiusX).toBe(50)
+      expect(hexagon.radiusY).toBe(50)
     })
 
     it('should create hexagon with white fill and dark stroke', () => {
@@ -250,12 +253,14 @@ describe('Shape Defaults', () => {
 
     it('should create star with default outer radius', () => {
       const star = createDefaultStar(0, 0)
-      expect(star.outerRadius).toBe(50)
+      expect(star.outerRadiusX).toBe(50)
+      expect(star.outerRadiusY).toBe(50)
     })
 
     it('should create star with default inner radius', () => {
       const star = createDefaultStar(0, 0)
-      expect(star.innerRadius).toBe(25)
+      expect(star.innerRadiusX).toBe(25)
+      expect(star.innerRadiusY).toBe(25)
     })
 
     it('should create 5-pointed star', () => {

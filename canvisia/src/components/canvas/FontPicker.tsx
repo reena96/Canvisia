@@ -41,6 +41,7 @@ export function FontPicker({ currentFont, onFontChange }: FontPickerProps) {
           gap: '8px',
           minWidth: '140px',
           fontFamily: currentFont,
+          color: '#1F2937',
         }}
       >
         <span style={{ flex: 1, textAlign: 'left' }}>{currentFont}</span>
@@ -80,6 +81,7 @@ export function FontPicker({ currentFont, onFontChange }: FontPickerProps) {
                 cursor: 'pointer',
                 fontSize: '14px',
                 fontFamily: font,
+                color: '#1F2937',
               }}
               onMouseEnter={(e) => {
                 if (currentFont !== font) {

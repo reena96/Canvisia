@@ -27,10 +27,11 @@ export function DevLogin() {
   const [error, setError] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
 
-  // Only show in development mode (emulator auto-connects in firebase.ts)
+  // Show in development mode OR if explicitly enabled via env var
   const isDevelopment = import.meta.env.DEV
+  const isDevLoginEnabled = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
 
-  if (!isDevelopment) return null
+  if (!isDevelopment && !isDevLoginEnabled) return null
 
   const handleLogin = async (user: TestUser) => {
     setLoading(user.email)
@@ -106,7 +107,7 @@ export function DevLogin() {
                     background: user.color,
                   }}
                 />
-                <span>{loading === user.email ? 'Loading...' : user.displayName}</span>
+                <span style={{ color: '#1F2937 !important' }}>{loading === user.email ? 'Loading...' : user.displayName}</span>
               </button>
             ))}
           </div>

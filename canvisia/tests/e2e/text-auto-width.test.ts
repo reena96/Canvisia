@@ -1,12 +1,12 @@
 /**
- * E2E test for text auto-width behavior using Puppeteer
- * Validates that text boxes expand horizontally as text is added
+ * E2E test for text box behavior using Puppeteer
+ * Validates that text boxes work correctly with fixed width/height
  */
 
 import puppeteer, { Browser, Page } from 'puppeteer'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 
-describe('Text Auto-Width Behavior', () => {
+describe('Text Box Behavior', () => {
   let browser: Browser
   let page: Page
   const BASE_URL = 'http://localhost:5173'
@@ -24,7 +24,7 @@ describe('Text Auto-Width Behavior', () => {
     await browser.close()
   })
 
-  test('text box should expand horizontally when text is added', async () => {
+  test('text box should maintain fixed width and wrap text', async () => {
     // Navigate to the app
     await page.goto(BASE_URL, { waitUntil: 'networkidle0' })
 
@@ -58,7 +58,7 @@ describe('Text Auto-Width Behavior', () => {
     const startX = canvasBox.x + canvasBox.width / 2
     const startY = canvasBox.y + canvasBox.height / 2
     const endX = startX + 200
-    const endY = startY
+    const endY = startY + 100
 
     // Drag to create text box
     await page.mouse.move(startX, startY)
@@ -88,10 +88,10 @@ describe('Text Auto-Width Behavior', () => {
     console.log('Initial textarea dimensions:', initialDimensions)
 
     // Type text into the textarea
-    const testText = 'This is a long line of text that should expand horizontally'
+    const testText = 'This is a long line of text that should wrap within the text box'
     await textarea.type(testText)
 
-    // Wait for auto-resize to complete
+    // Wait for rendering to complete
     await page.waitForTimeout(300)
 
     // Get updated textarea dimensions
@@ -102,19 +102,13 @@ describe('Text Auto-Width Behavior', () => {
 
     console.log('Updated textarea dimensions:', updatedDimensions)
 
-    // Validate auto-width behavior
-    expect(updatedDimensions.width).toBeGreaterThan(initialDimensions.width)
-    console.log(`✓ Textarea width increased from ${initialDimensions.width}px to ${updatedDimensions.width}px`)
+    // Validate fixed-width behavior - width should remain the same
+    expect(updatedDimensions.width).toBe(initialDimensions.width)
+    console.log(`✓ Textarea width remained fixed at ${updatedDimensions.width}px`)
 
-    // Validate that height stayed relatively the same (single line)
-    // Allow some tolerance for line height variations
-    expect(Math.abs(updatedDimensions.height - initialDimensions.height)).toBeLessThan(10)
-    console.log(`✓ Textarea remained single-line (height: ${updatedDimensions.height}px)`)
-
-    // Check that textarea has whiteSpace: nowrap
-    const whiteSpace = await textarea.evaluate((el) => window.getComputedStyle(el).whiteSpace)
-    expect(whiteSpace).toBe('nowrap')
-    console.log('✓ Textarea has whiteSpace: nowrap')
+    // Validate that height remained the same (fixed height box)
+    expect(updatedDimensions.height).toBe(initialDimensions.height)
+    console.log(`✓ Textarea height remained fixed at ${updatedDimensions.height}px`)
 
     // Exit edit mode by pressing Escape
     await page.keyboard.press('Escape')
@@ -135,7 +129,7 @@ describe('Text Auto-Width Behavior', () => {
     // Note: We can't directly inspect Konva elements, but we can check if the shape was created
     await page.waitForTimeout(500)
 
-    console.log('✓ Text auto-width behavior validated successfully')
+    console.log('✓ Text box fixed width/height behavior validated successfully')
   }, 30000) // 30 second timeout for the entire test
 
   test('text selection box should match text width', async () => {

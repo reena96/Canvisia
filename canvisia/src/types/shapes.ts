@@ -1,12 +1,12 @@
 // Shape Types
 export interface BaseShape {
   id: string;
-  type: 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'image' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
+  type: 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'image' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector';
   x: number;
   y: number;
   createdBy: string;
   updatedAt: Date | string;
-  rotation?: number;
+  rotation: number; // Rotation in degrees (0-360)
   zIndex?: number;
 }
 
@@ -55,15 +55,6 @@ export interface Cylinder extends BaseShape {
   strokeWidth?: number;
 }
 
-export interface Diamond extends BaseShape {
-  type: 'diamond';
-  width: number;
-  height: number;
-  fill: string;
-  stroke?: string;
-  strokeWidth?: number;
-}
-
 export interface Line extends BaseShape {
   type: 'line';
   x2: number;
@@ -83,7 +74,8 @@ export interface Text extends BaseShape {
   textDecoration: 'none' | 'underline' | 'line-through';
   align: 'left' | 'center' | 'right';
   lineHeight: number; // Multiplier: 1.0, 1.2, 1.5, etc.
-  width: number; // Now required
+  width: number; // Text box width for wrapping
+  height: number; // Text box height
 }
 
 export interface Image extends BaseShape {
@@ -96,7 +88,8 @@ export interface Image extends BaseShape {
 
 export interface Triangle extends BaseShape {
   type: 'triangle';
-  radius: number; // Size (distance from center to vertex)
+  radiusX: number; // Horizontal radius (distance from center to vertex)
+  radiusY: number; // Vertical radius (distance from center to vertex)
   fill: string;
   stroke?: string;
   strokeWidth?: number;
@@ -104,7 +97,8 @@ export interface Triangle extends BaseShape {
 
 export interface Pentagon extends BaseShape {
   type: 'pentagon';
-  radius: number;
+  radiusX: number; // Horizontal radius
+  radiusY: number; // Vertical radius
   fill: string;
   stroke?: string;
   strokeWidth?: number;
@@ -112,7 +106,8 @@ export interface Pentagon extends BaseShape {
 
 export interface Hexagon extends BaseShape {
   type: 'hexagon';
-  radius: number;
+  radiusX: number; // Horizontal radius
+  radiusY: number; // Vertical radius
   fill: string;
   stroke?: string;
   strokeWidth?: number;
@@ -120,8 +115,10 @@ export interface Hexagon extends BaseShape {
 
 export interface Star extends BaseShape {
   type: 'star';
-  outerRadius: number;
-  innerRadius: number;
+  outerRadiusX: number; // Horizontal outer radius
+  outerRadiusY: number; // Vertical outer radius
+  innerRadiusX: number; // Horizontal inner radius
+  innerRadiusY: number; // Vertical inner radius
   numPoints: number;
   fill: string;
   stroke?: string;
@@ -158,4 +155,4 @@ export interface BidirectionalArrow extends BaseShape {
   pointerWidth?: number;
 }
 
-export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Diamond | Line | Text | Image | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;
+export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Line | Text | Image | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;

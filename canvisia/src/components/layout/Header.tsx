@@ -9,18 +9,27 @@ interface HeaderProps {
 export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
   const { user, signOut } = useAuth()
 
+  console.log('👥 Header rendering with activeUsers:', activeUsers)
+
   if (!user) return null
 
   const handleSignOut = async () => {
+    console.log('🔴 Sign out button clicked')
     try {
       // Call custom cleanup handler first if provided
-      if (onSignOut) {
+      if (onSignOut && typeof onSignOut === 'function') {
+        console.log('🟡 Calling onSignOut cleanup handler')
         await onSignOut()
+        console.log('✅ Cleanup handler completed')
+      } else {
+        console.log('⚠️ No valid onSignOut cleanup handler provided')
       }
       // Then sign out
+      console.log('🟡 Calling signOut from auth')
       await signOut()
+      console.log('✅ Sign out completed')
     } catch (error) {
-      console.error('Failed to sign out:', error)
+      console.error('❌ Failed to sign out:', error)
     }
   }
 
@@ -41,7 +50,7 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
         zIndex: 1000,
       }}
     >
-      <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Canvisia</h1>
+      <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1F2937 !important' }}>Canvisia</h1>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         {/* Presence indicator */}
@@ -57,12 +66,11 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
             gap: '12px',
           }}
         >
-          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
-            👥 {activeUsers.filter((u) => u.isActive).length}
+          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1F2937 !important' }}>
+            👥 {activeUsers.length}
           </div>
           <div style={{ display: 'flex', gap: '4px' }}>
             {activeUsers
-              .filter((u) => u.isActive)
               .slice(0, 5)
               .map((u) => (
                 <div
@@ -93,7 +101,7 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
             }}
           />
         )}
-        <span style={{ fontSize: '0.9rem' }}>{user.displayName || user.email}</span>
+        <span style={{ fontSize: '0.9rem', color: '#1F2937 !important' }}>{user.displayName || user.email}</span>
         <button
           onClick={handleSignOut}
           style={{
@@ -103,6 +111,7 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
             border: '1px solid #ddd',
             borderRadius: '4px',
             cursor: 'pointer',
+            color: '#1F2937',
           }}
         >
           Sign Out

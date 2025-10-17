@@ -28,6 +28,8 @@ function TestComponent() {
 describe('AuthProvider Integration - MVP CRITICAL', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Suppress console.error during tests to avoid stderr output
+    vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   it('should render loading state initially', () => {

@@ -15,6 +15,14 @@
           ".write": "$userId === auth.uid"
         }
       }
+    },
+    "connections": {
+      "$canvasId": {
+        ".read": true,
+        "$userId": {
+          ".write": "$userId === auth.uid"
+        }
+      }
     }
   }
 }

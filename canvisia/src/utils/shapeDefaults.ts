@@ -1,4 +1,4 @@
-import type { Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Diamond, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BidirectionalArrow, BentConnector } from '@/types/shapes'
+import type { Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Line, Text, Triangle, Pentagon, Hexagon, Star, Arrow, BidirectionalArrow, BentConnector } from '@/types/shapes'
 
 /**
  * Creates a default rectangle shape with specified position
@@ -24,6 +24,7 @@ export function createDefaultRectangle(
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -52,6 +53,7 @@ export function createDefaultCircle(
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -80,6 +82,7 @@ export function createDefaultLine(
     y2: y,
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -114,6 +117,8 @@ export function createDefaultText(
     align: 'left',
     lineHeight: 1.2,
     width: 200, // Default width
+    height: 100, // Default height
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -138,10 +143,12 @@ export function createDefaultTriangle(
     type: 'triangle',
     x,
     y,
-    radius: 50,
+    radiusX: 50,
+    radiusY: 50,
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -166,10 +173,12 @@ export function createDefaultPentagon(
     type: 'pentagon',
     x,
     y,
-    radius: 50,
+    radiusX: 50,
+    radiusY: 50,
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -194,10 +203,12 @@ export function createDefaultHexagon(
     type: 'hexagon',
     x,
     y,
-    radius: 50,
+    radiusX: 50,
+    radiusY: 50,
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -222,12 +233,15 @@ export function createDefaultStar(
     type: 'star',
     x,
     y,
-    outerRadius: 50,
-    innerRadius: 25,
+    outerRadiusX: 50,
+    outerRadiusY: 50,
+    innerRadiusX: 25,
+    innerRadiusY: 25,
     numPoints: 5,
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -258,6 +272,7 @@ export function createDefaultArrow(
     strokeWidth: 3,
     pointerLength: 10,
     pointerWidth: 10,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -288,6 +303,7 @@ export function createDefaultBidirectionalArrow(
     strokeWidth: 3,
     pointerLength: 10,
     pointerWidth: 10,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -324,6 +340,7 @@ export function createDefaultBentConnector(
     bendY,
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -353,6 +370,7 @@ export function createDefaultEllipse(
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -383,6 +401,7 @@ export function createDefaultRoundedRectangle(
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
@@ -412,36 +431,9 @@ export function createDefaultCylinder(
     fill: '#FFFFFF',
     stroke: color,
     strokeWidth: 3,
+    rotation: 0,
     createdBy: userId,
     updatedAt: new Date().toISOString(),
   }
 }
 
-/**
- * Creates a default diamond shape with specified position
- * @param x - X coordinate
- * @param y - Y coordinate
- * @param userId - User ID for createdBy field (optional)
- * @param color - Fill color for the diamond (optional, defaults to pink)
- * @returns Diamond shape with default properties
- */
-export function createDefaultDiamond(
-  x: number,
-  y: number,
-  userId: string = 'anonymous',
-  color: string = '#1F2937'
-): Diamond {
-  return {
-    id: crypto.randomUUID(),
-    type: 'diamond',
-    x,
-    y,
-    width: 100,
-    height: 100,
-    fill: '#FFFFFF',
-    stroke: color,
-    strokeWidth: 3,
-    createdBy: userId,
-    updatedAt: new Date().toISOString(),
-  }
-}

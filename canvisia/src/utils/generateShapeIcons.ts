@@ -162,26 +162,6 @@ export const shapeIcons = {
     return group
   }),
 
-  diamond: createShapeIcon(() => {
-    const group = new Konva.Group()
-    // Create a square rotated 45 degrees - larger size to match other shapes visually
-    // Using 100 as the diagonal length for maximum fill
-    const squareSide = 100 / Math.sqrt(2) // ≈ 70.7
-    const rect = new Konva.Rect({
-      x: 50,
-      y: 50,
-      width: squareSide,
-      height: squareSide,
-      offsetX: squareSide / 2,
-      offsetY: squareSide / 2,
-      rotation: 45,
-      stroke: '#1F2937',
-      strokeWidth: 2,
-    })
-    group.add(rect)
-    return group
-  }),
-
   triangle: createShapeIcon(() =>
     new Konva.RegularPolygon({
       x: 50,

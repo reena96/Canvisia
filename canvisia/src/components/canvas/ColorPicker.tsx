@@ -148,6 +148,7 @@ export function ColorPicker({ currentColor, onColorChange, position }: ColorPick
                     borderRadius: '4px',
                     fontSize: '13px',
                     fontFamily: 'monospace',
+                    color: '#1F2937',
                   }}
                 />
                 <button

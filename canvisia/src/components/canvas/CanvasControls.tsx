@@ -54,7 +54,7 @@ export function CanvasControls() {
         }}
         title="Zoom In"
       >
-        <ZoomIn size={20} />
+        <ZoomIn size={20} color="#1F2937" />
       </button>
 
       <div
@@ -63,6 +63,7 @@ export function CanvasControls() {
           fontSize: '0.875rem',
           fontWeight: 500,
           padding: '0.25rem 0',
+          color: '#1F2937',
         }}
       >
         {zoomPercentage}%
@@ -82,7 +83,7 @@ export function CanvasControls() {
         }}
         title="Zoom Out"
       >
-        <ZoomOut size={20} />
+        <ZoomOut size={20} color="#1F2937" />
       </button>
 
       <div
@@ -106,7 +107,7 @@ export function CanvasControls() {
         }}
         title="Reset View"
       >
-        <Maximize2 size={20} />
+        <Maximize2 size={20} color="#1F2937" />
       </button>
     </div>
   )

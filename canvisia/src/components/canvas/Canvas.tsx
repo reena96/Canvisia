@@ -13,13 +13,13 @@ import { ZoomControls } from './ZoomControls'
 import { ShapeRenderer } from './ShapeRenderer'
 import { TextEditOverlay } from './TextEditOverlay'
 import { FloatingTextToolbar } from './FloatingTextToolbar'
+import { ResizeHandles } from './ResizeHandles'
 import {
   createDefaultRectangle,
   createDefaultCircle,
   createDefaultEllipse,
   createDefaultRoundedRectangle,
   createDefaultCylinder,
-  createDefaultDiamond,
   createDefaultLine,
   createDefaultText,
   createDefaultTriangle,
@@ -34,6 +34,9 @@ import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
 import { throttle } from '@/utils/throttle'
 import type { Shape, Text } from '@/types/shapes'
+import { calculateRectangleResize, calculateCircleResize, calculateEllipseResize } from '@/utils/resizeCalculations'
+import { calculateRotationDelta, snapAngle, normalizeAngle } from '@/utils/rotationCalculations'
+import type { ResizeHandle } from '@/utils/resizeCalculations'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
@@ -67,6 +70,16 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
   // Dragging state (to hide toolbar while dragging)
   const [isDraggingShape, setIsDraggingShape] = useState(false)
 
+  // Resize state
+  const [isResizing, setIsResizing] = useState(false)
+  const [resizingHandle, setResizingHandle] = useState<ResizeHandle | null>(null)
+  const [resizeStart, setResizeStart] = useState<{ x: number; y: number } | null>(null)
+  const [initialShapeDimensions, setInitialShapeDimensions] = useState<any>(null)
+
+  // Rotation state
+  const [isRotating, setIsRotating] = useState(false)
+  const [rotationStart, setRotationStart] = useState<{ angle: number; initialRotation: number } | null>(null)
+
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
 
@@ -93,6 +106,7 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
   }, [activeUsers, onPresenceChange])
 
   // Provide cleanup function to parent (combines cursor and presence cleanup)
+  // Only run once on mount to avoid triggering cleanup repeatedly
   useEffect(() => {
     if (onMountCleanup) {
       const combinedCleanup = async () => {
@@ -103,7 +117,8 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
       }
       onMountCleanup(combinedCleanup)
     }
-  }, [onMountCleanup, cleanupCursors, cleanupPresence])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Run only once on mount
 
   // Setup Firestore sync for shapes
   const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasId)
@@ -328,12 +343,25 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
   }, [isPanning, selectedTool])
 
   // Handle mouse move to broadcast cursor position and pan
-  const handleMouseMove = (_e: KonvaEventObject<MouseEvent>) => {
+  const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
     if (!stage) return
 
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
+
+    // Mark user as active on mouse movement
+    // Handle resizing
+    if (isResizing) {
+      handleResizeMove(e)
+      return
+    }
+
+    // Handle rotation
+    if (isRotating) {
+      handleRotationMove(e)
+      return
+    }
 
     // Handle panning with spacebar + drag
     if (isPanning) {
@@ -388,6 +416,18 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
 
   // Handle mouse up for panning and text creation
   const handleMouseUp = async () => {
+    // Handle resize end
+    if (isResizing) {
+      handleResizeEnd()
+      return
+    }
+
+    // Handle rotation end
+    if (isRotating) {
+      handleRotationEnd()
+      return
+    }
+
     // Handle panning
     if (isPanning) {
       setPanStart(null)
@@ -457,9 +497,6 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
             break
           case 'cylinder':
             newShape = createDefaultCylinder(canvasPos.x, canvasPos.y, userId, userColor)
-            break
-          case 'diamond':
-            newShape = createDefaultDiamond(canvasPos.x, canvasPos.y, userId, userColor)
             break
           case 'line':
             newShape = createDefaultLine(canvasPos.x, canvasPos.y, userId, userColor)
@@ -620,6 +657,313 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
     },
     [shapes, updateShape, updateShapeLocal]
   )
+
+  // Resize handlers
+  const handleResizeStart = useCallback((handle: ResizeHandle) => {
+    const stage = stageRef.current
+    if (!stage || !selectedShapeId) return
+
+    const pointerPosition = stage.getPointerPosition()
+    if (!pointerPosition) return
+
+    const selectedShape = shapes.find(s => s.id === selectedShapeId)
+    if (!selectedShape) return
+
+    setIsResizing(true)
+    setResizingHandle(handle)
+    setResizeStart(screenToCanvas(pointerPosition.x, pointerPosition.y, viewport))
+    setInitialShapeDimensions({ ...selectedShape })
+  }, [selectedShapeId, shapes, viewport])
+
+  const handleResizeMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    if (!isResizing || !resizingHandle || !resizeStart || !selectedShapeId || !initialShapeDimensions) return
+
+    const stage = stageRef.current
+    if (!stage) return
+
+    const pointerPosition = stage.getPointerPosition()
+    if (!pointerPosition) return
+
+    const currentPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+    let deltaX = currentPos.x - resizeStart.x
+    let deltaY = currentPos.y - resizeStart.y
+
+    const shiftPressed = e.evt?.shiftKey || false
+    let updates: Partial<Shape> = {}
+
+    // Calculate new dimensions based on shape type
+    const shape = initialShapeDimensions
+
+    // Transform deltas to shape's local coordinate system if shape is rotated
+    // This ensures resize behaves correctly regardless of shape rotation
+    // Skip for lines/arrows/connectors as they use absolute endpoint coordinates
+    const isLineShape = 'x2' in shape && 'y2' in shape
+    if (shape.rotation && shape.rotation !== 0 && !isLineShape) {
+      const rotationRad = -(shape.rotation * Math.PI / 180) // Negative to reverse rotation
+      const cos = Math.cos(rotationRad)
+      const sin = Math.sin(rotationRad)
+      const rotatedDeltaX = deltaX * cos - deltaY * sin
+      const rotatedDeltaY = deltaX * sin + deltaY * cos
+      deltaX = rotatedDeltaX
+      deltaY = rotatedDeltaY
+    }
+
+    // Determine if this is a corner handle (should preserve aspect ratio)
+    const isCornerHandle = resizingHandle.length === 2 // 'nw', 'ne', 'sw', 'se' are 2 chars
+    const maintainAspectRatio = isCornerHandle || shiftPressed
+
+    // Text shapes - edge resize changes box size, corner resize changes fontSize
+    if (shape.type === 'text') {
+      // Corner handles (diagonal) - change fontSize proportionally
+      if (isCornerHandle) {
+        const horizontalChange = resizingHandle.includes('e') ? deltaX : -deltaX
+        const verticalChange = resizingHandle.includes('s') ? deltaY : -deltaY
+        const fontSizeChange = (horizontalChange + verticalChange) * 0.2
+
+        let newFontSize = shape.fontSize + fontSizeChange
+
+        // Clamp fontSize to reasonable limits
+        const MIN_FONT_SIZE = 8
+        const MAX_FONT_SIZE = 200
+        newFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, newFontSize))
+
+        updates = {
+          x: shape.x,
+          y: shape.y,
+          fontSize: newFontSize,
+        }
+      }
+      // Edge handles - resize the text box without changing fontSize
+      else {
+        let newWidth = shape.width
+        let newHeight = shape.height
+
+        // Horizontal resize (change width)
+        if (resizingHandle.includes('e')) {
+          newWidth = shape.width + deltaX
+        } else if (resizingHandle.includes('w')) {
+          newWidth = shape.width - deltaX
+        }
+
+        // Vertical resize (change height)
+        if (resizingHandle.includes('s')) {
+          newHeight = shape.height + deltaY
+        } else if (resizingHandle.includes('n')) {
+          newHeight = shape.height - deltaY
+        }
+
+        // Minimum size constraints
+        const MIN_TEXT_WIDTH = 50
+        const MIN_TEXT_HEIGHT = 20
+        newWidth = Math.max(MIN_TEXT_WIDTH, newWidth)
+        newHeight = Math.max(MIN_TEXT_HEIGHT, newHeight)
+
+        updates = {
+          x: shape.x,
+          y: shape.y,
+          width: newWidth,
+          height: newHeight,
+        }
+      }
+    }
+    // Rectangular shapes (rectangle, roundedRectangle, cylinder)
+    else if ('width' in shape && 'height' in shape) {
+      const result = calculateRectangleResize(shape, resizingHandle, deltaX, deltaY, maintainAspectRatio)
+      updates = result
+    }
+    // Ellipse and polygons (two radii: radiusX and radiusY)
+    else if ('radiusX' in shape && 'radiusY' in shape) {
+      const result = calculateEllipseResize(shape, resizingHandle, deltaX, deltaY, maintainAspectRatio)
+      updates = result
+    }
+    // Circle (single radius)
+    else if ('radius' in shape && !('radiusX' in shape) && !('outerRadius' in shape)) {
+      const result = calculateCircleResize(shape, resizingHandle, deltaX, deltaY)
+      updates = result
+    }
+    // Star (outerRadiusX/Y and innerRadiusX/Y)
+    else if ('outerRadiusX' in shape && 'outerRadiusY' in shape && 'innerRadiusX' in shape && 'innerRadiusY' in shape) {
+      // Maintain the ratio between inner and outer radii
+      const ratioX = shape.innerRadiusX / shape.outerRadiusX
+      const ratioY = shape.innerRadiusY / shape.outerRadiusY
+
+      let newOuterRadiusX = shape.outerRadiusX
+      let newOuterRadiusY = shape.outerRadiusY
+
+      // Calculate radius changes based on handle direction
+      if (resizingHandle.includes('e')) {
+        newOuterRadiusX = shape.outerRadiusX + deltaX
+      } else if (resizingHandle.includes('w')) {
+        newOuterRadiusX = shape.outerRadiusX - deltaX
+      }
+
+      if (resizingHandle.includes('s')) {
+        newOuterRadiusY = shape.outerRadiusY + deltaY
+      } else if (resizingHandle.includes('n')) {
+        newOuterRadiusY = shape.outerRadiusY - deltaY
+      }
+
+      // For corner handles, maintain aspect ratio
+      if (isCornerHandle || maintainAspectRatio) {
+        const avgChange = ((newOuterRadiusX - shape.outerRadiusX) + (newOuterRadiusY - shape.outerRadiusY)) / 2
+        newOuterRadiusX = shape.outerRadiusX + avgChange
+        newOuterRadiusY = shape.outerRadiusY + avgChange
+      }
+
+      // Maintain inner/outer ratio
+      let newInnerRadiusX = newOuterRadiusX * ratioX
+      let newInnerRadiusY = newOuterRadiusY * ratioY
+
+      const MIN_OUTER_RADIUS = 10
+      const MIN_INNER_RADIUS = 5
+      if (newOuterRadiusX < MIN_OUTER_RADIUS) newOuterRadiusX = MIN_OUTER_RADIUS
+      if (newOuterRadiusY < MIN_OUTER_RADIUS) newOuterRadiusY = MIN_OUTER_RADIUS
+      if (newInnerRadiusX < MIN_INNER_RADIUS) newInnerRadiusX = MIN_INNER_RADIUS
+      if (newInnerRadiusY < MIN_INNER_RADIUS) newInnerRadiusY = MIN_INNER_RADIUS
+
+      updates = {
+        x: shape.x,
+        y: shape.y,
+        outerRadiusX: newOuterRadiusX,
+        outerRadiusY: newOuterRadiusY,
+        innerRadiusX: newInnerRadiusX,
+        innerRadiusY: newInnerRadiusY
+      }
+    }
+    // Lines and arrows (x2, y2 endpoints)
+    else if ('x2' in shape && 'y2' in shape) {
+      // Check if it's a bent connector (has bendX and bendY)
+      if ('bendX' in shape && 'bendY' in shape) {
+        // For bent connectors, handle 3 control points
+        if (resizingHandle === 'nw') {
+          // Start point
+          const newX = shape.x + deltaX
+          const newY = shape.y + deltaY
+          updates = { x: newX, y: newY } as Partial<Shape>
+        } else if (resizingHandle === 'n') {
+          // Bend point
+          const newBendX = shape.bendX + deltaX
+          const newBendY = shape.bendY + deltaY
+          updates = { bendX: newBendX, bendY: newBendY } as Partial<Shape>
+        } else if (resizingHandle === 'se') {
+          // End point
+          const newX2 = shape.x2 + deltaX
+          const newY2 = shape.y2 + deltaY
+          updates = { x2: newX2, y2: newY2 } as Partial<Shape>
+        }
+      } else {
+        // For regular lines/arrows, handle 2 endpoints
+        if (resizingHandle === 'nw') {
+          // Start point (x, y)
+          const newX = shape.x + deltaX
+          const newY = shape.y + deltaY
+          updates = { x: newX, y: newY } as Partial<Shape>
+        } else if (resizingHandle === 'se') {
+          // End point (x2, y2)
+          const newX2 = shape.x2 + deltaX
+          const newY2 = shape.y2 + deltaY
+          updates = { x2: newX2, y2: newY2 } as Partial<Shape>
+        }
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateShapeLocal(selectedShapeId, updates)
+      updateShapeThrottled(selectedShapeId, updates)
+    }
+  }, [isResizing, resizingHandle, resizeStart, selectedShapeId, initialShapeDimensions, viewport, updateShapeLocal, updateShapeThrottled])
+
+  const handleResizeEnd = useCallback(async () => {
+    if (!selectedShapeId || !isResizing) return
+
+    setIsResizing(false)
+    setResizingHandle(null)
+    setResizeStart(null)
+    setInitialShapeDimensions(null)
+
+    // Final update to ensure sync
+    const currentShape = shapes.find(s => s.id === selectedShapeId)
+    if (currentShape) {
+      try {
+        await updateShape(selectedShapeId, { ...localShapeUpdates[selectedShapeId] })
+      } catch (err) {
+        console.error('Failed to save final resize:', err)
+        setError('Failed to save resize. Please try again.')
+      }
+    }
+  }, [selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape])
+
+  // Rotation handlers
+  const handleRotationStart = useCallback(() => {
+    const stage = stageRef.current
+    if (!stage) return
+
+    const selectedShape = shapes.find(s => s.id === selectedShapeId)
+    if (!selectedShape) return
+
+    const pointerPosition = stage.getPointerPosition()
+    if (!pointerPosition) return
+
+    const currentPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+    const initialAngle = calculateRotationDelta(selectedShape, currentPos.x, currentPos.y)
+
+    setIsRotating(true)
+    setRotationStart({
+      angle: initialAngle,
+      initialRotation: selectedShape.rotation
+    })
+  }, [selectedShapeId, shapes, viewport])
+
+  const handleRotationMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    if (!isRotating || !selectedShapeId || !rotationStart) return
+
+    const stage = stageRef.current
+    if (!stage) return
+
+    const pointerPosition = stage.getPointerPosition()
+    if (!pointerPosition) return
+
+    const selectedShape = shapes.find(s => s.id === selectedShapeId)
+    if (!selectedShape) return
+
+    const currentPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+    const currentAngle = calculateRotationDelta(selectedShape, currentPos.x, currentPos.y)
+
+    // Calculate the angle delta from the initial drag position
+    let angleDelta = currentAngle - rotationStart.angle
+
+    // Calculate new rotation by adding delta to initial rotation
+    let newRotation = rotationStart.initialRotation + angleDelta
+
+    // Normalize to 0-360 range
+    newRotation = normalizeAngle(newRotation)
+
+    // Snap to 15-degree increments if shift is pressed
+    if (e.evt?.shiftKey) {
+      newRotation = snapAngle(newRotation, 15)
+    }
+
+    updateShapeLocal(selectedShapeId, { rotation: newRotation })
+    updateShapeThrottled(selectedShapeId, { rotation: newRotation })
+  }, [isRotating, selectedShapeId, rotationStart, shapes, viewport, updateShapeLocal, updateShapeThrottled])
+
+  const handleRotationEnd = useCallback(async () => {
+    if (!selectedShapeId || !isRotating) return
+
+    setIsRotating(false)
+    setRotationStart(null)
+
+    // Final update to ensure sync
+    const currentShape = shapes.find(s => s.id === selectedShapeId)
+    if (currentShape) {
+      try {
+        await updateShape(selectedShapeId, { rotation: currentShape.rotation })
+      } catch (err) {
+        console.error('Failed to save final rotation:', err)
+        setError('Failed to save rotation. Please try again.')
+      }
+    }
+  }, [selectedShapeId, isRotating, shapes, updateShape])
 
   // Zoom control handlers
   const handleZoomIn = useCallback(() => {
@@ -806,7 +1150,7 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
               animation: 'spin 0.8s linear infinite',
             }}
           />
-          <span style={{ fontSize: '14px', color: '#1F2937' }}>Loading shapes...</span>
+          <span style={{ fontSize: '14px', color: '#1F2937 !important' }}>Loading shapes...</span>
         </div>
       )}
 
@@ -872,11 +1216,25 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
               />
             </>
           )}
+
+          {/* Resize handles for selected shape (hide while dragging, resizing, rotating, or editing text) */}
+          {selectedShapeId && !isDraggingShape && !isResizing && !isRotating && !editingTextId && (() => {
+            const selectedShape = shapes.find(s => s.id === selectedShapeId)
+            if (!selectedShape) return null
+
+            return (
+              <ResizeHandles
+                shape={selectedShape}
+                onResizeStart={handleResizeStart}
+                onRotationStart={handleRotationStart}
+              />
+            )
+          })()}
         </Layer>
       </Stage>
 
       {/* Multiplayer cursors overlay */}
-      <CursorOverlay cursors={cursors} viewport={viewport} />
+      <CursorOverlay cursors={cursors} activeUsers={activeUsers} viewport={viewport} />
 
       {/* Text Edit Overlay */}
       {editingTextId && (() => {
@@ -888,8 +1246,11 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
             shape={editingShape}
             stagePosition={{ x: viewport.x, y: viewport.y }}
             stageScale={viewport.zoom}
-            onTextChange={(text) => {
-              updateShape(editingTextId, { text })
+            onTextChange={(text, width, height) => {
+              const updates: Partial<Text> = { text }
+              if (width !== undefined) updates.width = width
+              if (height !== undefined) updates.height = height
+              updateShape(editingTextId, updates)
             }}
             onExitEdit={() => {
               setEditingTextId(null)

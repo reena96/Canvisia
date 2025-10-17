@@ -80,6 +80,7 @@ export function FloatingTextToolbar({
           fontSize: '14px',
           cursor: 'pointer',
           backgroundColor: 'white',
+          color: '#1F2937',
         }}
       >
         {FONT_SIZES.map((size) => (
@@ -107,7 +108,7 @@ export function FloatingTextToolbar({
           justifyContent: 'center',
         }}
       >
-        <Bold size={16} />
+        <Bold size={16} color="#1F2937" />
       </button>
 
       {/* Italic */}
@@ -126,7 +127,7 @@ export function FloatingTextToolbar({
           justifyContent: 'center',
         }}
       >
-        <Italic size={16} />
+        <Italic size={16} color="#1F2937" />
       </button>
 
       {/* Underline */}
@@ -145,7 +146,7 @@ export function FloatingTextToolbar({
           justifyContent: 'center',
         }}
       >
-        <Underline size={16} />
+        <Underline size={16} color="#1F2937" />
       </button>
 
       <div style={{ width: '1px', height: '24px', backgroundColor: '#E5E7EB' }} />
@@ -166,7 +167,7 @@ export function FloatingTextToolbar({
           justifyContent: 'center',
         }}
       >
-        <AlignLeft size={16} />
+        <AlignLeft size={16} color="#1F2937" />
       </button>
 
       {/* Align Center */}
@@ -185,7 +186,7 @@ export function FloatingTextToolbar({
           justifyContent: 'center',
         }}
       >
-        <AlignCenter size={16} />
+        <AlignCenter size={16} color="#1F2937" />
       </button>
 
       {/* Align Right */}
@@ -204,7 +205,7 @@ export function FloatingTextToolbar({
           justifyContent: 'center',
         }}
       >
-        <AlignRight size={16} />
+        <AlignRight size={16} color="#1F2937" />
       </button>
 
       <div style={{ width: '1px', height: '24px', backgroundColor: '#E5E7EB' }} />
@@ -236,6 +237,7 @@ export function FloatingTextToolbar({
           fontSize: '14px',
           cursor: 'pointer',
           backgroundColor: 'white',
+          color: '#1F2937',
           width: '70px',
         }}
       >

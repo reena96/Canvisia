@@ -48,7 +48,7 @@ export function useCursors(
 
     // Subscribe to all cursors
     const unsubscribe = subscribeToCursors(canvasId, (allCursors) => {
-      // Filter out own cursor
+      // Filter out own cursor by userId
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [userId]: _ownCursor, ...otherCursors } = allCursors
       setCursors(otherCursors)
@@ -57,10 +57,8 @@ export function useCursors(
     // Cleanup on unmount
     return () => {
       unsubscribe()
-      // Try to remove cursor on unmount, but don't fail if permission denied
-      removeCursor(canvasId, userId).catch((error) => {
-        console.debug('Manual cursor cleanup failed (onDisconnect will handle it):', error)
-      })
+      // DON'T remove cursor here - let onDisconnect() handle it
+      // Manual removal causes issues with React Strict Mode double-mounting
     }
   }, [canvasId, userId])
 
@@ -73,12 +71,12 @@ export function useCursors(
   )
 
   // Return cleanup function that can be called before sign out
-  const cleanup = async () => {
+  const cleanup = useCallback(async () => {
     console.log('🔴 Manual cursor cleanup before sign out')
     if (canvasId && userId) {
       await removeCursor(canvasId, userId)
     }
-  }
+  }, [canvasId, userId])
 
   return {
     cursors,

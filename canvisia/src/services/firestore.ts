@@ -155,11 +155,12 @@ export function subscribeToPresence(
         const data = doc.data()
 
         // Convert Firestore Timestamp back to ISO string
+        // TODO: This is legacy Firestore-based presence, now using RTDB
         const presence: Presence = {
           userId: data.userId,
           userName: data.userName,
           color: data.color,
-          isActive: data.isActive,
+          isActive: data.isActive || true,
           lastSeen: data.lastSeen?.toDate?.()?.toISOString() || data.lastSeen,
         }
 

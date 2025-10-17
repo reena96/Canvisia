@@ -3,7 +3,7 @@ import { Hand } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
 
-type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'diamond' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
+type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -23,7 +23,7 @@ export function Toolbar({
   const [arrowsExpanded, setArrowsExpanded] = useState(false)
 
   const circleTools: Tool[] = ['circle', 'ellipse', 'roundedRectangle', 'cylinder']
-  const polygonTools: Tool[] = ['rectangle', 'diamond', 'triangle', 'pentagon', 'hexagon', 'star']
+  const polygonTools: Tool[] = ['rectangle', 'triangle', 'pentagon', 'hexagon', 'star']
   const arrowTools: Tool[] = ['line', 'arrow', 'bidirectionalArrow']
 
   const isCircleSelected = circleTools.includes(selectedTool)
@@ -81,7 +81,7 @@ export function Toolbar({
           }
         }}
       >
-        <Hand size={20} />
+        <Hand size={20} color="#1F2937" />
       </button>
 
       <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
@@ -169,7 +169,6 @@ export function Toolbar({
         <ToolButton
           icon={isPolygonSelected ?
             selectedTool === 'rectangle' ? shapeIcons.rectangle :
-            selectedTool === 'diamond' ? shapeIcons.diamond :
             selectedTool === 'triangle' ? shapeIcons.triangle :
             selectedTool === 'pentagon' ? shapeIcons.pentagon :
             selectedTool === 'hexagon' ? shapeIcons.hexagon :
@@ -207,13 +206,6 @@ export function Toolbar({
               label="Rectangle"
               selected={selectedTool === 'rectangle'}
               onClick={() => onToolSelect('rectangle')}
-              isImage={true}
-            />
-            <ToolButton
-              icon={shapeIcons.diamond}
-              label="Diamond"
-              selected={selectedTool === 'diamond'}
-              onClick={() => onToolSelect('diamond')}
               isImage={true}
             />
             <ToolButton

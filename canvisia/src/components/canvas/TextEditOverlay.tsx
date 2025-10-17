@@ -5,7 +5,7 @@ interface TextEditOverlayProps {
   shape: Text
   stagePosition: { x: number; y: number }
   stageScale: number
-  onTextChange: (text: string) => void
+  onTextChange: (text: string, width?: number, height?: number) => void
   onExitEdit: () => void
 }
 
@@ -18,6 +18,7 @@ export function TextEditOverlay({
 }: TextEditOverlayProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [initialWidth, setInitialWidth] = useState<number | null>(null)
+  const previousDimensionsRef = useRef<{ width: number; height: number } | null>(null)
 
   // Calculate screen position to match selection box (with padding offset)
   const screenX = shape.x * stageScale + stagePosition.x - 4
@@ -56,7 +57,7 @@ export function TextEditOverlay({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onExitEdit])
 
-  // Auto-resize textarea both width and height
+  // Auto-resize textarea both width and height, and update shape dimensions
   useEffect(() => {
     if (textareaRef.current) {
       // Reset height to minimum to get accurate scrollHeight
@@ -72,8 +73,21 @@ export function TextEditOverlay({
       // Get the scroll width and add 16px for padding (8px each side to fully cover text)
       const newWidth = textareaRef.current.scrollWidth + 16
       textareaRef.current.style.width = `${newWidth}px`
+
+      // Convert screen dimensions back to canvas dimensions for the shape
+      const canvasWidth = newWidth / stageScale
+      const canvasHeight = newHeight / stageScale
+
+      // Only update if dimensions have changed (to avoid infinite loops)
+      const previousDimensions = previousDimensionsRef.current
+      if (!previousDimensions ||
+          Math.abs(previousDimensions.width - canvasWidth) > 0.5 ||
+          Math.abs(previousDimensions.height - canvasHeight) > 0.5) {
+        previousDimensionsRef.current = { width: canvasWidth, height: canvasHeight }
+        onTextChange(shape.text, canvasWidth, canvasHeight)
+      }
     }
-  }, [shape.text])
+  }, [shape.text, stageScale])
 
   // Match text styling exactly from shape properties
   const fontWeight = shape.fontWeight === 700 ? 'bold' : 'normal'
@@ -83,7 +97,10 @@ export function TextEditOverlay({
     <textarea
       ref={textareaRef}
       value={shape.text}
-      onChange={(e) => onTextChange(e.target.value)}
+      onChange={(e) => {
+        // Just update the text value - dimensions will be updated by the useEffect
+        onTextChange(e.target.value)
+      }}
       onBlur={onExitEdit}
       placeholder="Add text"
       style={{

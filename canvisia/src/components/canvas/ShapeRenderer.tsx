@@ -1,5 +1,5 @@
 import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, Image as KonvaImage, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import type { Shape } from '@/types/shapes'
 import { useCanvasStore } from '@/stores/canvasStore'
 
@@ -47,6 +47,8 @@ export function ShapeRenderer({
           y={shape.y}
           width={shape.width}
           height={shape.height}
+          offsetX={shape.width / 2}
+          offsetY={shape.height / 2}
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
@@ -115,6 +117,8 @@ export function ShapeRenderer({
           y={shape.y}
           width={shape.width}
           height={shape.height}
+          offsetX={shape.width / 2}
+          offsetY={shape.height / 2}
           cornerRadius={shape.cornerRadius}
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
@@ -139,6 +143,8 @@ export function ShapeRenderer({
           id={shape.id}
           x={shape.x}
           y={shape.y}
+          offsetX={shape.width / 2}
+          offsetY={shape.height / 2}
           rotation={shape.rotation}
           draggable
           onClick={onSelect}
@@ -182,31 +188,6 @@ export function ShapeRenderer({
         </Group>
       )
 
-    case 'diamond':
-      return (
-        <Rect
-          id={shape.id}
-          x={shape.x}
-          y={shape.y}
-          width={shape.width}
-          height={shape.height}
-          offsetX={shape.width / 2}
-          offsetY={shape.height / 2}
-          fill={shape.fill}
-          stroke={isSelected ? '#3B82F6' : shape.stroke}
-          strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
-          rotation={45}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}
-        />
-      )
-
     case 'line':
       return (
         <KonvaLine
@@ -241,27 +222,24 @@ export function ShapeRenderer({
       // Check if this text is currently being edited
       const isEditing = useCanvasStore.getState().editingTextId === shape.id
 
-      const textRef = useRef<any>(null)
-      const [textWidth, setTextWidth] = useState(shape.fontSize * 10)
-
-      // Get actual text width after render (height is fixed)
-      useEffect(() => {
-        if (textRef.current) {
-          const actualWidth = textRef.current.width()
-          if (actualWidth > 0) {
-            setTextWidth(actualWidth)
-          }
-        }
-      }, [shape.text, shape.fontSize, shape.fontFamily, shape.lineHeight])
-
-      // Fixed height based on single line
-      const textHeight = shape.fontSize * shape.lineHeight
+      // Fallback for height if not present (backward compatibility)
+      const textHeight = shape.height || (shape.fontSize * shape.lineHeight * 3)
 
       return (
-        <Group
+        <KonvaText
           id={shape.id}
           x={shape.x}
           y={shape.y}
+          width={shape.width}
+          height={textHeight}
+          text={shape.text || 'Text'}
+          fontSize={shape.fontSize}
+          fontFamily={shape.fontFamily}
+          fontStyle={fontStyleValue}
+          textDecoration={shape.textDecoration}
+          align={shape.align}
+          lineHeight={shape.lineHeight}
+          fill={shape.fill}
           rotation={shape.rotation}
           draggable
           onClick={onSelect}
@@ -272,35 +250,8 @@ export function ShapeRenderer({
           onDragEnd={handleDragEnd}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
-        >
-          {/* Selection box - hide during editing */}
-          {isSelected && !isEditing && (
-            <Rect
-              x={-4}
-              y={-2}
-              width={textWidth + 8}
-              height={textHeight + 4}
-              stroke="#3B82F6"
-              strokeWidth={1}
-              fill="transparent"
-            />
-          )}
-          {/* Text */}
-          <KonvaText
-            ref={textRef}
-            x={0}
-            y={0}
-            text={shape.text}
-            fontSize={shape.fontSize}
-            fontFamily={shape.fontFamily}
-            fontStyle={fontStyleValue}
-            textDecoration={shape.textDecoration}
-            align={shape.align}
-            lineHeight={shape.lineHeight}
-            fill={shape.fill}
-            opacity={isEditing ? 0 : 1}
-          />
-        </Group>
+          opacity={isEditing ? 0 : 1}
+        />
       )
     }
 
@@ -342,7 +293,9 @@ export function ShapeRenderer({
           x={shape.x}
           y={shape.y}
           sides={3}
-          radius={shape.radius}
+          radius={shape.radiusX} // Use radiusX as base radius
+          scaleX={1}
+          scaleY={shape.radiusY / shape.radiusX} // Scale Y to achieve radiusY
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
@@ -365,7 +318,9 @@ export function ShapeRenderer({
           x={shape.x}
           y={shape.y}
           sides={5}
-          radius={shape.radius}
+          radius={shape.radiusX} // Use radiusX as base radius
+          scaleX={1}
+          scaleY={shape.radiusY / shape.radiusX} // Scale Y to achieve radiusY
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
@@ -388,7 +343,9 @@ export function ShapeRenderer({
           x={shape.x}
           y={shape.y}
           sides={6}
-          radius={shape.radius}
+          radius={shape.radiusX} // Use radiusX as base radius
+          scaleX={1}
+          scaleY={shape.radiusY / shape.radiusX} // Scale Y to achieve radiusY
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
@@ -411,8 +368,10 @@ export function ShapeRenderer({
           x={shape.x}
           y={shape.y}
           numPoints={shape.numPoints}
-          innerRadius={shape.innerRadius}
-          outerRadius={shape.outerRadius}
+          innerRadius={shape.innerRadiusX} // Use innerRadiusX as base
+          outerRadius={shape.outerRadiusX} // Use outerRadiusX as base
+          scaleX={1}
+          scaleY={shape.outerRadiusY / shape.outerRadiusX} // Scale Y to achieve outerRadiusY
           fill={shape.fill}
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}

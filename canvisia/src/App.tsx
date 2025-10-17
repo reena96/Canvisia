@@ -9,7 +9,10 @@ import type { Presence } from './types/user'
 function AppContent() {
   const { user, loading } = useAuth()
   const [activeUsers, setActiveUsers] = useState<Presence[]>([])
-  const [presenceCleanup, setPresenceCleanup] = useState<(() => Promise<void>) | null>(null)
+  // Wrap in object to prevent React from calling the function when setting state
+  const [presenceCleanup, setPresenceCleanup] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null })
+
+  console.log('🎨 App rendering with activeUsers count:', activeUsers.length)
 
   if (loading) {
     return (
@@ -34,11 +37,11 @@ function AppContent() {
     <div className="app" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
       <Header
         activeUsers={activeUsers}
-        onSignOut={presenceCleanup || undefined}
+        onSignOut={presenceCleanup.fn || undefined}
       />
       <Canvas
         onPresenceChange={setActiveUsers}
-        onMountCleanup={(cleanup) => setPresenceCleanup(() => cleanup)}
+        onMountCleanup={(fn) => setPresenceCleanup({ fn })}
       />
     </div>
   )

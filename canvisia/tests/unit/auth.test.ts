@@ -8,6 +8,8 @@ describe('Authentication Service - MVP CRITICAL', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.currentUser = null
+    // Suppress console.error during tests to avoid stderr output
+    vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   describe('signInWithGoogle (MVP)', () => {
