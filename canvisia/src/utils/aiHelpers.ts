@@ -39,24 +39,54 @@ const DEFAULTS = {
 }
 
 /**
- * Color name to hex mapping
+ * Comprehensive color name to hex mapping
+ * Used for both creating shapes and identifying colors
  */
 const COLOR_MAP: Record<string, string> = {
+  // Primary colors
   red: '#EF4444',
   blue: '#3B82F6',
-  green: '#10B981',
   yellow: '#F59E0B',
-  purple: '#8B5CF6',
-  pink: '#EC4899',
-  mauve: '#E0B4D6', // Updated to match Claude's actual mauve color
-  lavender: '#E0B0FF',
-  sage: '#9CAF88', // Sage green
-  gray: '#6B7280',
-  black: '#000000',
-  white: '#FFFFFF',
+
+  // Secondary colors
+  green: '#10B981',
   orange: '#F97316',
+  purple: '#8B5CF6',
+
+  // Tertiary colors
+  pink: '#EC4899',
   cyan: '#06B6D4',
   teal: '#14B8A6',
+
+  // Pastels
+  mauve: '#E0B4D6',
+  lavender: '#E0B0FF',
+  sage: '#9CAF88',
+  mint: '#98D8C8',
+  peach: '#FFDAB9',
+  coral: '#FF6B6B',
+
+  // Neutrals
+  white: '#FFFFFF',
+  black: '#000000',
+  gray: '#6B7280',
+  brown: '#8B4513',
+  beige: '#F5F5DC',
+
+  // Bright colors
+  lime: '#84CC16',
+  magenta: '#D946EF',
+  indigo: '#6366F1',
+  violet: '#8B5CF6',
+
+  // Earth tones
+  olive: '#808000',
+  maroon: '#800000',
+  navy: '#000080',
+
+  // Metallics (closest approximations)
+  gold: '#FFD700',
+  silver: '#C0C0C0',
 }
 
 /**
@@ -445,8 +475,29 @@ function isColorSimilar(actualHex: string, targetHex: string, threshold = 50): b
 }
 
 /**
+ * Identify what color family a hex color belongs to
+ * Returns the closest color name (e.g., "red", "blue", "green")
+ */
+function identifyColorName(hex: string): string {
+  let closestColor = 'gray'
+  let minDistance = Infinity
+
+  // Find the closest color in COLOR_MAP
+  for (const [colorName, colorHex] of Object.entries(COLOR_MAP)) {
+    const distance = colorDistance(hex, colorHex)
+    if (distance < minDistance) {
+      minDistance = distance
+      closestColor = colorName
+    }
+  }
+
+  console.log(`[AI Helpers] Color identified: ${hex} → "${closestColor}" (distance: ${minDistance.toFixed(1)})`)
+  return closestColor
+}
+
+/**
  * Check if a shape's color matches a color name or hex value
- * Uses fuzzy matching to handle color variations
+ * Uses intelligent color identification - works with ANY color!
  */
 function matchesColor(shape: Shape, colorQuery: string): boolean {
   const fill = 'fill' in shape ? (shape as any).fill : undefined
@@ -459,25 +510,25 @@ function matchesColor(shape: Shape, colorQuery: string): boolean {
     return false
   }
 
-  // For color names, get the canonical hex value
+  // For color names, identify what color the shape actually is
   const queryLower = colorQuery.toLowerCase()
-  const canonicalHex = COLOR_MAP[queryLower]
 
-  if (!canonicalHex) {
-    console.warn('[AI Helpers] Unknown color name:', colorQuery)
-    return false
+  // Check fill color
+  if (fill) {
+    const fillColorName = identifyColorName(fill)
+    if (fillColorName === queryLower) {
+      console.log(`[AI Helpers] ✅ Match: fill ${fill} identified as "${fillColorName}"`)
+      return true
+    }
   }
 
-  // Use fuzzy matching against canonical color
-  // This handles all variations (user colors, default colors, etc.)
-  if (fill && isColorSimilar(fill, canonicalHex, 80)) {
-    console.log(`[AI Helpers] Fuzzy match: fill ${fill} ≈ ${colorQuery} (${canonicalHex})`)
-    return true
-  }
-
-  if (stroke && isColorSimilar(stroke, canonicalHex, 80)) {
-    console.log(`[AI Helpers] Fuzzy match: stroke ${stroke} ≈ ${colorQuery} (${canonicalHex})`)
-    return true
+  // Check stroke color
+  if (stroke) {
+    const strokeColorName = identifyColorName(stroke)
+    if (strokeColorName === queryLower) {
+      console.log(`[AI Helpers] ✅ Match: stroke ${stroke} identified as "${strokeColorName}"`)
+      return true
+    }
   }
 
   return false
