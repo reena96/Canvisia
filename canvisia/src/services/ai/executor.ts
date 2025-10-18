@@ -6,6 +6,8 @@ import {
   executeMoveElement,
   executeResizeElement,
   executeRotateElement,
+  executeArrangeElements,
+  executeAlignElements,
 } from '@/utils/aiHelpers'
 
 /**
@@ -55,10 +57,15 @@ export async function executeToolCalls(
           console.log('[Executor] rotate_element completed successfully')
           break
 
-        // TODO: Implement in PR 16 (Layout Commands)
+        // PR 16: Layout Commands
         case 'arrange_elements':
+          await executeArrangeElements(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] arrange_elements completed successfully')
+          break
+
         case 'align_elements':
-          console.log(`Tool '${toolCall.name}' will be implemented in PR 16`)
+          await executeAlignElements(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] align_elements completed successfully')
           break
 
         // TODO: Implement in PR 17 (Complex Commands)

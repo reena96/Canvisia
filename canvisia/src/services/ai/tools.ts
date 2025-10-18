@@ -10,6 +10,12 @@ When creating shapes, use reasonable default sizes if not specified.
 Coordinates are in pixels, with (0,0) at the top-left corner.
 Default canvas center is around (1000, 1000).
 
+IMPORTANT: When users ask to arrange or align "all shapes" or "all elements", use ["all"] as the elementIds parameter.
+For example:
+- "arrange all shapes in a row" → elementIds: ["all"], pattern: "row"
+- "align everything to the left" → elementIds: ["all"], alignment: "left"
+- "move all shapes in a grid" → elementIds: ["all"], pattern: "grid"
+
 Keep your responses concise and friendly. Focus on helping users visualize their ideas.`
 
 // Tool schemas for Claude function calling
@@ -222,14 +228,14 @@ export const AI_TOOLS = [
   },
   {
     name: 'arrange_elements',
-    description: 'Arrange multiple elements in a pattern (grid, row, column)',
+    description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
     input_schema: {
       type: 'object',
       properties: {
         elementIds: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Array of element IDs to arrange'
+          description: 'Array of element IDs to arrange, or ["all"] to arrange all shapes on the canvas'
         },
         pattern: {
           type: 'string',
@@ -246,14 +252,14 @@ export const AI_TOOLS = [
   },
   {
     name: 'align_elements',
-    description: 'Align multiple elements relative to each other',
+    description: 'Align multiple elements relative to each other. To align ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
     input_schema: {
       type: 'object',
       properties: {
         elementIds: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Array of element IDs to align'
+          description: 'Array of element IDs to align, or ["all"] to align all shapes on the canvas'
         },
         alignment: {
           type: 'string',

@@ -113,6 +113,15 @@ export function subscribeToShapes(
     (snapshot) => {
       const shapes: Shape[] = []
 
+      // Log subscription updates for debugging
+      console.log(`[Firestore] Received ${snapshot.size} shapes, ${snapshot.docChanges().length} changes`)
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'modified') {
+          const data = change.doc.data()
+          console.log(`[Firestore] Shape ${change.doc.id} modified: x=${data.x}, y=${data.y}`)
+        }
+      })
+
       snapshot.forEach((doc) => {
         const data = doc.data()
 
