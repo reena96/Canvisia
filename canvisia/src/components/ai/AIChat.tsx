@@ -26,7 +26,31 @@ export function AIChat({ canvasId }: AIChatProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  const { sendCommand, isProcessing, isLocked, lockOwner } = useAI(canvasId)
+  const handleAIMessage = (_userMsg: string, aiResponse: string) => {
+    // Update the last message (which should be the "Processing..." placeholder)
+    setMessages(prev => {
+      // Find the index of the last "Processing..." message
+      const index = prev.findIndex((msg, i) =>
+        msg.sender === 'ai' &&
+        msg.text === 'Processing...' &&
+        i === prev.length - 1 // Only check the last message
+      )
+
+      if (index === -1) {
+        console.warn('No Processing message found to update')
+        return prev
+      }
+
+      // Create a completely new array with the updated message
+      return prev.map((msg, i) =>
+        i === index
+          ? { ...msg, text: aiResponse }
+          : msg
+      )
+    })
+  }
+
+  const { sendCommand, isProcessing, isLocked, lockOwner } = useAI(canvasId, handleAIMessage)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
 
@@ -87,22 +111,22 @@ export function AIChat({ canvasId }: AIChatProps) {
       sender: 'user',
       timestamp: Date.now()
     }
-    setMessages(prev => [...prev, userMessage])
 
-    const userCommand = command
-    setCommand('')
-
-    // Send to AI (response will be handled by toast for now)
-    await sendCommand(userCommand)
-
-    // Add AI response placeholder
+    // Add AI response placeholder BEFORE sending command
     const aiMessage: Message = {
       id: (Date.now() + 1).toString(),
       text: 'Processing...',
       sender: 'ai',
-      timestamp: Date.now()
+      timestamp: Date.now() + 1
     }
-    setMessages(prev => [...prev, aiMessage])
+
+    setMessages(prev => [...prev, userMessage, aiMessage])
+
+    const userCommand = command
+    setCommand('')
+
+    // Send to AI (response will be handled by callback)
+    await sendCommand(userCommand)
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
