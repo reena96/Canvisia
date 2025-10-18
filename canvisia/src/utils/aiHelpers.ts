@@ -1125,6 +1125,14 @@ export async function executeAlignElements(
   // Align shapes
   const alignedShapes = alignShapes(shapesToAlign, alignment)
 
+  // Log before/after positions for debugging
+  console.log('[AI Helpers] Position changes:')
+  for (let i = 0; i < shapesToAlign.length; i++) {
+    const original = shapesToAlign[i]
+    const aligned = alignedShapes[i]
+    console.log(`  Shape ${original.id}: (${original.x}, ${original.y}) → (${aligned.x}, ${aligned.y})`)
+  }
+
   // Update all shapes in Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const alignedShape of alignedShapes) {
