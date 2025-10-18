@@ -12,6 +12,7 @@ interface TestUser {
   photoURL?: string
 }
 
+// Note: Firebase Auth normalizes emails to lowercase
 const TEST_USERS: TestUser[] = [
   {
     email: 'alice@test.com',

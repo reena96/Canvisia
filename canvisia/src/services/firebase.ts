@@ -31,11 +31,14 @@ export const rtdb = getDatabase(app)
 // Connect to emulators in development
 if (import.meta.env.DEV) {
   try {
+    console.log('[Firebase] Connecting to emulators...')
     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
     connectFirestoreEmulator(db, 'localhost', 8080)
     connectDatabaseEmulator(rtdb, 'localhost', 9000)
-  } catch {
+    console.log('[Firebase] ✅ Connected to emulators')
+  } catch (error) {
     // Ignore if already connected (this is expected on hot reload)
+    console.log('[Firebase] Emulator connection error (may already be connected):', error)
   }
 }
 
