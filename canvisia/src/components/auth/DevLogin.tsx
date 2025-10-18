@@ -48,18 +48,32 @@ export function DevLogin() {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', marginTop: '1rem' }}>
       <button
         onClick={() => setShowMenu(!showMenu)}
         style={{
-          padding: '0.5rem 1rem',
-          fontSize: '0.9rem',
-          backgroundColor: 'white',
-          border: '2px solid #ff6b00',
-          borderRadius: '4px',
+          width: '100%',
+          padding: '0.75rem 1rem',
+          fontSize: '0.875rem',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(249, 115, 22, 0.5)',
+          borderRadius: '10px',
           cursor: 'pointer',
-          fontWeight: 'bold',
-          color: '#ff6b00',
+          fontWeight: '500',
+          color: '#FDB88D',
+          boxShadow: '0 2px 8px rgba(249, 115, 22, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          transition: 'all 0.3s ease',
+          backdropFilter: 'blur(10px)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'
+          e.currentTarget.style.borderColor = 'rgba(249, 115, 22, 0.7)'
+          e.currentTarget.style.transform = 'translateY(-2px)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+          e.currentTarget.style.borderColor = 'rgba(249, 115, 22, 0.5)'
+          e.currentTarget.style.transform = 'translateY(0)'
         }}
       >
         🔧 Dev Login
@@ -70,44 +84,62 @@ export function DevLogin() {
           style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
+            left: 0,
             right: 0,
-            background: 'white',
-            border: '2px solid #ff6b00',
-            borderRadius: '8px',
-            padding: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            background: 'rgba(15, 12, 41, 0.85)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '10px',
+            padding: '8px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
             zIndex: 9999,
-            minWidth: '180px',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {TEST_USERS.map((user) => (
               <button
                 key={user.email}
                 onClick={() => handleLogin(user)}
                 disabled={loading !== null}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: '4px',
-                  border: '1px solid #ddd',
-                  background: loading === user.email ? '#f0f0f0' : 'white',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: loading === user.email ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                   cursor: loading ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
+                  fontSize: '0.875rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '10px',
                   transition: 'all 0.2s',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                  }
                 }}
               >
                 <div
                   style={{
-                    width: '12px',
-                    height: '12px',
+                    width: '14px',
+                    height: '14px',
                     borderRadius: '50%',
                     background: user.color,
+                    flexShrink: 0,
+                    boxShadow: `0 0 8px ${user.color}40`,
                   }}
                 />
-                <span style={{ color: '#1F2937 !important' }}>{loading === user.email ? 'Loading...' : user.displayName}</span>
+                <span style={{ color: 'rgba(255, 255, 255, 0.9)', fontWeight: '500' }}>
+                  {loading === user.email ? 'Loading...' : user.displayName}
+                </span>
               </button>
             ))}
           </div>
@@ -116,12 +148,13 @@ export function DevLogin() {
             <div
               style={{
                 marginTop: '8px',
-                padding: '6px',
-                background: '#fee',
-                border: '1px solid #fcc',
-                borderRadius: '4px',
-                fontSize: '11px',
-                color: '#c00',
+                padding: '8px 10px',
+                background: 'rgba(220, 38, 38, 0.15)',
+                border: '1px solid rgba(252, 165, 165, 0.3)',
+                borderRadius: '8px',
+                fontSize: '0.8125rem',
+                color: '#fca5a5',
+                backdropFilter: 'blur(10px)',
               }}
             >
               {error}

@@ -1,3 +1,4 @@
+import { Users } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import type { Presence } from '@/types/user'
 
@@ -9,27 +10,27 @@ interface HeaderProps {
 export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
   const { user, signOut } = useAuth()
 
-  console.log('👥 Header rendering with activeUsers:', activeUsers)
+  console.log('[Header] Rendering with activeUsers:', activeUsers)
 
   if (!user) return null
 
   const handleSignOut = async () => {
-    console.log('🔴 Sign out button clicked')
+    console.log('[Header] Sign out button clicked')
     try {
       // Call custom cleanup handler first if provided
       if (onSignOut && typeof onSignOut === 'function') {
-        console.log('🟡 Calling onSignOut cleanup handler')
+        console.log('[Header] Calling onSignOut cleanup handler')
         await onSignOut()
-        console.log('✅ Cleanup handler completed')
+        console.log('[Header] Cleanup handler completed')
       } else {
-        console.log('⚠️ No valid onSignOut cleanup handler provided')
+        console.log('[Header] No valid onSignOut cleanup handler provided')
       }
       // Then sign out
-      console.log('🟡 Calling signOut from auth')
+      console.log('[Header] Calling signOut from auth')
       await signOut()
-      console.log('✅ Sign out completed')
+      console.log('[Header] Sign out completed')
     } catch (error) {
-      console.error('❌ Failed to sign out:', error)
+      console.error('[Header] Failed to sign out:', error)
     }
   }
 
@@ -66,8 +67,9 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
             gap: '12px',
           }}
         >
-          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1F2937 !important' }}>
-            👥 {activeUsers.length}
+          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1F2937 !important', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Users size={18} style={{ color: '#1F2937' }} />
+            {activeUsers.length}
           </div>
           <div style={{ display: 'flex', gap: '4px' }}>
             {activeUsers
@@ -107,11 +109,19 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
           style={{
             padding: '0.5rem 1rem',
             fontSize: '0.9rem',
-            backgroundColor: 'white',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
+            backgroundColor: '#4B5563',
+            border: 'none',
+            borderRadius: '6px',
             cursor: 'pointer',
-            color: '#1F2937',
+            color: 'white',
+            fontWeight: '500',
+            transition: 'background-color 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#374151'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#4B5563'
           }}
         >
           Sign Out

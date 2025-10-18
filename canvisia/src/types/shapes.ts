@@ -8,6 +8,18 @@ export interface BaseShape {
   updatedAt: Date | string;
   rotation: number; // Rotation in degrees (0-360)
   zIndex?: number;
+
+  // Metadata for simulation and advanced features
+  metadata?: {
+    // Simulation node properties
+    nodeType?: 'start' | 'process' | 'decision' | 'end' | 'queue';
+    processTime?: number; // milliseconds
+    capacity?: number; // max concurrent tokens
+    successRate?: number; // % for decision nodes
+
+    // Other extensions
+    [key: string]: any;
+  };
 }
 
 export interface Rectangle extends BaseShape {
@@ -133,6 +145,12 @@ export interface Arrow extends BaseShape {
   strokeWidth: number;
   pointerLength?: number;
   pointerWidth?: number;
+
+  // Track which shapes this arrow connects
+  connections?: {
+    fromShapeId?: string;
+    toShapeId?: string;
+  };
 }
 
 export interface BentConnector extends BaseShape {
@@ -143,6 +161,12 @@ export interface BentConnector extends BaseShape {
   bendY: number; // Y coordinate of the bend point
   stroke: string;
   strokeWidth: number;
+
+  // Track which shapes this connector connects
+  connections?: {
+    fromShapeId?: string;
+    toShapeId?: string;
+  };
 }
 
 export interface BidirectionalArrow extends BaseShape {
@@ -153,6 +177,12 @@ export interface BidirectionalArrow extends BaseShape {
   strokeWidth: number;
   pointerLength?: number;
   pointerWidth?: number;
+
+  // Track which shapes this arrow connects
+  connections?: {
+    fromShapeId?: string;
+    toShapeId?: string;
+  };
 }
 
 export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Line | Text | Image | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;

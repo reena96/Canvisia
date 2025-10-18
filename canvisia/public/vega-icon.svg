@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="planetGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1EC9D1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7B68EE;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D946EF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Planet circle with gradient -->
+  <circle cx="256" cy="256" r="180" fill="url(#planetGradient)"/>
+
+  <!-- Craters/dots on planet -->
+  <circle cx="300" cy="170" r="15" fill="white" opacity="0.9"/>
+  <circle cx="220" cy="330" r="15" fill="white" opacity="0.9"/>
+  <circle cx="380" cy="360" r="15" fill="white" opacity="0.9"/>
+  <circle cx="390" cy="410" r="15" fill="white" opacity="0.9"/>
+
+  <!-- Surface details (dashed lines) -->
+  <path d="M 160 120 Q 180 140 200 150" stroke="white" stroke-width="12" stroke-linecap="round" stroke-dasharray="5,15" fill="none" opacity="0.8"/>
+  <path d="M 180 200 L 200 220" stroke="white" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 220 240 L 250 280" stroke="white" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 430 290 L 460 310" stroke="white" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.8"/>
+
+  <!-- Ring (back part) -->
+  <ellipse cx="256" cy="256" rx="320" ry="80" fill="none" stroke="#6B7BFF" stroke-width="30" opacity="0.7" transform="rotate(-30 256 256)"/>
+
+  <!-- Ring (front part) -->
+  <path d="M 380 100 Q 450 180 460 256 Q 450 330 380 410" fill="none" stroke="#B855FF" stroke-width="30" opacity="0.8" stroke-linecap="round"/>
+</svg>
