@@ -11,7 +11,7 @@ describe('Canvas Config', () => {
 
   describe('Zoom configuration', () => {
     it('should have valid zoom limits', () => {
-      expect(CANVAS_CONFIG.MIN_ZOOM).toBe(0.1)
+      expect(CANVAS_CONFIG.MIN_ZOOM).toBe(0.2)
       expect(CANVAS_CONFIG.MAX_ZOOM).toBe(5.0)
       expect(CANVAS_CONFIG.MIN_ZOOM).toBeLessThan(CANVAS_CONFIG.MAX_ZOOM)
     })

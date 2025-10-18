@@ -57,9 +57,9 @@ describe('Canvas Utilities', () => {
 
   describe('clampZoom', () => {
     it('should clamp zoom to minimum value', () => {
-      expect(clampZoom(0.05)).toBe(0.1)
-      expect(clampZoom(0)).toBe(0.1)
-      expect(clampZoom(-1)).toBe(0.1)
+      expect(clampZoom(0.05)).toBe(0.2)
+      expect(clampZoom(0)).toBe(0.2)
+      expect(clampZoom(-1)).toBe(0.2)
     })
 
     it('should clamp zoom to maximum value', () => {
@@ -68,7 +68,7 @@ describe('Canvas Utilities', () => {
     })
 
     it('should not clamp valid zoom values', () => {
-      expect(clampZoom(0.1)).toBe(0.1)
+      expect(clampZoom(0.2)).toBe(0.2)
       expect(clampZoom(1)).toBe(1)
       expect(clampZoom(2.5)).toBe(2.5)
       expect(clampZoom(5)).toBe(5)

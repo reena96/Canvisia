@@ -40,7 +40,7 @@ describe('AI Helpers - Creation Commands', () => {
           y: 200,
           width: 150,
           height: 100,
-          fill: '#FF0000',
+          fill: '#ff0000',
           stroke: '#1F2937',
           strokeWidth: 2
         })
