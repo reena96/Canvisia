@@ -136,72 +136,88 @@ export const AI_TOOLS = [
   },
   {
     name: 'move_element',
-    description: 'Move a shape or text element to a new position',
+    description: 'Move a shape or text element to a new position. You can identify elements by type and color (e.g., "blue rectangle", "red circle") without needing the element ID.',
     input_schema: {
       type: 'object',
       properties: {
-        elementId: {
+        type: {
           type: 'string',
-          description: 'ID of the element to move'
+          description: 'Type of element (e.g., rectangle, circle, text, ellipse). Use this to identify the element by description.'
+        },
+        color: {
+          type: 'string',
+          description: 'Color of the element (e.g., "blue", "red", "mauve", "#FF0000"). Use this to identify the element by description.'
+        },
+        position: {
+          type: 'string',
+          description: 'Named position like "center", "top left", "top right", "bottom left", "bottom right", "left", "right", "top", "bottom"'
         },
         x: {
           type: 'number',
-          description: 'New X coordinate'
+          description: 'Explicit X coordinate (use this instead of position for exact placement)'
         },
         y: {
           type: 'number',
-          description: 'New Y coordinate'
+          description: 'Explicit Y coordinate (use this instead of position for exact placement)'
         }
       },
-      required: ['elementId', 'x', 'y']
+      required: []
     }
   },
   {
     name: 'resize_element',
-    description: 'Resize a shape element',
+    description: 'Resize a shape element. You can identify elements by type and color (e.g., "the circle", "the blue rectangle") without needing the element ID.',
     input_schema: {
       type: 'object',
       properties: {
-        elementId: {
+        type: {
           type: 'string',
-          description: 'ID of the element to resize'
+          description: 'Type of element (e.g., rectangle, circle, ellipse). Use this to identify the element by description.'
         },
-        width: {
-          type: 'number',
-          description: 'New width (for rectangles)'
-        },
-        height: {
-          type: 'number',
-          description: 'New height (for rectangles)'
-        },
-        radius: {
-          type: 'number',
-          description: 'New radius (for circles)'
+        color: {
+          type: 'string',
+          description: 'Color of the element (e.g., "blue", "red"). Use this to identify the element by description.'
         },
         scale: {
           type: 'number',
-          description: 'Scale factor (e.g., 2.0 for double size)'
+          description: 'Scale factor (e.g., 2.0 for "twice as big", 0.5 for "half the size", 3.0 for "three times larger")'
+        },
+        width: {
+          type: 'number',
+          description: 'Explicit new width in pixels (use this instead of scale for exact sizing)'
+        },
+        height: {
+          type: 'number',
+          description: 'Explicit new height in pixels (use this instead of scale for exact sizing)'
+        },
+        radius: {
+          type: 'number',
+          description: 'Explicit new radius in pixels for circles (use this instead of scale for exact sizing)'
         }
       },
-      required: ['elementId']
+      required: []
     }
   },
   {
     name: 'rotate_element',
-    description: 'Rotate a shape or text element',
+    description: 'Rotate a shape or text element. You can identify elements by type and color (e.g., "the text", "the blue rectangle") without needing the element ID.',
     input_schema: {
       type: 'object',
       properties: {
-        elementId: {
+        type: {
           type: 'string',
-          description: 'ID of the element to rotate'
+          description: 'Type of element (e.g., rectangle, circle, text). Use this to identify the element by description.'
         },
-        rotation: {
+        color: {
+          type: 'string',
+          description: 'Color of the element (e.g., "blue", "red"). Use this to identify the element by description.'
+        },
+        angle: {
           type: 'number',
-          description: 'Rotation angle in degrees (0-360)'
+          description: 'Rotation angle in degrees (e.g., 45, 90, 180, -30)'
         }
       },
-      required: ['elementId', 'rotation']
+      required: ['angle']
     }
   },
   {

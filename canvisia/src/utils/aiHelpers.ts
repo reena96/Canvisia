@@ -1,4 +1,4 @@
-import { createShape } from '@/services/firestore'
+import { createShape, updateShape, getShapes } from '@/services/firestore'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -48,6 +48,7 @@ const COLOR_MAP: Record<string, string> = {
   yellow: '#F59E0B',
   purple: '#8B5CF6',
   pink: '#EC4899',
+  mauve: '#E0B0FF',
   gray: '#6B7280',
   black: '#000000',
   white: '#FFFFFF',
@@ -390,4 +391,247 @@ export function calculateSmartPosition(
     default:
       return { x: DEFAULTS.centerX, y: DEFAULTS.centerY }
   }
+}
+
+/**
+ * Check if a shape's color matches a color name or hex value
+ */
+function matchesColor(shape: Shape, colorQuery: string): boolean {
+  const fill = 'fill' in shape ? (shape as any).fill : undefined
+  if (!fill) return false
+
+  // If query is a hex color, match exactly
+  if (colorQuery.startsWith('#')) {
+    return fill.toLowerCase() === colorQuery.toLowerCase()
+  }
+
+  // Otherwise, resolve color name and check if it matches
+  const resolvedColor = resolveColor(colorQuery)
+  return fill.toLowerCase() === resolvedColor.toLowerCase()
+}
+
+/**
+ * Find a shape by descriptor (ID, type, color, or description)
+ */
+export function findShape(
+  shapes: Shape[],
+  descriptor: {
+    id?: string
+    type?: string
+    color?: string
+    description?: string
+  }
+): Shape | undefined {
+  console.log('[AI Helpers] findShape called with:', descriptor, 'shapes count:', shapes.length)
+
+  // Find by ID (most specific)
+  if (descriptor.id) {
+    const shape = shapes.find(s => s.id === descriptor.id)
+    console.log('[AI Helpers] Found by ID:', shape?.id)
+    return shape
+  }
+
+  // Find by color + type
+  if (descriptor.color && descriptor.type) {
+    const matches = shapes
+      .filter(s => s.type === descriptor.type)
+      .filter(s => matchesColor(s, descriptor.color!))
+
+    // Return most recently created
+    const shape = matches[matches.length - 1]
+    console.log('[AI Helpers] Found by color + type:', shape?.id)
+    return shape
+  }
+
+  // Find by type only (most recent)
+  if (descriptor.type) {
+    const matches = shapes.filter(s => s.type === descriptor.type)
+    const shape = matches[matches.length - 1]
+    console.log('[AI Helpers] Found by type:', shape?.id)
+    return shape
+  }
+
+  // Find by color only (most recent)
+  if (descriptor.color) {
+    const matches = shapes.filter(s => matchesColor(s, descriptor.color!))
+    const shape = matches[matches.length - 1]
+    console.log('[AI Helpers] Found by color:', shape?.id)
+    return shape
+  }
+
+  console.log('[AI Helpers] No shape found matching descriptor')
+  return undefined
+}
+
+/**
+ * Execute move_element tool call
+ */
+export async function executeMoveElement(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementId?: string
+    description?: string
+    type?: string
+    color?: string
+    x?: number
+    y?: number
+    position?: string
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeMoveElement called with:', input)
+
+  // Get all shapes
+  const shapes = await getShapes(canvasId)
+
+  // Find the target shape
+  const shape = findShape(shapes, {
+    id: input.elementId,
+    type: input.type,
+    color: input.color,
+    description: input.description,
+  })
+
+  if (!shape) {
+    throw new Error('Shape not found matching the description')
+  }
+
+  // Determine new position
+  let newX: number
+  let newY: number
+
+  if (input.position) {
+    const smartPos = calculateSmartPosition(input.position)
+    newX = smartPos.x
+    newY = smartPos.y
+  } else if (input.x !== undefined && input.y !== undefined) {
+    newX = input.x
+    newY = input.y
+  } else {
+    throw new Error('Must specify either position or x,y coordinates')
+  }
+
+  // Update shape position
+  console.log(`[AI Helpers] Moving shape ${shape.id} to (${newX}, ${newY})`)
+  await updateShape(canvasId, shape.id, { x: newX, y: newY })
+  console.log('[AI Helpers] Shape moved successfully')
+}
+
+/**
+ * Execute resize_element tool call
+ */
+export async function executeResizeElement(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementId?: string
+    description?: string
+    type?: string
+    color?: string
+    scale?: number
+    width?: number
+    height?: number
+    radius?: number
+    radiusX?: number
+    radiusY?: number
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeResizeElement called with:', input)
+
+  // Get all shapes
+  const shapes = await getShapes(canvasId)
+
+  // Find the target shape
+  const shape = findShape(shapes, {
+    id: input.elementId,
+    type: input.type,
+    color: input.color,
+    description: input.description,
+  })
+
+  if (!shape) {
+    throw new Error('Shape not found matching the description')
+  }
+
+  // Prepare update object (use any to handle different shape types)
+  const updates: any = {}
+
+  if (input.scale !== undefined) {
+    // Scale by factor
+    if ('width' in shape && shape.width) {
+      updates.width = shape.width * input.scale
+    }
+    if ('height' in shape && shape.height) {
+      updates.height = shape.height * input.scale
+    }
+    if ('radius' in shape && shape.radius) {
+      updates.radius = shape.radius * input.scale
+    }
+    if ('radiusX' in shape && shape.radiusX) {
+      updates.radiusX = shape.radiusX * input.scale
+    }
+    if ('radiusY' in shape && shape.radiusY) {
+      updates.radiusY = shape.radiusY * input.scale
+    }
+    if ('outerRadiusX' in shape && shape.outerRadiusX) {
+      updates.outerRadiusX = shape.outerRadiusX * input.scale
+    }
+    if ('outerRadiusY' in shape && shape.outerRadiusY) {
+      updates.outerRadiusY = shape.outerRadiusY * input.scale
+    }
+    if ('innerRadiusX' in shape && shape.innerRadiusX) {
+      updates.innerRadiusX = shape.innerRadiusX * input.scale
+    }
+    if ('innerRadiusY' in shape && shape.innerRadiusY) {
+      updates.innerRadiusY = shape.innerRadiusY * input.scale
+    }
+  } else {
+    // Set explicit dimensions
+    if (input.width !== undefined) updates.width = input.width
+    if (input.height !== undefined) updates.height = input.height
+    if (input.radius !== undefined) updates.radius = input.radius
+    if (input.radiusX !== undefined) updates.radiusX = input.radiusX
+    if (input.radiusY !== undefined) updates.radiusY = input.radiusY
+  }
+
+  console.log(`[AI Helpers] Resizing shape ${shape.id} with updates:`, updates)
+  await updateShape(canvasId, shape.id, updates)
+  console.log('[AI Helpers] Shape resized successfully')
+}
+
+/**
+ * Execute rotate_element tool call
+ */
+export async function executeRotateElement(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementId?: string
+    description?: string
+    type?: string
+    color?: string
+    angle: number
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeRotateElement called with:', input)
+
+  // Get all shapes
+  const shapes = await getShapes(canvasId)
+
+  // Find the target shape
+  const shape = findShape(shapes, {
+    id: input.elementId,
+    type: input.type,
+    color: input.color,
+    description: input.description,
+  })
+
+  if (!shape) {
+    throw new Error('Shape not found matching the description')
+  }
+
+  // Update rotation
+  console.log(`[AI Helpers] Rotating shape ${shape.id} by ${input.angle} degrees`)
+  await updateShape(canvasId, shape.id, { rotation: input.angle })
+  console.log('[AI Helpers] Shape rotated successfully')
 }

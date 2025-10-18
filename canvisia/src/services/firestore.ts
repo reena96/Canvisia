@@ -10,6 +10,7 @@ import {
   Timestamp,
   arrayUnion,
   getDoc,
+  getDocs,
 } from 'firebase/firestore'
 import type { Shape } from '@/types/shapes'
 import type { Presence } from '@/types/user'
@@ -65,6 +66,33 @@ export async function updateShape(
 export async function deleteShape(canvasId: string, shapeId: string): Promise<void> {
   const shapeRef = doc(db, 'canvases', canvasId, 'objects', shapeId)
   await deleteDoc(shapeRef)
+}
+
+/**
+ * Get all shapes from a canvas (one-time fetch)
+ * @param canvasId - Canvas ID
+ * @returns Promise with array of shapes
+ */
+export async function getShapes(canvasId: string): Promise<Shape[]> {
+  const objectsRef = collection(db, 'canvases', canvasId, 'objects')
+  const q = query(objectsRef)
+
+  const snapshot = await getDocs(q)
+  const shapes: Shape[] = []
+
+  snapshot.forEach((doc) => {
+    const data = doc.data()
+
+    // Convert Firestore Timestamp back to ISO string
+    const shape = {
+      ...data,
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+    } as Shape
+
+    shapes.push(shape)
+  })
+
+  return shapes
 }
 
 /**

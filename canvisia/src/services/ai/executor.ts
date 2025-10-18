@@ -1,5 +1,12 @@
 import type { AIToolCall } from '@/types/ai'
-import { executeCreateShape, executeCreateText, executeCreateArrow } from '@/utils/aiHelpers'
+import {
+  executeCreateShape,
+  executeCreateText,
+  executeCreateArrow,
+  executeMoveElement,
+  executeResizeElement,
+  executeRotateElement,
+} from '@/utils/aiHelpers'
 
 /**
  * Execute AI tool calls sequentially
@@ -32,11 +39,20 @@ export async function executeToolCalls(
           console.log('[Executor] create_arrow completed successfully')
           break
 
-        // TODO: Implement in PR 15 (Manipulation Commands)
+        // PR 15: Manipulation Commands
         case 'move_element':
+          await executeMoveElement(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] move_element completed successfully')
+          break
+
         case 'resize_element':
+          await executeResizeElement(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] resize_element completed successfully')
+          break
+
         case 'rotate_element':
-          console.log(`Tool '${toolCall.name}' will be implemented in PR 15`)
+          await executeRotateElement(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] rotate_element completed successfully')
           break
 
         // TODO: Implement in PR 16 (Layout Commands)

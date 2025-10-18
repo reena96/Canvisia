@@ -51,7 +51,9 @@ describe('AI Tool Schemas', () => {
   it('should validate move_element schema', () => {
     const moveElement = AI_TOOLS.find(tool => tool.name === 'move_element')
     expect(moveElement).toBeDefined()
-    expect(moveElement?.input_schema.properties).toHaveProperty('elementId')
+    expect(moveElement?.input_schema.properties).toHaveProperty('type')
+    expect(moveElement?.input_schema.properties).toHaveProperty('color')
+    expect(moveElement?.input_schema.properties).toHaveProperty('position')
     expect(moveElement?.input_schema.properties).toHaveProperty('x')
     expect(moveElement?.input_schema.properties).toHaveProperty('y')
   })
@@ -59,14 +61,18 @@ describe('AI Tool Schemas', () => {
   it('should validate resize_element schema', () => {
     const resizeElement = AI_TOOLS.find(tool => tool.name === 'resize_element')
     expect(resizeElement).toBeDefined()
-    expect(resizeElement?.input_schema.properties).toHaveProperty('elementId')
+    expect(resizeElement?.input_schema.properties).toHaveProperty('type')
+    expect(resizeElement?.input_schema.properties).toHaveProperty('color')
+    expect(resizeElement?.input_schema.properties).toHaveProperty('scale')
   })
 
   it('should validate rotate_element schema', () => {
     const rotateElement = AI_TOOLS.find(tool => tool.name === 'rotate_element')
     expect(rotateElement).toBeDefined()
-    expect(rotateElement?.input_schema.properties).toHaveProperty('elementId')
-    expect(rotateElement?.input_schema.properties).toHaveProperty('rotation')
+    expect(rotateElement?.input_schema.properties).toHaveProperty('type')
+    expect(rotateElement?.input_schema.properties).toHaveProperty('color')
+    expect(rotateElement?.input_schema.properties).toHaveProperty('angle')
+    expect(rotateElement?.input_schema.required).toContain('angle')
   })
 
   it('should validate arrange_elements schema', () => {
