@@ -50,6 +50,7 @@ const COLOR_MAP: Record<string, string> = {
   pink: '#EC4899',
   mauve: '#E0B4D6', // Updated to match Claude's actual mauve color
   lavender: '#E0B0FF',
+  sage: '#9CAF88', // Sage green
   gray: '#6B7280',
   black: '#000000',
   white: '#FFFFFF',
