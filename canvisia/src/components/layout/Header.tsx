@@ -73,6 +73,7 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
           </div>
           <div style={{ display: 'flex', gap: '4px' }}>
             {activeUsers
+              .filter((u) => u.userId) // Only show users with valid userId
               .slice(0, 5)
               .map((u) => (
                 <div

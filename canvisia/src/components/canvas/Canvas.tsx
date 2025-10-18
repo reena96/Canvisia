@@ -40,9 +40,11 @@ import type { ResizeHandle } from '@/utils/resizeCalculations'
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
   onMountCleanup?: (cleanup: () => Promise<void>) => void
+  onAskVega?: () => void
+  isVegaOpen?: boolean
 }
 
-export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
+export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen = false }: CanvasProps = {}) {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
@@ -88,7 +90,7 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
   // Setup canvas and user tracking
   const canvasId = 'default-canvas' // TODO: Get from canvas context/router
   const userId = user?.uid || ''
-  const userName = user?.displayName || 'Anonymous'
+  const userName = user?.displayName || user?.email?.split('@')[0] || 'Anonymous'
   const userColor = getUserColor(userName)
 
   // Setup cursor tracking
@@ -1115,6 +1117,8 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onResetView={handleResetView}
+        onAskVega={onAskVega}
+        isVegaOpen={isVegaOpen}
       />
 
       {/* Loading indicator */}

@@ -1,15 +1,63 @@
 import type { AIToolCall } from '@/types/ai'
+import { executeCreateShape, executeCreateText, executeCreateArrow } from '@/utils/aiHelpers'
 
-// Placeholder executor - will be fully implemented in PR 14
+/**
+ * Execute AI tool calls sequentially
+ * This is the main entry point for all AI command execution
+ */
 export async function executeToolCalls(
   toolCalls: AIToolCall[],
-  canvasId: string
+  canvasId: string,
+  userId: string
 ): Promise<void> {
-  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId)
+  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId, 'userId:', userId)
 
-  // TODO: Implement actual tool execution in PR 14
-  // For now, just log the tool calls
   for (const toolCall of toolCalls) {
-    console.log(`Tool: ${toolCall.name}`, toolCall.input)
+    try {
+      console.log(`[Executor] Executing tool: ${toolCall.name}`)
+
+      switch (toolCall.name) {
+        case 'create_shape':
+          await executeCreateShape(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] create_shape completed successfully')
+          break
+
+        case 'create_text':
+          await executeCreateText(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] create_text completed successfully')
+          break
+
+        case 'create_arrow':
+          await executeCreateArrow(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] create_arrow completed successfully')
+          break
+
+        // TODO: Implement in PR 15 (Manipulation Commands)
+        case 'move_element':
+        case 'resize_element':
+        case 'rotate_element':
+          console.log(`Tool '${toolCall.name}' will be implemented in PR 15`)
+          break
+
+        // TODO: Implement in PR 16 (Layout Commands)
+        case 'arrange_elements':
+        case 'align_elements':
+          console.log(`Tool '${toolCall.name}' will be implemented in PR 16`)
+          break
+
+        // TODO: Implement in PR 17 (Complex Commands)
+        case 'create_flowchart':
+        case 'create_ui_component':
+        case 'create_diagram':
+          console.log(`Tool '${toolCall.name}' will be implemented in PR 17`)
+          break
+
+        default:
+          console.warn(`Unknown tool: ${toolCall.name}`)
+      }
+    } catch (error) {
+      console.error(`Error executing tool '${toolCall.name}':`, error)
+      throw error
+    }
   }
 }
