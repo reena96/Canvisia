@@ -4,8 +4,8 @@ export const CANVAS_CONFIG = {
   WIDTH: 5000,
   HEIGHT: 5000,
 
-  // Zoom limits (0.1x to 5.0x as per PRD)
-  MIN_ZOOM: 0.1,
+  // Zoom limits (0.2x to 5.0x - minimum zoom set to 20%)
+  MIN_ZOOM: 0.2,
   MAX_ZOOM: 5.0,
   DEFAULT_ZOOM: 1.0,
 

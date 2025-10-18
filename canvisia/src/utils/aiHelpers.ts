@@ -48,7 +48,8 @@ const COLOR_MAP: Record<string, string> = {
   yellow: '#F59E0B',
   purple: '#8B5CF6',
   pink: '#EC4899',
-  mauve: '#E0B0FF',
+  mauve: '#E0B4D6', // Updated to match Claude's actual mauve color
+  lavender: '#E0B0FF',
   gray: '#6B7280',
   black: '#000000',
   white: '#FFFFFF',
@@ -59,16 +60,27 @@ const COLOR_MAP: Record<string, string> = {
 
 /**
  * Convert color name to hex code
+ * Always returns a valid hex color
  */
 function resolveColor(color?: string): string {
   if (!color) return DEFAULTS.fill
 
-  // If already hex code, return as is
-  if (color.startsWith('#')) return color
+  // If already hex code, normalize it to lowercase
+  if (color.startsWith('#')) {
+    return color.toLowerCase()
+  }
 
   // Try to resolve from color map
   const lowerColor = color.toLowerCase()
-  return COLOR_MAP[lowerColor] || DEFAULTS.fill
+  const resolved = COLOR_MAP[lowerColor]
+
+  if (!resolved) {
+    console.warn(`[AI Helpers] Unknown color "${color}", using default blue`)
+    return DEFAULTS.fill
+  }
+
+  console.log(`[AI Helpers] Resolved color: "${color}" → ${resolved}`)
+  return resolved
 }
 
 /**
@@ -394,20 +406,80 @@ export function calculateSmartPosition(
 }
 
 /**
+ * Convert hex color to RGB
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null
+}
+
+/**
+ * Calculate color distance (Euclidean distance in RGB space)
+ * Returns a value from 0 (identical) to ~441 (opposite colors)
+ */
+function colorDistance(hex1: string, hex2: string): number {
+  const rgb1 = hexToRgb(hex1)
+  const rgb2 = hexToRgb(hex2)
+
+  if (!rgb1 || !rgb2) return Infinity
+
+  const rDiff = rgb1.r - rgb2.r
+  const gDiff = rgb1.g - rgb2.g
+  const bDiff = rgb1.b - rgb2.b
+
+  return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff)
+}
+
+/**
+ * Check if a color is similar to target color (fuzzy matching)
+ * Threshold of 50 allows for slight variations in shade
+ */
+function isColorSimilar(actualHex: string, targetHex: string, threshold = 50): boolean {
+  const distance = colorDistance(actualHex, targetHex)
+  return distance <= threshold
+}
+
+/**
  * Check if a shape's color matches a color name or hex value
+ * Uses fuzzy matching to handle color variations
  */
 function matchesColor(shape: Shape, colorQuery: string): boolean {
   const fill = 'fill' in shape ? (shape as any).fill : undefined
-  if (!fill) return false
+  const stroke = 'stroke' in shape ? (shape as any).stroke : undefined
 
-  // If query is a hex color, match exactly
+  // If query is a hex color, use fuzzy matching
   if (colorQuery.startsWith('#')) {
-    return fill.toLowerCase() === colorQuery.toLowerCase()
+    if (fill && isColorSimilar(fill, colorQuery)) return true
+    if (stroke && isColorSimilar(stroke, colorQuery)) return true
+    return false
   }
 
-  // Otherwise, resolve color name and check if it matches
-  const resolvedColor = resolveColor(colorQuery)
-  return fill.toLowerCase() === resolvedColor.toLowerCase()
+  // For color names, get the canonical hex value
+  const queryLower = colorQuery.toLowerCase()
+  const canonicalHex = COLOR_MAP[queryLower]
+
+  if (!canonicalHex) {
+    console.warn('[AI Helpers] Unknown color name:', colorQuery)
+    return false
+  }
+
+  // Use fuzzy matching against canonical color
+  // This handles all variations (user colors, default colors, etc.)
+  if (fill && isColorSimilar(fill, canonicalHex, 80)) {
+    console.log(`[AI Helpers] Fuzzy match: fill ${fill} ≈ ${colorQuery} (${canonicalHex})`)
+    return true
+  }
+
+  if (stroke && isColorSimilar(stroke, canonicalHex, 80)) {
+    console.log(`[AI Helpers] Fuzzy match: stroke ${stroke} ≈ ${colorQuery} (${canonicalHex})`)
+    return true
+  }
+
+  return false
 }
 
 /**
@@ -423,6 +495,11 @@ export function findShape(
   }
 ): Shape | undefined {
   console.log('[AI Helpers] findShape called with:', descriptor, 'shapes count:', shapes.length)
+  console.log('[AI Helpers] Available shapes:', shapes.map(s => ({
+    id: s.id,
+    type: s.type,
+    fill: 'fill' in s ? (s as any).fill : 'N/A'
+  })))
 
   // Find by ID (most specific)
   if (descriptor.id) {
@@ -433,12 +510,22 @@ export function findShape(
 
   // Find by color + type
   if (descriptor.color && descriptor.type) {
-    const matches = shapes
-      .filter(s => s.type === descriptor.type)
-      .filter(s => matchesColor(s, descriptor.color!))
+    console.log('[AI Helpers] Searching for color:', descriptor.color, 'type:', descriptor.type)
+
+    const typeMatches = shapes.filter(s => s.type === descriptor.type)
+    console.log('[AI Helpers] Type matches:', typeMatches.length)
+
+    const colorMatches = typeMatches.filter(s => {
+      const isMatch = matchesColor(s, descriptor.color!)
+      const shapeFill = 'fill' in s ? (s as any).fill : 'N/A'
+      const shapeStroke = 'stroke' in s ? (s as any).stroke : 'N/A'
+      console.log('[AI Helpers] Color match check: fill:', shapeFill, 'stroke:', shapeStroke, 'vs', descriptor.color, '=', isMatch)
+      return isMatch
+    })
+    console.log('[AI Helpers] Color matches:', colorMatches.length)
 
     // Return most recently created
-    const shape = matches[matches.length - 1]
+    const shape = colorMatches[colorMatches.length - 1]
     console.log('[AI Helpers] Found by color + type:', shape?.id)
     return shape
   }
@@ -587,11 +674,20 @@ export async function executeResizeElement(
     }
   } else {
     // Set explicit dimensions
-    if (input.width !== undefined) updates.width = input.width
-    if (input.height !== undefined) updates.height = input.height
-    if (input.radius !== undefined) updates.radius = input.radius
-    if (input.radiusX !== undefined) updates.radiusX = input.radiusX
-    if (input.radiusY !== undefined) updates.radiusY = input.radiusY
+    // For ellipses, convert width/height to radiusX/radiusY
+    if (shape.type === 'ellipse') {
+      if (input.width !== undefined) updates.radiusX = input.width / 2
+      if (input.height !== undefined) updates.radiusY = input.height / 2
+      if (input.radiusX !== undefined) updates.radiusX = input.radiusX
+      if (input.radiusY !== undefined) updates.radiusY = input.radiusY
+    } else {
+      // For other shapes, use width/height directly
+      if (input.width !== undefined) updates.width = input.width
+      if (input.height !== undefined) updates.height = input.height
+      if (input.radius !== undefined) updates.radius = input.radius
+      if (input.radiusX !== undefined) updates.radiusX = input.radiusX
+      if (input.radiusY !== undefined) updates.radiusY = input.radiusY
+    }
   }
 
   console.log(`[AI Helpers] Resizing shape ${shape.id} with updates:`, updates)
