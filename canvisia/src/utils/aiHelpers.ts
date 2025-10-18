@@ -1036,12 +1036,18 @@ export async function executeArrangeElements(
   // Get all shapes
   const allShapes = await getShapes(canvasId)
 
-  // Filter to only requested shapes (use optional chaining for safety)
-  const shapesToArrange = allShapes.filter(s => elementIds?.includes(s.id))
+  // Handle "all" keyword - arrange all shapes on canvas
+  const shouldArrangeAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
+
+  const shapesToArrange = shouldArrangeAll
+    ? allShapes  // Use all shapes
+    : allShapes.filter(s => elementIds?.includes(s.id))  // Filter to requested shapes
 
   if (shapesToArrange.length === 0) {
     throw new Error('No matching shapes found to arrange')
   }
+
+  console.log(`[AI Helpers] Arranging ${shouldArrangeAll ? 'ALL' : shapesToArrange.length} shapes`)
 
   console.log(`[AI Helpers] Found ${shapesToArrange.length} shapes to arrange in ${pattern} pattern`)
 
@@ -1101,12 +1107,18 @@ export async function executeAlignElements(
   // Get all shapes
   const allShapes = await getShapes(canvasId)
 
-  // Filter to only requested shapes (use optional chaining for safety)
-  const shapesToAlign = allShapes.filter(s => elementIds?.includes(s.id))
+  // Handle "all" keyword - align all shapes on canvas
+  const shouldAlignAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
+
+  const shapesToAlign = shouldAlignAll
+    ? allShapes  // Use all shapes
+    : allShapes.filter(s => elementIds?.includes(s.id))  // Filter to requested shapes
 
   if (shapesToAlign.length === 0) {
     throw new Error('No matching shapes found to align')
   }
+
+  console.log(`[AI Helpers] Aligning ${shouldAlignAll ? 'ALL' : shapesToAlign.length} shapes`)
 
   console.log(`[AI Helpers] Found ${shapesToAlign.length} shapes to align to ${alignment}`)
 

@@ -222,14 +222,14 @@ export const AI_TOOLS = [
   },
   {
     name: 'arrange_elements',
-    description: 'Arrange multiple elements in a pattern (grid, row, column)',
+    description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
     input_schema: {
       type: 'object',
       properties: {
         elementIds: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Array of element IDs to arrange'
+          description: 'Array of element IDs to arrange, or ["all"] to arrange all shapes on the canvas'
         },
         pattern: {
           type: 'string',
@@ -246,14 +246,14 @@ export const AI_TOOLS = [
   },
   {
     name: 'align_elements',
-    description: 'Align multiple elements relative to each other',
+    description: 'Align multiple elements relative to each other. To align ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
     input_schema: {
       type: 'object',
       properties: {
         elementIds: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Array of element IDs to align'
+          description: 'Array of element IDs to align, or ["all"] to align all shapes on the canvas'
         },
         alignment: {
           type: 'string',
