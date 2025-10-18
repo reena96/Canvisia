@@ -15,12 +15,37 @@ interface TestUser {
   color: string
 }
 
-const TEST_USERS: TestUser[] = DEV_USER_COLORS.map((userColor) => ({
-  email: `${userColor.displayName.toLowerCase()}@test.com`,
-  password: 'password123',
-  displayName: userColor.displayName,
-  color: userColor.color,
-}))
+// Production test users (created via setup-prod-test-users.ts)
+const PROD_TEST_USERS: TestUser[] = [
+  {
+    email: 'alice.test@canvisia.app',
+    password: 'TestUser123!',
+    displayName: 'Alice (Test)',
+    color: '#FF6B6B',
+  },
+  {
+    email: 'bob.test@canvisia.app',
+    password: 'TestUser123!',
+    displayName: 'Bob (Test)',
+    color: '#4ECDC4',
+  },
+  {
+    email: 'charlie.test@canvisia.app',
+    password: 'TestUser123!',
+    displayName: 'Charlie (Test)',
+    color: '#FFE66D',
+  },
+]
+
+// Use production test users if enabled, otherwise use dev users
+const TEST_USERS: TestUser[] = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
+  ? PROD_TEST_USERS
+  : DEV_USER_COLORS.map((userColor) => ({
+      email: `${userColor.displayName.toLowerCase()}@test.com`,
+      password: 'password123',
+      displayName: userColor.displayName,
+      color: userColor.color,
+    }))
 
 export function DevLogin() {
   const [loading, setLoading] = useState<string | null>(null)
