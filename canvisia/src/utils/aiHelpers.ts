@@ -88,6 +88,8 @@ export async function executeCreateShape(
     cornerRadius?: number
   }
 ): Promise<void> {
+  console.log('[AI Helpers] executeCreateShape called with:', input)
+
   const {
     shapeType,
     x,
@@ -230,7 +232,9 @@ export async function executeCreateShape(
       throw new Error(`Unsupported shape type: ${shapeType}`)
   }
 
+  console.log('[AI Helpers] Creating shape in Firestore:', shape)
   await createShape(canvasId, shape)
+  console.log('[AI Helpers] Shape created successfully:', shape.id)
 }
 
 /**
@@ -247,6 +251,8 @@ export async function executeCreateText(
     fontFamily?: string
   }
 ): Promise<void> {
+  console.log('[AI Helpers] executeCreateText called with:', input)
+
   const {
     text,
     x,
@@ -279,7 +285,9 @@ export async function executeCreateText(
     rotation: DEFAULTS.rotation,
   }
 
+  console.log('[AI Helpers] Creating text in Firestore:', textShape)
   await createShape(canvasId, textShape)
+  console.log('[AI Helpers] Text created successfully:', textShape.id)
 }
 
 /**
@@ -296,6 +304,8 @@ export async function executeCreateArrow(
     arrowType?: string
   }
 ): Promise<void> {
+  console.log('[AI Helpers] executeCreateArrow called with:', input)
+
   const {
     x1,
     y1,
@@ -336,7 +346,9 @@ export async function executeCreateArrow(
     } as Arrow
   }
 
+  console.log('[AI Helpers] Creating arrow in Firestore:', arrow)
   await createShape(canvasId, arrow)
+  console.log('[AI Helpers] Arrow created successfully:', arrow.id)
 }
 
 /**

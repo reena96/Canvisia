@@ -13,17 +13,22 @@ export async function executeToolCalls(
 
   for (const toolCall of toolCalls) {
     try {
+      console.log(`[Executor] Executing tool: ${toolCall.name}`)
+
       switch (toolCall.name) {
         case 'create_shape':
           await executeCreateShape(canvasId, toolCall.input as any)
+          console.log('[Executor] create_shape completed successfully')
           break
 
         case 'create_text':
           await executeCreateText(canvasId, toolCall.input as any)
+          console.log('[Executor] create_text completed successfully')
           break
 
         case 'create_arrow':
           await executeCreateArrow(canvasId, toolCall.input as any)
+          console.log('[Executor] create_arrow completed successfully')
           break
 
         // TODO: Implement in PR 15 (Manipulation Commands)
