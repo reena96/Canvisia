@@ -18,6 +18,37 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // Chat messages
+    match /canvases/{canvasId}/chats/{tabId}/messages/{messageId} {
+      // Anyone can read chat messages
+      allow read: if true;
+
+      // Only authenticated users can create messages
+      allow create: if request.auth != null;
+
+      // Allow authenticated users to update readBy field only
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+
+      // Messages cannot be deleted
+      allow delete: if false;
+    }
+
+    // Chat tabs
+    match /canvases/{canvasId}/chatTabs/{tabId} {
+      // Anyone can read chat tabs
+      allow read: if true;
+
+      // Only authenticated users can create tabs
+      allow create: if request.auth != null;
+
+      // Allow authenticated users to update tab name or hiddenBy array
+      allow update: if request.auth != null;
+
+      // Tabs are never deleted, only hidden per user
+      allow delete: if false;
+    }
+
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;

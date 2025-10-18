@@ -20,6 +20,7 @@ describe('AI Helpers - Creation Commands', () => {
   describe('executeCreateShape', () => {
     it('should create a rectangle with correct properties', async () => {
       const canvasId = 'test-canvas'
+      const userId = 'test-user-123'
       const input = {
         shapeType: 'rectangle',
         x: 100,
@@ -29,7 +30,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: '#FF0000'
       }
 
-      await executeCreateShape(canvasId, input)
+      await executeCreateShape(canvasId, userId, input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -54,7 +55,7 @@ describe('AI Helpers - Creation Commands', () => {
         y: 500
       }
 
-      await executeCreateShape(canvasId, input)
+      await executeCreateShape(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -77,7 +78,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: 'red'
       }
 
-      await executeCreateShape(canvasId, input)
+      await executeCreateShape(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -98,7 +99,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: 'blue'
       }
 
-      await executeCreateShape(canvasId, input)
+      await executeCreateShape(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -122,7 +123,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: '#FFFF00'
       }
 
-      await executeCreateShape(canvasId, input)
+      await executeCreateShape(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -145,7 +146,7 @@ describe('AI Helpers - Creation Commands', () => {
         y: 0
       }
 
-      await expect(executeCreateShape(canvasId, input)).rejects.toThrow('Unsupported shape type: invalid-shape')
+      await expect(executeCreateShape(canvasId, "test-user-123", input)).rejects.toThrow('Unsupported shape type: invalid-shape')
     })
   })
 
@@ -159,7 +160,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: '#000000' // Explicitly set black color
       }
 
-      await executeCreateText(canvasId, input)
+      await executeCreateText(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -186,7 +187,7 @@ describe('AI Helpers - Creation Commands', () => {
         fontFamily: 'Helvetica'
       }
 
-      await executeCreateText(canvasId, input)
+      await executeCreateText(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -208,7 +209,7 @@ describe('AI Helpers - Creation Commands', () => {
         fontSize: 20
       }
 
-      await executeCreateText(canvasId, input)
+      await executeCreateText(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -230,7 +231,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: '#000000' // Explicitly set black color
       }
 
-      await executeCreateArrow(canvasId, input)
+      await executeCreateArrow(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -256,7 +257,7 @@ describe('AI Helpers - Creation Commands', () => {
         arrowType: 'bidirectionalArrow'
       }
 
-      await executeCreateArrow(canvasId, input)
+      await executeCreateArrow(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,
@@ -276,7 +277,7 @@ describe('AI Helpers - Creation Commands', () => {
         color: 'blue'
       }
 
-      await executeCreateArrow(canvasId, input)
+      await executeCreateArrow(canvasId, "test-user-123", input)
 
       expect(firestoreModule.createShape).toHaveBeenCalledWith(
         canvasId,

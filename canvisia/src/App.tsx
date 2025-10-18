@@ -12,6 +12,7 @@ function AppContent() {
   const [activeUsers, setActiveUsers] = useState<Presence[]>([])
   // Wrap in object to prevent React from calling the function when setting state
   const [presenceCleanup, setPresenceCleanup] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null })
+  const [isVegaOpen, setIsVegaOpen] = useState(false)
 
   console.log('[App] Rendering with activeUsers count:', activeUsers.length)
 
@@ -181,8 +182,14 @@ function AppContent() {
       <Canvas
         onPresenceChange={setActiveUsers}
         onMountCleanup={(fn) => setPresenceCleanup({ fn })}
+        onAskVega={() => setIsVegaOpen(true)}
+        isVegaOpen={isVegaOpen}
       />
-      <AIChat canvasId="default-canvas" />
+      <AIChat
+        canvasId="default-canvas"
+        isOpen={isVegaOpen}
+        onClose={() => setIsVegaOpen(false)}
+      />
 
       {/* Attribution Footer */}
       <div style={{

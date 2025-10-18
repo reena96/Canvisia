@@ -8,6 +8,8 @@ import {
   onSnapshot,
   query,
   Timestamp,
+  arrayUnion,
+  getDoc,
 } from 'firebase/firestore'
 import type { Shape } from '@/types/shapes'
 import type { Presence } from '@/types/user'
@@ -171,6 +173,227 @@ export function subscribeToPresence(
     },
     (error) => {
       console.error('Presence subscription error:', error)
+    }
+  )
+
+  return unsubscribe
+}
+
+/**
+ * Add a message to a chat tab
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param message - Message data
+ */
+export async function addChatMessage(
+  canvasId: string,
+  tabId: string,
+  message: {
+    id: string
+    text: string
+    sender: 'user' | 'ai'
+    timestamp: number
+    userName?: string
+    userEmail?: string
+  }
+): Promise<void> {
+  const messageRef = doc(db, 'canvases', canvasId, 'chats', tabId, 'messages', message.id)
+
+  const messageData = {
+    ...message,
+    createdAt: Timestamp.fromMillis(message.timestamp),
+    readBy: message.userEmail ? [message.userEmail] : [] // Sender has "read" their own message
+  }
+
+  await setDoc(messageRef, messageData)
+}
+
+/**
+ * Subscribe to chat messages for a tab
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param callback - Callback function with messages array
+ * @returns Unsubscribe function
+ */
+export function subscribeToChatMessages(
+  canvasId: string,
+  tabId: string,
+  callback: (messages: any[]) => void
+): () => void {
+  const messagesRef = collection(db, 'canvases', canvasId, 'chats', tabId, 'messages')
+  const q = query(messagesRef)
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const messagesList: any[] = []
+
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        messagesList.push({
+          id: data.id,
+          text: data.text,
+          sender: data.sender,
+          timestamp: data.timestamp,
+          userName: data.userName,
+          userEmail: data.userEmail,
+          readBy: data.readBy || []
+        })
+      })
+
+      // Sort by timestamp
+      messagesList.sort((a, b) => a.timestamp - b.timestamp)
+
+      callback(messagesList)
+    },
+    (error) => {
+      console.error('Chat messages subscription error:', error)
+    }
+  )
+
+  return unsubscribe
+}
+
+/**
+ * Mark a message as read by a user
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param messageId - Message ID
+ * @param userEmail - User email to add to readBy array
+ */
+export async function markMessageAsRead(
+  canvasId: string,
+  tabId: string,
+  messageId: string,
+  userEmail: string
+): Promise<void> {
+  const messageRef = doc(db, 'canvases', canvasId, 'chats', tabId, 'messages', messageId)
+
+  await updateDoc(messageRef, {
+    readBy: arrayUnion(userEmail)
+  })
+}
+
+/**
+ * Create a new chat tab
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param tabName - Tab name
+ */
+export async function createChatTab(
+  canvasId: string,
+  tabId: string,
+  tabName: string
+): Promise<void> {
+  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+
+  await setDoc(tabRef, {
+    id: tabId,
+    name: tabName,
+    createdAt: Timestamp.now(),
+    hiddenBy: [] // Array of user emails who have hidden this tab
+  })
+}
+
+/**
+ * Rename a chat tab
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param newName - New tab name
+ */
+export async function renameChatTab(
+  canvasId: string,
+  tabId: string,
+  newName: string
+): Promise<void> {
+  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+
+  await updateDoc(tabRef, {
+    name: newName
+  })
+}
+
+/**
+ * Hide a chat tab for a specific user
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param userEmail - User email to hide tab for
+ */
+export async function hideChatTab(
+  canvasId: string,
+  tabId: string,
+  userEmail: string
+): Promise<void> {
+  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+  await updateDoc(tabRef, {
+    hiddenBy: arrayUnion(userEmail)
+  })
+}
+
+/**
+ * Unhide a chat tab for a specific user
+ * @param canvasId - Canvas ID
+ * @param tabId - Tab ID
+ * @param userEmail - User email to unhide tab for
+ */
+export async function unhideChatTab(
+  canvasId: string,
+  tabId: string,
+  userEmail: string
+): Promise<void> {
+  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+
+  // Get current hiddenBy array
+  const tabDoc = await getDoc(tabRef)
+  if (tabDoc.exists()) {
+    const hiddenBy = tabDoc.data().hiddenBy || []
+    const newHiddenBy = hiddenBy.filter((email: string) => email !== userEmail)
+
+    await updateDoc(tabRef, {
+      hiddenBy: newHiddenBy
+    })
+  }
+}
+
+/**
+ * Subscribe to chat tabs
+ * @param canvasId - Canvas ID
+ * @param callback - Callback function with tabs array
+ * @returns Unsubscribe function
+ */
+export function subscribeToChatTabs(
+  canvasId: string,
+  callback: (tabs: any[]) => void
+): () => void {
+  const tabsRef = collection(db, 'canvases', canvasId, 'chatTabs')
+  const q = query(tabsRef)
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const tabsList: any[] = []
+
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        tabsList.push({
+          id: data.id,
+          name: data.name,
+          createdAt: data.createdAt,
+          hiddenBy: data.hiddenBy || []
+        })
+      })
+
+      // Sort by creation time
+      tabsList.sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0
+        const bTime = b.createdAt?.toMillis?.() || 0
+        return aTime - bTime
+      })
+
+      callback(tabsList)
+    },
+    (error) => {
+      console.error('Chat tabs subscription error:', error)
     }
   )
 

@@ -75,6 +75,7 @@ function resolveColor(color?: string): string {
  */
 export async function executeCreateShape(
   canvasId: string,
+  userId: string,
   input: {
     shapeType: string
     x: number
@@ -88,7 +89,7 @@ export async function executeCreateShape(
     cornerRadius?: number
   }
 ): Promise<void> {
-  console.log('[AI Helpers] executeCreateShape called with:', input)
+  console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
 
   const {
     shapeType,
@@ -109,7 +110,7 @@ export async function executeCreateShape(
     id,
     x,
     y,
-    createdBy: 'ai',
+    createdBy: userId, // Use actual user ID instead of 'ai'
     updatedAt: new Date().toISOString(),
     rotation: DEFAULTS.rotation,
   }
@@ -242,6 +243,7 @@ export async function executeCreateShape(
  */
 export async function executeCreateText(
   canvasId: string,
+  userId: string,
   input: {
     text: string
     x: number
@@ -251,7 +253,7 @@ export async function executeCreateText(
     fontFamily?: string
   }
 ): Promise<void> {
-  console.log('[AI Helpers] executeCreateText called with:', input)
+  console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
 
   const {
     text,
@@ -280,7 +282,7 @@ export async function executeCreateText(
     lineHeight: DEFAULTS.lineHeight,
     width: 200, // Default text box width
     height: fontSize * DEFAULTS.lineHeight, // Auto-calculate based on font size
-    createdBy: 'ai',
+    createdBy: userId, // Use actual user ID instead of 'ai'
     updatedAt: new Date().toISOString(),
     rotation: DEFAULTS.rotation,
   }
@@ -295,6 +297,7 @@ export async function executeCreateText(
  */
 export async function executeCreateArrow(
   canvasId: string,
+  userId: string,
   input: {
     x1: number
     y1: number
@@ -304,7 +307,7 @@ export async function executeCreateArrow(
     arrowType?: string
   }
 ): Promise<void> {
-  console.log('[AI Helpers] executeCreateArrow called with:', input)
+  console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
 
   const {
     x1,
@@ -327,7 +330,7 @@ export async function executeCreateArrow(
     strokeWidth: DEFAULTS.strokeWidth,
     pointerLength: DEFAULTS.pointerLength,
     pointerWidth: DEFAULTS.pointerWidth,
-    createdBy: 'ai',
+    createdBy: userId, // Use actual user ID instead of 'ai'
     updatedAt: new Date().toISOString(),
     rotation: DEFAULTS.rotation,
   }

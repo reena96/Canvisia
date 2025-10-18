@@ -7,9 +7,10 @@ import { executeCreateShape, executeCreateText, executeCreateArrow } from '@/uti
  */
 export async function executeToolCalls(
   toolCalls: AIToolCall[],
-  canvasId: string
+  canvasId: string,
+  userId: string
 ): Promise<void> {
-  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId)
+  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId, 'userId:', userId)
 
   for (const toolCall of toolCalls) {
     try {
@@ -17,17 +18,17 @@ export async function executeToolCalls(
 
       switch (toolCall.name) {
         case 'create_shape':
-          await executeCreateShape(canvasId, toolCall.input as any)
+          await executeCreateShape(canvasId, userId, toolCall.input as any)
           console.log('[Executor] create_shape completed successfully')
           break
 
         case 'create_text':
-          await executeCreateText(canvasId, toolCall.input as any)
+          await executeCreateText(canvasId, userId, toolCall.input as any)
           console.log('[Executor] create_text completed successfully')
           break
 
         case 'create_arrow':
-          await executeCreateArrow(canvasId, toolCall.input as any)
+          await executeCreateArrow(canvasId, userId, toolCall.input as any)
           console.log('[Executor] create_arrow completed successfully')
           break
 
