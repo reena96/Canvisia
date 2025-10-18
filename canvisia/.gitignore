@@ -32,3 +32,4 @@ revoke-tokens.js
 *.sln
 *.sw?
 openjdk.jdk
+.env.production

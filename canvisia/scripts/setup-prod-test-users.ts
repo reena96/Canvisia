@@ -8,22 +8,22 @@ import { getAuth } from 'firebase-admin/auth'
 import * as fs from 'fs'
 import * as path from 'path'
 
-// Test user configuration
+// Test user configuration - matches DevLogin.tsx
 const TEST_USERS = [
   {
-    email: 'alice.test@canvisia.app',
-    displayName: 'Alice (Test)',
-    password: 'TestUser123!',
+    email: 'alice@test.com',
+    displayName: 'Alice',
+    password: 'password123',
   },
   {
-    email: 'bob.test@canvisia.app',
-    displayName: 'Bob (Test)',
-    password: 'TestUser123!',
+    email: 'bob@test.com',
+    displayName: 'Bob',
+    password: 'password123',
   },
   {
-    email: 'charlie.test@canvisia.app',
-    displayName: 'Charlie (Test)',
-    password: 'TestUser123!',
+    email: 'charlie@test.com',
+    displayName: 'Charlie',
+    password: 'password123',
   },
 ]
 

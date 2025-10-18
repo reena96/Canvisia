@@ -9,6 +9,8 @@
     "dev:emulator": "firebase emulators:start --import=./.emulator-data --export-on-exit",
     "dev:with-emulators": "concurrently \"npm run dev:emulator\" \"npm run dev\"",
     "seed-users": "tsx scripts/seed-emulator-users.ts",
+    "setup-test-users": "tsx scripts/setup-test-users.ts",
+    "setup-prod-users": "tsx scripts/setup-prod-test-users.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

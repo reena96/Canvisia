@@ -5,7 +5,6 @@
 
 import { initializeApp } from 'firebase/app'
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { DEV_USER_COLORS } from '../src/config/userColors'
 
 // Firebase config from .env.local
 const firebaseConfig = {
@@ -21,12 +20,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 const auth = getAuth(app)
 
-const TEST_USERS = DEV_USER_COLORS.map((userColor) => ({
-  email: `${userColor.displayName.toLowerCase()}@test.com`,
-  password: 'password123',
-  displayName: userColor.displayName,
-  color: userColor.color,
-}))
+// Test user configuration - matches DevLogin.tsx
+const TEST_USERS = [
+  {
+    email: 'alice@test.com',
+    password: 'password123',
+    displayName: 'Alice',
+  },
+  {
+    email: 'bob@test.com',
+    password: 'password123',
+    displayName: 'Bob',
+  },
+  {
+    email: 'charlie@test.com',
+    password: 'password123',
+    displayName: 'Charlie',
+  },
+]
 
 async function setupTestUsers() {
   console.log('Setting up test users in Firebase Authentication...\n')
