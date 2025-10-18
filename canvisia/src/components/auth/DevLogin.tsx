@@ -38,9 +38,10 @@ const PROD_TEST_USERS: TestUser[] = [
 ]
 
 // Development test users with specific email format
+// Note: Firebase Auth normalizes emails to lowercase
 const DEV_TEST_USERS: TestUser[] = [
   {
-    email: 'Alice@test.com',
+    email: 'alice@test.com',
     password: 'password123',
     displayName: 'Alice',
     color: DEV_USER_COLORS[0].color,
