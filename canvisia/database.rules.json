@@ -23,6 +23,18 @@
           ".write": "$userId === auth.uid"
         }
       }
+    },
+    "canvases": {
+      "$canvasId": {
+        "aiLock": {
+          ".read": true,
+          ".write": "auth != null"
+        },
+        "shapes": {
+          ".read": true,
+          ".write": "auth != null"
+        }
+      }
     }
   }
 }

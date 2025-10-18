@@ -9,7 +9,6 @@ import { useCursors } from '@/hooks/useCursors'
 import { usePresence } from '@/hooks/usePresence'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { Toolbar, type Tool } from './Toolbar'
-import { ZoomControls } from './ZoomControls'
 import { ShapeRenderer } from './ShapeRenderer'
 import { TextEditOverlay } from './TextEditOverlay'
 import { FloatingTextToolbar } from './FloatingTextToolbar'
@@ -1111,10 +1110,6 @@ export function Canvas({ onPresenceChange, onMountCleanup }: CanvasProps = {}) {
             })
           }
         } : undefined}
-      />
-
-      {/* Zoom Controls - Bottom Right Corner */}
-      <ZoomControls
         zoomPercentage={Math.round(viewport.zoom * 100)}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
