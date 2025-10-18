@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Pin, ArrowRight, ArrowLeft, ChevronRight, Mic } from 'lucide-react'
 import { useAI } from '@/hooks/useAI'
+import ReactMarkdown from 'react-markdown'
 
 interface Message {
   id: string
@@ -352,7 +353,13 @@ export function AIChat({ canvasId }: AIChatProps) {
             )}
             {messages.map(msg => (
               <div key={msg.id} className={`ai-chat-message ai-chat-message-${msg.sender}`}>
-                <div className="ai-chat-message-content">{msg.text}</div>
+                <div className="ai-chat-message-content">
+                  {msg.sender === 'ai' ? (
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  ) : (
+                    msg.text
+                  )}
+                </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
