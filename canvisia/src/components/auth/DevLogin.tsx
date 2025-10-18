@@ -60,11 +60,6 @@ const DEV_TEST_USERS: TestUser[] = [
   },
 ]
 
-// Use production test users if enabled, otherwise use dev users
-const TEST_USERS: TestUser[] = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
-  ? PROD_TEST_USERS
-  : DEV_TEST_USERS
-
 export function DevLogin() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -75,6 +70,9 @@ export function DevLogin() {
   const isDevLoginEnabled = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
 
   if (!isDevelopment && !isDevLoginEnabled) return null
+
+  // Use dev emulator users in development, production test users in production
+  const TEST_USERS: TestUser[] = isDevelopment ? DEV_TEST_USERS : PROD_TEST_USERS
 
   const handleLogin = async (user: TestUser) => {
     setLoading(user.email)
