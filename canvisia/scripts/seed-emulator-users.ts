@@ -14,7 +14,7 @@ interface TestUser {
 
 const TEST_USERS: TestUser[] = [
   {
-    email: 'alice@test.com',
+    email: 'Alice@test.com',
     password: 'password123',
     displayName: 'Alice',
     photoURL: 'https://i.pravatar.cc/150?img=1',

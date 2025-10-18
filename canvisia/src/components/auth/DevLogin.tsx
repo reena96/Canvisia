@@ -37,15 +37,32 @@ const PROD_TEST_USERS: TestUser[] = [
   },
 ]
 
+// Development test users with specific email format
+const DEV_TEST_USERS: TestUser[] = [
+  {
+    email: 'Alice@test.com',
+    password: 'password123',
+    displayName: 'Alice',
+    color: DEV_USER_COLORS[0].color,
+  },
+  {
+    email: 'bob@test.com',
+    password: 'password123',
+    displayName: 'Bob',
+    color: DEV_USER_COLORS[1].color,
+  },
+  {
+    email: 'charlie@test.com',
+    password: 'password123',
+    displayName: 'Charlie',
+    color: DEV_USER_COLORS[2].color,
+  },
+]
+
 // Use production test users if enabled, otherwise use dev users
 const TEST_USERS: TestUser[] = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
   ? PROD_TEST_USERS
-  : DEV_USER_COLORS.map((userColor) => ({
-      email: `${userColor.displayName.toLowerCase()}@test.com`,
-      password: 'password123',
-      displayName: userColor.displayName,
-      color: userColor.color,
-    }))
+  : DEV_TEST_USERS
 
 export function DevLogin() {
   const [loading, setLoading] = useState<string | null>(null)
