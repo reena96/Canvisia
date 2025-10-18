@@ -783,3 +783,344 @@ export async function executeRotateElement(
   await updateShape(canvasId, shape.id, { rotation: input.angle })
   console.log('[AI Helpers] Shape rotated successfully')
 }
+
+/**
+ * Helper: Get width of a shape (handles different shape types)
+ */
+function getShapeWidth(shape: Shape): number {
+  if ('width' in shape && shape.width !== undefined) {
+    return shape.width
+  }
+  if ('radius' in shape && shape.radius !== undefined) {
+    return shape.radius * 2
+  }
+  if ('radiusX' in shape && shape.radiusX !== undefined) {
+    return shape.radiusX * 2
+  }
+  if ('outerRadiusX' in shape && shape.outerRadiusX !== undefined) {
+    return shape.outerRadiusX * 2
+  }
+  return 100 // Default width
+}
+
+/**
+ * Helper: Get height of a shape (handles different shape types)
+ */
+function getShapeHeight(shape: Shape): number {
+  if ('height' in shape && shape.height !== undefined) {
+    return shape.height
+  }
+  if ('radius' in shape && shape.radius !== undefined) {
+    return shape.radius * 2
+  }
+  if ('radiusY' in shape && shape.radiusY !== undefined) {
+    return shape.radiusY * 2
+  }
+  if ('outerRadiusY' in shape && shape.outerRadiusY !== undefined) {
+    return shape.outerRadiusY * 2
+  }
+  return 100 // Default height
+}
+
+/**
+ * Arrange shapes in a grid pattern
+ * Returns new array with updated positions (immutable)
+ */
+export function arrangeInGrid(shapes: Shape[], spacing: number = 20): Shape[] {
+  if (shapes.length === 0) return []
+
+  // Calculate grid dimensions (approximately square)
+  const cols = Math.ceil(Math.sqrt(shapes.length))
+  const rows = Math.ceil(shapes.length / cols)
+
+  console.log(`[AI Helpers] Arranging ${shapes.length} shapes in ${rows}x${cols} grid`)
+
+  // Create new array to avoid mutation (lesson from bugfix docs)
+  const arranged: Shape[] = []
+  let currentX = 0
+  let currentY = 0
+
+  for (let row = 0; row < rows; row++) {
+    let maxHeightInRow = 0
+    currentX = 0
+
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col
+      if (index >= shapes.length) break
+
+      const shape = shapes[index]
+      const shapeWidth = getShapeWidth(shape)
+      const shapeHeight = getShapeHeight(shape)
+
+      // Update position (create new object to avoid mutation)
+      arranged.push({
+        ...shape,
+        x: currentX,
+        y: currentY,
+      })
+
+      currentX += shapeWidth + spacing
+      maxHeightInRow = Math.max(maxHeightInRow, shapeHeight)
+    }
+
+    currentY += maxHeightInRow + spacing
+  }
+
+  return arranged
+}
+
+/**
+ * Arrange shapes in a horizontal row
+ * Returns new array with updated positions (immutable)
+ */
+export function arrangeInRow(shapes: Shape[], spacing: number = 20): Shape[] {
+  if (shapes.length === 0) return []
+
+  console.log(`[AI Helpers] Arranging ${shapes.length} shapes in row`)
+
+  // Create new array to avoid mutation
+  const arranged: Shape[] = []
+  let currentX = 0
+
+  // Use first shape's Y position as baseline
+  const baseY = shapes[0]?.y ?? 0
+
+  for (const shape of shapes) {
+    const shapeWidth = getShapeWidth(shape)
+
+    arranged.push({
+      ...shape,
+      x: currentX,
+      y: baseY,
+    })
+
+    currentX += shapeWidth + spacing
+  }
+
+  return arranged
+}
+
+/**
+ * Arrange shapes in a vertical column
+ * Returns new array with updated positions (immutable)
+ */
+export function arrangeInColumn(shapes: Shape[], spacing: number = 20): Shape[] {
+  if (shapes.length === 0) return []
+
+  console.log(`[AI Helpers] Arranging ${shapes.length} shapes in column`)
+
+  // Create new array to avoid mutation
+  const arranged: Shape[] = []
+  let currentY = 0
+
+  // Use first shape's X position as baseline
+  const baseX = shapes[0]?.x ?? 0
+
+  for (const shape of shapes) {
+    const shapeHeight = getShapeHeight(shape)
+
+    arranged.push({
+      ...shape,
+      x: baseX,
+      y: currentY,
+    })
+
+    currentY += shapeHeight + spacing
+  }
+
+  return arranged
+}
+
+/**
+ * Align shapes to a specific alignment
+ * Returns new array with updated positions (immutable)
+ */
+export function alignShapes(
+  shapes: Shape[],
+  alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical'
+): Shape[] {
+  if (shapes.length === 0) return []
+
+  console.log(`[AI Helpers] Aligning ${shapes.length} shapes to ${alignment}`)
+
+  // Create new array to avoid mutation
+  const aligned: Shape[] = []
+
+  switch (alignment) {
+    case 'left': {
+      // Find leftmost x
+      const minX = Math.min(...shapes.map(s => s.x))
+      for (const shape of shapes) {
+        aligned.push({ ...shape, x: minX })
+      }
+      break
+    }
+
+    case 'right': {
+      // Find rightmost edge
+      const maxRight = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
+      for (const shape of shapes) {
+        const shapeWidth = getShapeWidth(shape)
+        aligned.push({ ...shape, x: maxRight - shapeWidth })
+      }
+      break
+    }
+
+    case 'top': {
+      // Find topmost y
+      const minY = Math.min(...shapes.map(s => s.y))
+      for (const shape of shapes) {
+        aligned.push({ ...shape, y: minY })
+      }
+      break
+    }
+
+    case 'bottom': {
+      // Find bottommost edge
+      const maxBottom = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
+      for (const shape of shapes) {
+        const shapeHeight = getShapeHeight(shape)
+        aligned.push({ ...shape, y: maxBottom - shapeHeight })
+      }
+      break
+    }
+
+    case 'center-horizontal': {
+      // Calculate average center x
+      const centerXs = shapes.map(s => s.x + getShapeWidth(s) / 2)
+      const avgCenterX = centerXs.reduce((sum, x) => sum + x, 0) / centerXs.length
+
+      for (const shape of shapes) {
+        const shapeWidth = getShapeWidth(shape)
+        aligned.push({ ...shape, x: avgCenterX - shapeWidth / 2 })
+      }
+      break
+    }
+
+    case 'center-vertical': {
+      // Calculate average center y
+      const centerYs = shapes.map(s => s.y + getShapeHeight(s) / 2)
+      const avgCenterY = centerYs.reduce((sum, y) => sum + y, 0) / centerYs.length
+
+      for (const shape of shapes) {
+        const shapeHeight = getShapeHeight(shape)
+        aligned.push({ ...shape, y: avgCenterY - shapeHeight / 2 })
+      }
+      break
+    }
+
+    default:
+      console.warn(`[AI Helpers] Unknown alignment: ${alignment}`)
+      return shapes
+  }
+
+  return aligned
+}
+
+/**
+ * Execute arrange_elements tool call
+ */
+export async function executeArrangeElements(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementIds: string[]
+    pattern: 'grid' | 'row' | 'column' | 'circle'
+    spacing?: number
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeArrangeElements called with:', input)
+
+  const { elementIds, pattern, spacing = 20 } = input
+
+  // Get all shapes
+  const allShapes = await getShapes(canvasId)
+
+  // Filter to only requested shapes (use optional chaining for safety)
+  const shapesToArrange = allShapes.filter(s => elementIds?.includes(s.id))
+
+  if (shapesToArrange.length === 0) {
+    throw new Error('No matching shapes found to arrange')
+  }
+
+  console.log(`[AI Helpers] Found ${shapesToArrange.length} shapes to arrange in ${pattern} pattern`)
+
+  // Arrange shapes based on pattern
+  let arrangedShapes: Shape[]
+
+  switch (pattern) {
+    case 'grid':
+      arrangedShapes = arrangeInGrid(shapesToArrange, spacing)
+      break
+
+    case 'row':
+      arrangedShapes = arrangeInRow(shapesToArrange, spacing)
+      break
+
+    case 'column':
+      arrangedShapes = arrangeInColumn(shapesToArrange, spacing)
+      break
+
+    case 'circle':
+      // TODO: Implement circular arrangement in future PR
+      console.warn('[AI Helpers] Circular arrangement not yet implemented, using grid')
+      arrangedShapes = arrangeInGrid(shapesToArrange, spacing)
+      break
+
+    default:
+      throw new Error(`Unknown arrangement pattern: ${pattern}`)
+  }
+
+  // Update all shapes in Firestore (batch update)
+  console.log('[AI Helpers] Updating shape positions in Firestore')
+  for (const shape of arrangedShapes) {
+    await updateShape(canvasId, shape.id, {
+      x: shape.x,
+      y: shape.y,
+    })
+  }
+
+  console.log('[AI Helpers] Arrangement complete')
+}
+
+/**
+ * Execute align_elements tool call
+ */
+export async function executeAlignElements(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementIds: string[]
+    alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical'
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeAlignElements called with:', input)
+
+  const { elementIds, alignment } = input
+
+  // Get all shapes
+  const allShapes = await getShapes(canvasId)
+
+  // Filter to only requested shapes (use optional chaining for safety)
+  const shapesToAlign = allShapes.filter(s => elementIds?.includes(s.id))
+
+  if (shapesToAlign.length === 0) {
+    throw new Error('No matching shapes found to align')
+  }
+
+  console.log(`[AI Helpers] Found ${shapesToAlign.length} shapes to align to ${alignment}`)
+
+  // Align shapes
+  const alignedShapes = alignShapes(shapesToAlign, alignment)
+
+  // Update all shapes in Firestore (batch update)
+  console.log('[AI Helpers] Updating shape positions in Firestore')
+  for (const alignedShape of alignedShapes) {
+    await updateShape(canvasId, alignedShape.id, {
+      x: alignedShape.x,
+      y: alignedShape.y,
+    })
+  }
+
+  console.log('[AI Helpers] Alignment complete')
+}
