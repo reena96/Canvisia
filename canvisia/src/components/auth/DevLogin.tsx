@@ -81,9 +81,15 @@ export function DevLogin() {
     setError(null)
 
     try {
+      console.log('[DevLogin] Attempting login with:', user.email)
+      console.log('[DevLogin] Auth instance:', auth)
+      console.log('[DevLogin] Auth config:', (auth as any).config)
       await signInWithEmailAndPassword(auth, user.email, user.password)
+      console.log('[DevLogin] Login successful!')
     } catch (err: any) {
-      console.error('Dev login error:', err)
+      console.error('[DevLogin] Login error:', err)
+      console.error('[DevLogin] Error code:', err.code)
+      console.error('[DevLogin] Error message:', err.message)
       setError(err.message)
     } finally {
       setLoading(null)
