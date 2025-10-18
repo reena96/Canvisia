@@ -10,6 +10,12 @@ When creating shapes, use reasonable default sizes if not specified.
 Coordinates are in pixels, with (0,0) at the top-left corner.
 Default canvas center is around (1000, 1000).
 
+IMPORTANT: When users ask to arrange or align "all shapes" or "all elements", use ["all"] as the elementIds parameter.
+For example:
+- "arrange all shapes in a row" → elementIds: ["all"], pattern: "row"
+- "align everything to the left" → elementIds: ["all"], alignment: "left"
+- "move all shapes in a grid" → elementIds: ["all"], pattern: "grid"
+
 Keep your responses concise and friendly. Focus on helping users visualize their ideas.`
 
 // Tool schemas for Claude function calling
