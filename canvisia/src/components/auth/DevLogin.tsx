@@ -15,31 +15,9 @@ interface TestUser {
   color: string
 }
 
-// Production test users (created via setup-prod-test-users.ts)
-const PROD_TEST_USERS: TestUser[] = [
-  {
-    email: 'alice.test@canvisia.app',
-    password: 'TestUser123!',
-    displayName: 'Alice (Test)',
-    color: '#FF6B6B',
-  },
-  {
-    email: 'bob.test@canvisia.app',
-    password: 'TestUser123!',
-    displayName: 'Bob (Test)',
-    color: '#4ECDC4',
-  },
-  {
-    email: 'charlie.test@canvisia.app',
-    password: 'TestUser123!',
-    displayName: 'Charlie (Test)',
-    color: '#FFE66D',
-  },
-]
-
-// Development test users with specific email format
+// Test users - same for both development and production
 // Note: Firebase Auth normalizes emails to lowercase
-const DEV_TEST_USERS: TestUser[] = [
+const TEST_USERS: TestUser[] = [
   {
     email: 'alice@test.com',
     password: 'password123',
@@ -70,9 +48,6 @@ export function DevLogin() {
   const isDevLoginEnabled = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
 
   if (!isDevelopment && !isDevLoginEnabled) return null
-
-  // Use dev emulator users in development, production test users in production
-  const TEST_USERS: TestUser[] = isDevelopment ? DEV_TEST_USERS : PROD_TEST_USERS
 
   const handleLogin = async (user: TestUser) => {
     setLoading(user.email)
