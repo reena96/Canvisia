@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Hand } from 'lucide-react'
+import { Hand, Maximize } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
 
@@ -10,13 +10,23 @@ interface ToolbarProps {
   onToolSelect: (tool: Tool) => void
   selectedShapeColor?: string
   onColorChange?: (color: string) => void
+  zoomPercentage?: number
+  onZoomIn?: () => void
+  onZoomOut?: () => void
+  onResetZoom?: () => void
+  onResetView?: () => void
 }
 
 export function Toolbar({
   selectedTool,
   onToolSelect,
   selectedShapeColor,
-  onColorChange
+  onColorChange,
+  zoomPercentage,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onResetView
 }: ToolbarProps) {
   const [circlesExpanded, setCirclesExpanded] = useState(false)
   const [polygonsExpanded, setPolygonsExpanded] = useState(false)
@@ -34,7 +44,7 @@ export function Toolbar({
     <div
       style={{
         position: 'fixed',
-        bottom: '20px',
+        bottom: '20px', // Back to original position
         left: '50%',
         transform: 'translateX(-50%)',
         backgroundColor: 'white',
@@ -313,6 +323,119 @@ export function Toolbar({
             position={{ x: 0, y: -280 }}
           />
           <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
+        </>
+      )}
+
+      {/* Zoom Controls */}
+      {zoomPercentage !== undefined && onZoomIn && onZoomOut && onResetZoom && onResetView && (
+        <>
+          <button
+            onClick={onZoomOut}
+            title="Zoom Out"
+            style={{
+              width: '40px',
+              height: '40px',
+              border: '2px solid transparent',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#1F2937',
+              fontSize: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#F9FAFB'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white'
+            }}
+          >
+            −
+          </button>
+          <button
+            onClick={onResetZoom}
+            title="Reset zoom to 100%"
+            style={{
+              minWidth: '50px',
+              height: '40px',
+              border: '2px solid transparent',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#6B7280',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              padding: '0 8px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#F9FAFB'
+              e.currentTarget.style.color = '#1F2937'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white'
+              e.currentTarget.style.color = '#6B7280'
+            }}
+          >
+            {zoomPercentage}%
+          </button>
+          <button
+            onClick={onZoomIn}
+            title="Zoom In"
+            style={{
+              width: '40px',
+              height: '40px',
+              border: '2px solid transparent',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#1F2937',
+              fontSize: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#F9FAFB'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white'
+            }}
+          >
+            +
+          </button>
+          <button
+            onClick={onResetView}
+            title="Reset View"
+            style={{
+              width: '40px',
+              height: '40px',
+              border: '2px solid transparent',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              color: '#1F2937',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#F9FAFB'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white'
+            }}
+          >
+            <Maximize size={18} />
+          </button>
         </>
       )}
 
