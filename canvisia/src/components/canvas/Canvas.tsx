@@ -13,6 +13,7 @@ import { ShapeRenderer } from './ShapeRenderer'
 import { TextEditOverlay } from './TextEditOverlay'
 import { FloatingTextToolbar } from './FloatingTextToolbar'
 import { ResizeHandles } from './ResizeHandles'
+import { MultiSelectResizeHandles } from './MultiSelectResizeHandles'
 import {
   createDefaultRectangle,
   createDefaultCircle,
@@ -92,6 +93,10 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   const [resizingHandle, setResizingHandle] = useState<ResizeHandle | null>(null)
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number } | null>(null)
   const [initialShapeDimensions, setInitialShapeDimensions] = useState<any>(null)
+
+  // Multi-select resize state
+  const [initialGroupBounds, setInitialGroupBounds] = useState<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null)
+  const initialShapesData = useRef<Map<string, Shape>>(new Map())
 
   // Rotation state
   const [isRotating, setIsRotating] = useState(false)
@@ -1316,22 +1321,113 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Resize handlers
   const handleResizeStart = useCallback((handle: ResizeHandle) => {
     const stage = stageRef.current
-    if (!stage || !selectedShapeId) return
+    if (!stage) return
 
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
 
-    const selectedShape = shapes.find(s => s.id === selectedShapeId)
-    if (!selectedShape) return
-
     setIsResizing(true)
     setResizingHandle(handle)
     setResizeStart(screenToCanvas(pointerPosition.x, pointerPosition.y, viewport))
-    setInitialShapeDimensions({ ...selectedShape })
-  }, [selectedShapeId, shapes, viewport])
+
+    // Multi-select resize
+    if (selectedIds.length > 1) {
+      const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
+
+      // Calculate initial group bounding box
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
+      selectedShapes.forEach(shape => {
+        let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
+
+        // Same bounds calculation as MultiSelectResizeHandles
+        switch (shape.type) {
+          case 'rectangle':
+          case 'roundedRectangle':
+          case 'cylinder':
+            left = shape.x - shape.width / 2
+            top = shape.y - shape.height / 2
+            right = shape.x + shape.width / 2
+            bottom = shape.y + shape.height / 2
+            break
+          case 'circle':
+            left = shape.x - shape.radius
+            top = shape.y - shape.radius
+            right = shape.x + shape.radius
+            bottom = shape.y + shape.radius
+            break
+          case 'ellipse':
+          case 'triangle':
+          case 'pentagon':
+          case 'hexagon':
+            left = shape.x - shape.radiusX
+            top = shape.y - shape.radiusY
+            right = shape.x + shape.radiusX
+            bottom = shape.y + shape.radiusY
+            break
+          case 'star':
+            left = shape.x - shape.outerRadiusX
+            top = shape.y - shape.outerRadiusY
+            right = shape.x + shape.outerRadiusX
+            bottom = shape.y + shape.outerRadiusY
+            break
+          case 'text':
+            left = shape.x
+            top = shape.y
+            right = shape.x + shape.width
+            bottom = shape.y + (shape.height || shape.fontSize * 1.5)
+            break
+          case 'line':
+          case 'arrow':
+          case 'bidirectionalArrow':
+            left = Math.min(shape.x, shape.x2)
+            top = Math.min(shape.y, shape.y2)
+            right = Math.max(shape.x, shape.x2)
+            bottom = Math.max(shape.y, shape.y2)
+            break
+          case 'bentConnector':
+            left = Math.min(shape.x, shape.bendX, shape.x2)
+            top = Math.min(shape.y, shape.bendY, shape.y2)
+            right = Math.max(shape.x, shape.bendX, shape.x2)
+            bottom = Math.max(shape.y, shape.bendY, shape.y2)
+            break
+        }
+
+        minX = Math.min(minX, left)
+        minY = Math.min(minY, top)
+        maxX = Math.max(maxX, right)
+        maxY = Math.max(maxY, bottom)
+      })
+
+      setInitialGroupBounds({ minX, minY, maxX, maxY })
+
+      // Store initial data for all shapes
+      initialShapesData.current.clear()
+      selectedShapes.forEach(shape => {
+        initialShapesData.current.set(shape.id, { ...shape })
+      })
+    } else if (selectedShapeId) {
+      // Single shape resize
+      const selectedShape = shapes.find(s => s.id === selectedShapeId)
+      if (!selectedShape) return
+
+      setInitialShapeDimensions({ ...selectedShape })
+      setInitialGroupBounds(null)
+    }
+  }, [selectedIds, selectedShapeId, shapes, viewport])
 
   const handleResizeMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    if (!isResizing || !resizingHandle || !resizeStart || !selectedShapeId || !initialShapeDimensions) return
+    if (!isResizing || !resizingHandle || !resizeStart) return
+
+    // Multi-select resize
+    if (selectedIds.length > 1 && initialGroupBounds) {
+      // TODO: Implement proportional group resizing
+      // For now, just return to prevent errors
+      return
+    }
+
+    // Single shape resize
+    if (!selectedShapeId || !initialShapeDimensions) return
 
     const stage = stageRef.current
     if (!stage) return
@@ -1526,7 +1622,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       updateShapeLocal(selectedShapeId, updates)
       updateShapeThrottled(selectedShapeId, updates)
     }
-  }, [isResizing, resizingHandle, resizeStart, selectedShapeId, initialShapeDimensions, viewport, updateShapeLocal, updateShapeThrottled])
+  }, [isResizing, resizingHandle, resizeStart, selectedShapeId, initialShapeDimensions, selectedIds, initialGroupBounds, viewport, updateShapeLocal, updateShapeThrottled])
 
   const handleResizeEnd = useCallback(async () => {
     if (!selectedShapeId || !isResizing) return
@@ -1864,102 +1960,16 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             />
           )}
 
-          {/* Multi-selection bounding box */}
-          {selectedIds.length > 1 && (() => {
+          {/* Multi-select resize handles (hide while dragging, resizing, or rotating) */}
+          {selectedIds.length > 1 && !isDraggingShape && !isResizing && !isRotating && (() => {
             const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
             if (selectedShapes.length === 0) return null
 
-            // Calculate bounding box of all selected shapes
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-
-            selectedShapes.forEach(shape => {
-              let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
-
-              // Use type-based approach to avoid TypeScript narrowing issues
-              switch (shape.type) {
-                case 'rectangle':
-                case 'roundedRectangle':
-                case 'cylinder':
-                  // Rectangle-like shapes (center-based)
-                  left = shape.x - shape.width / 2
-                  top = shape.y - shape.height / 2
-                  right = shape.x + shape.width / 2
-                  bottom = shape.y + shape.height / 2
-                  break
-
-                case 'circle':
-                  // Circle
-                  left = shape.x - shape.radius
-                  top = shape.y - shape.radius
-                  right = shape.x + shape.radius
-                  bottom = shape.y + shape.radius
-                  break
-
-                case 'ellipse':
-                case 'triangle':
-                case 'pentagon':
-                case 'hexagon':
-                  // Ellipse, polygon
-                  left = shape.x - shape.radiusX
-                  top = shape.y - shape.radiusY
-                  right = shape.x + shape.radiusX
-                  bottom = shape.y + shape.radiusY
-                  break
-
-                case 'star':
-                  // Star
-                  left = shape.x - shape.outerRadiusX
-                  top = shape.y - shape.outerRadiusY
-                  right = shape.x + shape.outerRadiusX
-                  bottom = shape.y + shape.outerRadiusY
-                  break
-
-                case 'text':
-                  // Text (top-left based)
-                  left = shape.x
-                  top = shape.y
-                  right = shape.x + shape.width
-                  bottom = shape.y + (shape.height || shape.fontSize * 1.5)
-                  break
-
-                case 'line':
-                case 'arrow':
-                case 'bidirectionalArrow':
-                  // Line, arrow
-                  left = Math.min(shape.x, shape.x2)
-                  top = Math.min(shape.y, shape.y2)
-                  right = Math.max(shape.x, shape.x2)
-                  bottom = Math.max(shape.y, shape.y2)
-                  break
-
-                case 'bentConnector':
-                  // Bent connector
-                  left = Math.min(shape.x, shape.bendX, shape.x2)
-                  top = Math.min(shape.y, shape.bendY, shape.y2)
-                  right = Math.max(shape.x, shape.bendX, shape.x2)
-                  bottom = Math.max(shape.y, shape.bendY, shape.y2)
-                  break
-              }
-
-              minX = Math.min(minX, left)
-              minY = Math.min(minY, top)
-              maxX = Math.max(maxX, right)
-              maxY = Math.max(maxY, bottom)
-            })
-
-            const padding = 10 / viewport.zoom
             return (
-              <Rect
-                id="multi-select-box"
-                x={minX - padding}
-                y={minY - padding}
-                width={maxX - minX + padding * 2}
-                height={maxY - minY + padding * 2}
-                stroke="#3B82F6"
-                strokeWidth={2 / viewport.zoom}
-                dash={[8 / viewport.zoom, 4 / viewport.zoom]}
-                fill="transparent"
-                listening={false}
+              <MultiSelectResizeHandles
+                shapes={selectedShapes}
+                onResizeStart={handleResizeStart}
+                viewport={viewport}
               />
             )
           })()}
@@ -1990,8 +2000,8 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             </>
           )}
 
-          {/* Resize handles for selected shape (hide while dragging, resizing, rotating, or editing text) */}
-          {selectedShapeId && !isDraggingShape && !isResizing && !isRotating && !editingTextId && (() => {
+          {/* Resize handles for single selected shape (hide while dragging, resizing, rotating, or editing text) */}
+          {selectedIds.length === 1 && selectedShapeId && !isDraggingShape && !isResizing && !isRotating && !editingTextId && (() => {
             const selectedShape = shapes.find(s => s.id === selectedShapeId)
             if (!selectedShape) return null
 
