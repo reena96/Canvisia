@@ -1920,11 +1920,16 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     // Multi-select resize - read final state from Konva nodes and save to Firestore
     if (selectedIds.length > 1) {
       try {
-        // First, update local React state immediately for all shapes
+        // Prepare updates for all shapes (read once, use twice)
+        const allUpdates = new Map<string, Partial<Shape>>()
+
         selectedIds.forEach(id => {
           const node = cachedNodes.current.get(id)
           const initialShape = initialShapesData.current.get(id)
-          if (!node || !initialShape) return
+          if (!node || !initialShape) {
+            console.warn('[Resize] Missing node or initialShape for:', id)
+            return
+          }
 
           // Read final values from Konva node
           let updates: Partial<Shape> = {
@@ -1970,61 +1975,23 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             }
           }
 
-          // Update local state immediately (before async Firestore save)
+          allUpdates.set(id, updates)
+        })
+
+        // First, update local React state immediately for all shapes
+        allUpdates.forEach((updates, id) => {
           updateShapeLocal(id, updates)
         })
 
-        // Then save to Firestore asynchronously
+        // Then save to Firestore asynchronously (using the SAME updates)
         await Promise.all(
-          selectedIds.map(id => {
-            const node = cachedNodes.current.get(id)
-            const initialShape = initialShapesData.current.get(id)
-            if (!node || !initialShape) return Promise.resolve()
-
-            // Read final values from Konva node (same as above)
-            let updates: Partial<Shape> = {
-              x: node.x(),
-              y: node.y()
+          Array.from(allUpdates.entries()).map(([id, updates]) => {
+            try {
+              return updateShape(id, updates)
+            } catch (err) {
+              console.error(`[Resize] Failed to save shape ${id}:`, err, 'Updates:', updates)
+              throw err
             }
-
-            // Read dimensions based on shape type
-            // CRITICAL: Use Konva values if valid, otherwise fall back to initialShape
-            if ('width' in initialShape && 'height' in initialShape) {
-              const width = node.width()
-              const height = node.height()
-              (updates as any).width = (width !== undefined && !isNaN(width) && width > 0) ? width : initialShape.width
-              ;(updates as any).height = (height !== undefined && !isNaN(height) && height > 0) ? height : initialShape.height
-            } else if ('radius' in initialShape && !('radiusX' in initialShape)) {
-              const nodeRadius = node.radius()
-              ;(updates as any).radius = (nodeRadius !== undefined && !isNaN(nodeRadius) && nodeRadius > 0) ? nodeRadius : initialShape.radius
-            } else if ('radiusX' in initialShape && 'radiusY' in initialShape) {
-              const radiusX = node.radiusX()
-              const radiusY = node.radiusY()
-              (updates as any).radiusX = (radiusX !== undefined && !isNaN(radiusX) && radiusX > 0) ? radiusX : initialShape.radiusX
-              ;(updates as any).radiusY = (radiusY !== undefined && !isNaN(radiusY) && radiusY > 0) ? radiusY : initialShape.radiusY
-            } else if ('outerRadiusX' in initialShape && 'outerRadiusY' in initialShape) {
-              // Star - read from node and store as X/Y properties
-              const outerRadius = node.outerRadius()
-              const innerRadius = node.innerRadius()
-              (updates as any).outerRadiusX = (outerRadius !== undefined && !isNaN(outerRadius) && outerRadius > 0) ? outerRadius : initialShape.outerRadiusX
-              ;(updates as any).outerRadiusY = (outerRadius !== undefined && !isNaN(outerRadius) && outerRadius > 0) ? outerRadius : initialShape.outerRadiusY
-              ;(updates as any).innerRadiusX = (innerRadius !== undefined && !isNaN(innerRadius) && innerRadius > 0) ? innerRadius : initialShape.innerRadiusX
-              ;(updates as any).innerRadiusY = (innerRadius !== undefined && !isNaN(innerRadius) && innerRadius > 0) ? innerRadius : initialShape.innerRadiusY
-            } else if ('x2' in initialShape && 'y2' in initialShape) {
-              // Lines/arrows - calculate from points array
-              const points = node.points()
-              const x = node.x()
-              const y = node.y();
-              (updates as any).x2 = x + points[points.length - 2];
-              (updates as any).y2 = y + points[points.length - 1]
-
-              if ('bendX' in initialShape && 'bendY' in initialShape && points.length === 6) {
-                (updates as any).bendX = x + points[2];
-                (updates as any).bendY = y + points[3]
-              }
-            }
-
-            return updateShape(id, updates)
           })
         )
         initialShapesData.current.clear()
