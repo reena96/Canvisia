@@ -96,6 +96,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
   // Multi-select resize state
   const [initialGroupBounds, setInitialGroupBounds] = useState<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null)
+  const [currentGroupBounds, setCurrentGroupBounds] = useState<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null)
   const initialShapesData = useRef<Map<string, Shape>>(new Map())
 
   // Rotation state
@@ -1415,6 +1416,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       })
 
       setInitialGroupBounds({ minX, minY, maxX, maxY })
+      setCurrentGroupBounds({ minX, minY, maxX, maxY })
 
       // PERFORMANCE: Cache Konva nodes and initial data for all shapes
       initialShapesData.current.clear()
@@ -1435,6 +1437,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
       setInitialShapeDimensions({ ...selectedShape })
       setInitialGroupBounds(null)
+      setCurrentGroupBounds(null)
     }
   }, [selectedIds, selectedShapeId, shapes, viewport])
 
@@ -1477,6 +1480,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
       // Prevent negative or zero dimensions
       if (newWidth <= 10 || newHeight <= 10) return
+
+      // Update current group bounds for live selection box rendering
+      setCurrentGroupBounds({ minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY })
 
       // Calculate scale factors
       const scaleX = newWidth / initialWidth
@@ -1799,6 +1805,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     setResizeStart(null)
     setInitialShapeDimensions(null)
     setInitialGroupBounds(null)
+    setCurrentGroupBounds(null)
 
     // Multi-select resize - read final state from Konva nodes and save to Firestore
     if (selectedIds.length > 1) {
@@ -2316,6 +2323,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
               stroke="#3B82F6"
               strokeWidth={1 / viewport.zoom}
               dash={[5 / viewport.zoom, 5 / viewport.zoom]}
+              listening={false}
+            />
+          )}
+
+          {/* Live selection box during multi-select resize */}
+          {isResizing && currentGroupBounds && selectedIds.length > 1 && (
+            <Rect
+              id="multi-select-box"
+              x={currentGroupBounds.minX}
+              y={currentGroupBounds.minY}
+              width={currentGroupBounds.maxX - currentGroupBounds.minX}
+              height={currentGroupBounds.maxY - currentGroupBounds.minY}
+              stroke="#3B82F6"
+              strokeWidth={2 / viewport.zoom}
+              dash={[8 / viewport.zoom, 4 / viewport.zoom]}
               listening={false}
             />
           )}
