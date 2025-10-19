@@ -1,6 +1,15 @@
 import { createShape, updateShape, getShapes } from '@/services/firestore'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
+import type { Viewport } from '@/types/canvas'
 import { v4 as uuidv4 } from 'uuid'
+import {
+  getViewportBounds,
+  getViewportEdges,
+  getShapeWidth,
+  getShapeHeight,
+  findEmptySpaceInViewport,
+  calculateRequiredZoom,
+} from './viewportHelpers'
 
 /**
  * Default values for shape creation
@@ -37,6 +46,17 @@ const DEFAULTS = {
   centerX: 1000,
   centerY: 1000,
 }
+
+/**
+ * Element categories for filtering
+ * Used to distinguish between shapes, text, and arrows
+ */
+const ELEMENT_CATEGORIES = {
+  shapes: ['rectangle', 'circle', 'ellipse', 'roundedRectangle', 'cylinder',
+           'triangle', 'pentagon', 'hexagon', 'star'],
+  text: ['text'],
+  arrows: ['arrow', 'bidirectionalArrow'],
+} as const
 
 /**
  * Comprehensive color name to hex mapping
@@ -122,8 +142,8 @@ export async function executeCreateShape(
   userId: string,
   input: {
     shapeType: string
-    x: number
-    y: number
+    x?: number
+    y?: number
     width?: number
     height?: number
     radius?: number
@@ -131,14 +151,15 @@ export async function executeCreateShape(
     radiusY?: number
     color?: string
     cornerRadius?: number
-  }
+  },
+  viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
 
   const {
     shapeType,
-    x,
-    y,
+    x: inputX,
+    y: inputY,
     width = DEFAULTS.width,
     height = DEFAULTS.height,
     radius = DEFAULTS.radius,
@@ -148,12 +169,55 @@ export async function executeCreateShape(
     cornerRadius = DEFAULTS.cornerRadius,
   } = input
 
+  // Determine final position (smart placement or explicit)
+  let finalX: number
+  let finalY: number
+
+  if (inputX !== undefined && inputY !== undefined) {
+    // User specified coordinates - use them
+    finalX = inputX
+    finalY = inputY
+    console.log('[AI Helpers] Using explicit coordinates:', finalX, finalY)
+  } else {
+    // Smart placement in viewport
+    const viewportBounds = getViewportBounds(viewport)
+    const existingShapes = await getShapes(canvasId)
+
+    // Determine shape size for collision detection
+    let shapeWidth = width
+    let shapeHeight = height
+
+    if (shapeType === 'circle') {
+      shapeWidth = radius * 2
+      shapeHeight = radius * 2
+    } else if (['triangle', 'pentagon', 'hexagon', 'ellipse'].includes(shapeType)) {
+      shapeWidth = radiusX * 2
+      shapeHeight = radiusY * 2
+    }
+
+    const placement = findEmptySpaceInViewport(
+      viewportBounds,
+      existingShapes,
+      { width: shapeWidth, height: shapeHeight }
+    )
+
+    finalX = placement.x
+    finalY = placement.y
+
+    if (placement.isOutsideViewport) {
+      const requiredZoom = calculateRequiredZoom(viewport, [...existingShapes])
+      console.warn(`[AI Helpers] ⚠️ Shape placed outside viewport. Zoom out to ${Math.round(requiredZoom * 100)}% to see all elements.`)
+    } else {
+      console.log('[AI Helpers] Smart placement in viewport:', finalX, finalY)
+    }
+  }
+
   const fill = resolveColor(color)
   const id = uuidv4()
   const baseProps = {
     id,
-    x,
-    y,
+    x: finalX,
+    y: finalY,
     createdBy: userId, // Use actual user ID instead of 'ai'
     updatedAt: new Date().toISOString(),
     rotation: DEFAULTS.rotation,
@@ -290,23 +354,57 @@ export async function executeCreateText(
   userId: string,
   input: {
     text: string
-    x: number
-    y: number
+    x?: number
+    y?: number
     fontSize?: number
     color?: string
     fontFamily?: string
-  }
+  },
+  viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
 
   const {
     text,
-    x,
-    y,
+    x: inputX,
+    y: inputY,
     fontSize = DEFAULTS.fontSize,
     color,
     fontFamily = DEFAULTS.fontFamily,
   } = input
+
+  // Determine final position (smart placement or explicit)
+  let finalX: number
+  let finalY: number
+  const textWidth = 200
+  const textHeight = fontSize * DEFAULTS.lineHeight
+
+  if (inputX !== undefined && inputY !== undefined) {
+    // User specified coordinates - use them
+    finalX = inputX
+    finalY = inputY
+    console.log('[AI Helpers] Using explicit coordinates:', finalX, finalY)
+  } else {
+    // Smart placement in viewport
+    const viewportBounds = getViewportBounds(viewport)
+    const existingShapes = await getShapes(canvasId)
+
+    const placement = findEmptySpaceInViewport(
+      viewportBounds,
+      existingShapes,
+      { width: textWidth, height: textHeight }
+    )
+
+    finalX = placement.x
+    finalY = placement.y
+
+    if (placement.isOutsideViewport) {
+      const requiredZoom = calculateRequiredZoom(viewport, [...existingShapes])
+      console.warn(`[AI Helpers] ⚠️ Text placed outside viewport. Zoom out to ${Math.round(requiredZoom * 100)}% to see all elements.`)
+    } else {
+      console.log('[AI Helpers] Smart placement in viewport:', finalX, finalY)
+    }
+  }
 
   const fill = resolveColor(color) || DEFAULTS.textColor
 
@@ -314,8 +412,8 @@ export async function executeCreateText(
     id: uuidv4(),
     type: 'text',
     text,
-    x,
-    y,
+    x: finalX,
+    y: finalY,
     fontSize,
     fontFamily,
     fill,
@@ -324,8 +422,8 @@ export async function executeCreateText(
     textDecoration: DEFAULTS.textDecoration,
     align: DEFAULTS.align,
     lineHeight: DEFAULTS.lineHeight,
-    width: 200, // Default text box width
-    height: fontSize * DEFAULTS.lineHeight, // Auto-calculate based on font size
+    width: textWidth,
+    height: textHeight,
     createdBy: userId, // Use actual user ID instead of 'ai'
     updatedAt: new Date().toISOString(),
     rotation: DEFAULTS.rotation,
@@ -343,33 +441,72 @@ export async function executeCreateArrow(
   canvasId: string,
   userId: string,
   input: {
-    x1: number
-    y1: number
-    x2: number
-    y2: number
+    x1?: number
+    y1?: number
+    x2?: number
+    y2?: number
     color?: string
     arrowType?: string
-  }
+  },
+  viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
 
   const {
-    x1,
-    y1,
-    x2,
-    y2,
+    x1: inputX1,
+    y1: inputY1,
+    x2: inputX2,
+    y2: inputY2,
     color,
     arrowType = 'arrow',
   } = input
+
+  // Determine final position (smart placement or explicit)
+  let finalX1: number
+  let finalY1: number
+  let finalX2: number
+  let finalY2: number
+  const defaultArrowLength = 150
+
+  if (inputX1 !== undefined && inputY1 !== undefined && inputX2 !== undefined && inputY2 !== undefined) {
+    // User specified all coordinates - use them
+    finalX1 = inputX1
+    finalY1 = inputY1
+    finalX2 = inputX2
+    finalY2 = inputY2
+    console.log('[AI Helpers] Using explicit coordinates:', finalX1, finalY1, finalX2, finalY2)
+  } else {
+    // Smart placement in viewport
+    const viewportBounds = getViewportBounds(viewport)
+    const existingShapes = await getShapes(canvasId)
+
+    const placement = findEmptySpaceInViewport(
+      viewportBounds,
+      existingShapes,
+      { width: defaultArrowLength, height: 10 } // Arrows are typically horizontal
+    )
+
+    finalX1 = placement.x
+    finalY1 = placement.y
+    finalX2 = placement.x + defaultArrowLength
+    finalY2 = placement.y
+
+    if (placement.isOutsideViewport) {
+      const requiredZoom = calculateRequiredZoom(viewport, [...existingShapes])
+      console.warn(`[AI Helpers] ⚠️ Arrow placed outside viewport. Zoom out to ${Math.round(requiredZoom * 100)}% to see all elements.`)
+    } else {
+      console.log('[AI Helpers] Smart placement in viewport:', finalX1, finalY1, finalX2, finalY2)
+    }
+  }
 
   const stroke = resolveColor(color) || DEFAULTS.arrowColor
 
   const baseProps = {
     id: uuidv4(),
-    x: x1,
-    y: y1,
-    x2,
-    y2,
+    x: finalX1,
+    y: finalY1,
+    x2: finalX2,
+    y2: finalY2,
     stroke,
     strokeWidth: DEFAULTS.strokeWidth,
     pointerLength: DEFAULTS.pointerLength,
@@ -535,6 +672,81 @@ function matchesColor(shape: Shape, colorQuery: string): boolean {
 }
 
 /**
+ * Apply category filter to shapes
+ */
+function applyCategoryFilter(shapes: Shape[], category?: 'shapes' | 'text' | 'arrows'): Shape[] {
+  if (!category) return shapes
+
+  const typesInCategory = ELEMENT_CATEGORIES[category] as readonly string[]
+  const filtered = shapes.filter(s => (typesInCategory as string[]).includes(s.type))
+
+  console.log(`[AI Helpers] Category filter "${category}": ${shapes.length} → ${filtered.length} elements`)
+  return filtered
+}
+
+/**
+ * Apply type filter to shapes
+ */
+function applyTypeFilter(shapes: Shape[], type?: string): Shape[] {
+  if (!type) return shapes
+
+  const filtered = shapes.filter(s => s.type === type)
+  console.log(`[AI Helpers] Type filter "${type}": ${shapes.length} → ${filtered.length} elements`)
+  return filtered
+}
+
+/**
+ * Apply color filter to shapes
+ */
+function applyColorFilter(shapes: Shape[], color?: string): Shape[] {
+  if (!color) return shapes
+
+  const filtered = shapes.filter(s => matchesColor(s, color))
+  console.log(`[AI Helpers] Color filter "${color}": ${shapes.length} → ${filtered.length} elements`)
+  return filtered
+}
+
+/**
+ * Apply text content filter (for text elements only)
+ */
+function applyTextContentFilter(shapes: Shape[], textContent?: string): Shape[] {
+  if (!textContent) return shapes
+
+  const filtered = shapes.filter(s => {
+    if (s.type === 'text') {
+      const text = (s as Text).text || ''
+      return text.toLowerCase().includes(textContent.toLowerCase())
+    }
+    return false
+  })
+
+  console.log(`[AI Helpers] Text content filter "${textContent}": ${shapes.length} → ${filtered.length} elements`)
+  return filtered
+}
+
+/**
+ * Apply all filters in order: category → type → color → textContent
+ */
+function applyFilters(
+  shapes: Shape[],
+  filters: {
+    category?: 'shapes' | 'text' | 'arrows'
+    type?: string
+    color?: string
+    textContent?: string
+  }
+): Shape[] {
+  let filtered = shapes
+
+  filtered = applyCategoryFilter(filtered, filters.category)
+  filtered = applyTypeFilter(filtered, filters.type)
+  filtered = applyColorFilter(filtered, filters.color)
+  filtered = applyTextContentFilter(filtered, filters.textContent)
+
+  return filtered
+}
+
+/**
  * Find a shape by descriptor (ID, type, color, or description)
  */
 export function findShape(
@@ -616,7 +828,8 @@ export async function executeMoveElement(
     x?: number
     y?: number
     position?: string
-  }
+  },
+  _viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeMoveElement called with:', input)
 
@@ -673,7 +886,8 @@ export async function executeResizeElement(
     radius?: number
     radiusX?: number
     radiusY?: number
-  }
+  },
+  _viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeResizeElement called with:', input)
 
@@ -759,7 +973,8 @@ export async function executeRotateElement(
     type?: string
     color?: string
     angle: number
-  }
+  },
+  _viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeRotateElement called with:', input)
 
@@ -782,44 +997,6 @@ export async function executeRotateElement(
   console.log(`[AI Helpers] Rotating shape ${shape.id} by ${input.angle} degrees`)
   await updateShape(canvasId, shape.id, { rotation: input.angle })
   console.log('[AI Helpers] Shape rotated successfully')
-}
-
-/**
- * Helper: Get width of a shape (handles different shape types)
- */
-function getShapeWidth(shape: Shape): number {
-  if ('width' in shape && shape.width !== undefined) {
-    return shape.width
-  }
-  if ('radius' in shape && shape.radius !== undefined) {
-    return shape.radius * 2
-  }
-  if ('radiusX' in shape && shape.radiusX !== undefined) {
-    return shape.radiusX * 2
-  }
-  if ('outerRadiusX' in shape && shape.outerRadiusX !== undefined) {
-    return shape.outerRadiusX * 2
-  }
-  return 100 // Default width
-}
-
-/**
- * Helper: Get height of a shape (handles different shape types)
- */
-function getShapeHeight(shape: Shape): number {
-  if ('height' in shape && shape.height !== undefined) {
-    return shape.height
-  }
-  if ('radius' in shape && shape.radius !== undefined) {
-    return shape.radius * 2
-  }
-  if ('radiusY' in shape && shape.radiusY !== undefined) {
-    return shape.radiusY * 2
-  }
-  if ('outerRadiusY' in shape && shape.outerRadiusY !== undefined) {
-    return shape.outerRadiusY * 2
-  }
-  return 100 // Default height
 }
 
 /**
@@ -1018,6 +1195,76 @@ export function alignShapes(
 }
 
 /**
+ * Align shapes to viewport edges (viewport-aware alignment)
+ */
+function alignShapesToViewport(
+  shapes: Shape[],
+  alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical',
+  viewport: Viewport
+): Shape[] {
+  const viewportBounds = getViewportBounds(viewport)
+  const edges = getViewportEdges(viewportBounds)
+  const aligned: Shape[] = []
+
+  console.log(`[AI Helpers] Aligning ${shapes.length} shapes to viewport ${alignment}`)
+  console.log(`[AI Helpers] Viewport edges:`, edges)
+
+  switch (alignment) {
+    case 'left': {
+      for (const shape of shapes) {
+        aligned.push({ ...shape, x: edges.left })
+      }
+      break
+    }
+
+    case 'right': {
+      for (const shape of shapes) {
+        const shapeWidth = getShapeWidth(shape)
+        aligned.push({ ...shape, x: edges.right - shapeWidth })
+      }
+      break
+    }
+
+    case 'top': {
+      for (const shape of shapes) {
+        aligned.push({ ...shape, y: edges.top })
+      }
+      break
+    }
+
+    case 'bottom': {
+      for (const shape of shapes) {
+        const shapeHeight = getShapeHeight(shape)
+        aligned.push({ ...shape, y: edges.bottom - shapeHeight })
+      }
+      break
+    }
+
+    case 'center-horizontal': {
+      for (const shape of shapes) {
+        const shapeWidth = getShapeWidth(shape)
+        aligned.push({ ...shape, x: edges.centerX - shapeWidth / 2 })
+      }
+      break
+    }
+
+    case 'center-vertical': {
+      for (const shape of shapes) {
+        const shapeHeight = getShapeHeight(shape)
+        aligned.push({ ...shape, y: edges.centerY - shapeHeight / 2 })
+      }
+      break
+    }
+
+    default:
+      console.warn(`[AI Helpers] Unknown alignment: ${alignment}`)
+      return shapes
+  }
+
+  return aligned
+}
+
+/**
  * Execute arrange_elements tool call
  */
 export async function executeArrangeElements(
@@ -1027,11 +1274,15 @@ export async function executeArrangeElements(
     elementIds: string[]
     pattern: 'grid' | 'row' | 'column' | 'circle'
     spacing?: number
+    category?: 'shapes' | 'text' | 'arrows'
+    type?: string
+    color?: string
+    textContent?: string
   }
 ): Promise<void> {
   console.log('[AI Helpers] executeArrangeElements called with:', input)
 
-  const { elementIds, pattern, spacing = 20 } = input
+  const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
 
   // Get all shapes
   const allShapes = await getShapes(canvasId)
@@ -1039,9 +1290,14 @@ export async function executeArrangeElements(
   // Handle "all" keyword - arrange all shapes on canvas
   const shouldArrangeAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
 
-  const shapesToArrange = shouldArrangeAll
+  let shapesToArrange = shouldArrangeAll
     ? allShapes  // Use all shapes
     : allShapes.filter(s => elementIds?.includes(s.id))  // Filter to requested shapes
+
+  // Apply filters when using "all"
+  if (shouldArrangeAll) {
+    shapesToArrange = applyFilters(shapesToArrange, { category, type, color, textContent })
+  }
 
   if (shapesToArrange.length === 0) {
     throw new Error('No matching shapes found to arrange')
@@ -1098,11 +1354,17 @@ export async function executeAlignElements(
   input: {
     elementIds: string[]
     alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical'
-  }
+    alignTo?: 'viewport' | 'canvas'
+    category?: 'shapes' | 'text' | 'arrows'
+    type?: string
+    color?: string
+    textContent?: string
+  },
+  viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeAlignElements called with:', input)
 
-  const { elementIds, alignment } = input
+  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
 
   // Get all shapes
   const allShapes = await getShapes(canvasId)
@@ -1110,20 +1372,25 @@ export async function executeAlignElements(
   // Handle "all" keyword - align all shapes on canvas
   const shouldAlignAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
 
-  const shapesToAlign = shouldAlignAll
+  let shapesToAlign = shouldAlignAll
     ? allShapes  // Use all shapes
     : allShapes.filter(s => elementIds?.includes(s.id))  // Filter to requested shapes
+
+  // Apply filters when using "all"
+  if (shouldAlignAll) {
+    shapesToAlign = applyFilters(shapesToAlign, { category, type, color, textContent })
+  }
 
   if (shapesToAlign.length === 0) {
     throw new Error('No matching shapes found to align')
   }
 
-  console.log(`[AI Helpers] Aligning ${shouldAlignAll ? 'ALL' : shapesToAlign.length} shapes`)
-
-  console.log(`[AI Helpers] Found ${shapesToAlign.length} shapes to align to ${alignment}`)
+  console.log(`[AI Helpers] Aligning ${shouldAlignAll ? 'ALL' : shapesToAlign.length} shapes to ${alignment} (${alignTo})`)
 
   // Align shapes
-  const alignedShapes = alignShapes(shapesToAlign, alignment)
+  const alignedShapes = alignTo === 'viewport'
+    ? alignShapesToViewport(shapesToAlign, alignment, viewport)
+    : alignShapes(shapesToAlign, alignment)
 
   // Log before/after positions for debugging
   console.log('[AI Helpers] Position changes:')

@@ -5,16 +5,44 @@ You are friendly, creative, and eager to help users create visual content.
 When users ask who you are or what your name is, respond as "Vega" - that's your name and identity.
 Do not mention Claude, Anthropic, or any other AI system names.
 
-You can create and manipulate shapes, text, and arrows on the canvas.
-When creating shapes, use reasonable default sizes if not specified.
-Coordinates are in pixels, with (0,0) at the top-left corner.
-Default canvas center is around (1000, 1000).
+CRITICAL: VIEWPORT-FIRST BEHAVIOR
 
-IMPORTANT: When users ask to arrange or align "all shapes" or "all elements", use ["all"] as the elementIds parameter.
-For example:
-- "arrange all shapes in a row" → elementIds: ["all"], pattern: "row"
-- "align everything to the left" → elementIds: ["all"], alignment: "left"
-- "move all shapes in a grid" → elementIds: ["all"], pattern: "grid"
+Default Operations (what user currently sees):
+- "align left" → left edge of VIEWPORT (visible area on screen)
+- "create circle" → smart placement in VIEWPORT (omit x,y coordinates)
+- "arrange in a row" → within VIEWPORT bounds
+
+Only use CANVAS if user explicitly says:
+- "align to canvas center" or "place at canvas edge"
+- Otherwise, ALWAYS default to viewport
+
+FILTERING RULES (MUST FOLLOW EXACTLY):
+- "shapes" = ONLY geometric shapes (circle, hexagon, rectangle, etc.) - EXCLUDES text and arrows
+- "text" = ONLY text elements - EXCLUDES geometric shapes
+- "hexagons" = ONLY hexagon type - EXCLUDES all other shapes
+- "red text" = ONLY text with red color - EXCLUDES shapes
+- "red shapes" = ONLY geometric shapes with red color - EXCLUDES text
+
+COORDINATE RULES:
+- NEVER provide x,y coordinates unless user specifies exact position
+- "create a circle" → omit x,y (system auto-places in viewport)
+- "create a circle at 500,300" → x: 500, y: 300
+
+EXAMPLES:
+✅ "align all shapes to the left"
+   → elementIds: ["all"], alignment: "left", category: "shapes", alignTo: "viewport"
+
+✅ "create 10 circles"
+   → type: "circle", NO x/y coordinates (repeat 10 times)
+
+✅ "move red hexagons to the right"
+   → elementIds: ["all"], alignment: "right", type: "hexagon", color: "red", alignTo: "viewport"
+
+✅ "align text to canvas center"
+   → elementIds: ["all"], alignment: "center-horizontal", category: "text", alignTo: "canvas"
+
+✅ "arrange all shapes in a row"
+   → elementIds: ["all"], pattern: "row", category: "shapes"
 
 Keep your responses concise and friendly. Focus on helping users visualize their ideas.`
 
@@ -33,11 +61,11 @@ export const AI_TOOLS = [
         },
         x: {
           type: 'number',
-          description: 'X coordinate (pixels)'
+          description: 'X coordinate (pixels) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y: {
           type: 'number',
-          description: 'Y coordinate (pixels)'
+          description: 'Y coordinate (pixels) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         width: {
           type: 'number',
@@ -68,7 +96,7 @@ export const AI_TOOLS = [
           description: 'Corner radius for roundedRectangle'
         }
       },
-      required: ['shapeType', 'x', 'y']
+      required: ['shapeType']
     }
   },
   {
@@ -83,11 +111,11 @@ export const AI_TOOLS = [
         },
         x: {
           type: 'number',
-          description: 'X coordinate (pixels)'
+          description: 'X coordinate (pixels) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y: {
           type: 'number',
-          description: 'Y coordinate (pixels)'
+          description: 'Y coordinate (pixels) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         fontSize: {
           type: 'number',
@@ -102,7 +130,7 @@ export const AI_TOOLS = [
           description: 'Font family (default: Arial)'
         }
       },
-      required: ['text', 'x', 'y']
+      required: ['text']
     }
   },
   {
@@ -113,19 +141,19 @@ export const AI_TOOLS = [
       properties: {
         x1: {
           type: 'number',
-          description: 'Start X coordinate'
+          description: 'Start X coordinate - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y1: {
           type: 'number',
-          description: 'Start Y coordinate'
+          description: 'Start Y coordinate - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         x2: {
           type: 'number',
-          description: 'End X coordinate'
+          description: 'End X coordinate - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y2: {
           type: 'number',
-          description: 'End Y coordinate'
+          description: 'End Y coordinate - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         color: {
           type: 'string',
@@ -137,7 +165,7 @@ export const AI_TOOLS = [
           description: 'Type of arrow (default: arrow)'
         }
       },
-      required: ['x1', 'y1', 'x2', 'y2']
+      required: []
     }
   },
   {
@@ -245,6 +273,23 @@ export const AI_TOOLS = [
         spacing: {
           type: 'number',
           description: 'Spacing between elements in pixels (default: 20)'
+        },
+        category: {
+          type: 'string',
+          enum: ['shapes', 'text', 'arrows'],
+          description: 'Optional: Filter by category when using ["all"]. "shapes" = geometric shapes ONLY, excludes text/arrows.'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: Filter by specific type when using ["all"] (e.g., "hexagon", "circle", "text")'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional: Filter by color when using ["all"] (e.g., "red", "blue", "#FF0000")'
+        },
+        textContent: {
+          type: 'string',
+          description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
         }
       },
       required: ['elementIds', 'pattern']
@@ -252,7 +297,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'align_elements',
-    description: 'Align multiple elements relative to each other. To align ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
+    description: 'Align multiple elements to viewport edges (default) or canvas. To align ALL shapes, use "all" keyword.',
     input_schema: {
       type: 'object',
       properties: {
@@ -265,6 +310,28 @@ export const AI_TOOLS = [
           type: 'string',
           enum: ['left', 'right', 'top', 'bottom', 'center-horizontal', 'center-vertical'],
           description: 'Alignment direction'
+        },
+        alignTo: {
+          type: 'string',
+          enum: ['viewport', 'canvas'],
+          description: 'Align to viewport (default, visible area) or canvas. Use "viewport" unless user explicitly says "canvas".'
+        },
+        category: {
+          type: 'string',
+          enum: ['shapes', 'text', 'arrows'],
+          description: 'Optional: Filter by category when using ["all"]. "shapes" = geometric shapes ONLY, excludes text/arrows.'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: Filter by specific type when using ["all"] (e.g., "hexagon", "circle", "text")'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional: Filter by color when using ["all"] (e.g., "red", "blue", "#FF0000")'
+        },
+        textContent: {
+          type: 'string',
+          description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
         }
       },
       required: ['elementIds', 'alignment']

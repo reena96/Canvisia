@@ -6,6 +6,7 @@ import { AI_TOOLS, SYSTEM_PROMPT } from '@/services/ai/tools'
 // import { buildContext } from '@/services/ai/context'
 import { executeToolCalls } from '@/services/ai/executor'
 // import { useFirestore } from '@/hooks/useFirestore'
+import { useCanvasStore } from '@/stores/canvasStore'
 
 // Helper function to generate descriptive responses based on tool calls
 function generateToolCallResponse(toolCalls: any[]): string {
@@ -88,6 +89,7 @@ function generateToolCallResponse(toolCalls: any[]): string {
 export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse: string) => void) {
   const { user } = useAuth()
   // const { shapes} = useFirestore(canvasId)
+  const viewport = useCanvasStore((state) => state.viewport)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const [lockOwner, setLockOwner] = useState<string | null>(null)
@@ -139,7 +141,7 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
       // Execute tool calls
       if (response.tool_calls && response.tool_calls.length > 0) {
-        await executeToolCalls(response.tool_calls, canvasId, user.uid)
+        await executeToolCalls(response.tool_calls, canvasId, user.uid, viewport)
         const aiResponse = generateToolCallResponse(response.tool_calls)
         onMessage?.(command, aiResponse)
       } else {

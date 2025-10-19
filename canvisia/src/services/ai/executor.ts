@@ -1,4 +1,5 @@
 import type { AIToolCall } from '@/types/ai'
+import type { Viewport } from '@/types/canvas'
 import {
   executeCreateShape,
   executeCreateText,
@@ -17,9 +18,10 @@ import {
 export async function executeToolCalls(
   toolCalls: AIToolCall[],
   canvasId: string,
-  userId: string
+  userId: string,
+  viewport: Viewport
 ): Promise<void> {
-  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId, 'userId:', userId)
+  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId, 'userId:', userId, 'viewport:', viewport)
 
   for (const toolCall of toolCalls) {
     try {
@@ -27,33 +29,33 @@ export async function executeToolCalls(
 
       switch (toolCall.name) {
         case 'create_shape':
-          await executeCreateShape(canvasId, userId, toolCall.input as any)
+          await executeCreateShape(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_shape completed successfully')
           break
 
         case 'create_text':
-          await executeCreateText(canvasId, userId, toolCall.input as any)
+          await executeCreateText(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_text completed successfully')
           break
 
         case 'create_arrow':
-          await executeCreateArrow(canvasId, userId, toolCall.input as any)
+          await executeCreateArrow(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_arrow completed successfully')
           break
 
         // PR 15: Manipulation Commands
         case 'move_element':
-          await executeMoveElement(canvasId, userId, toolCall.input as any)
+          await executeMoveElement(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] move_element completed successfully')
           break
 
         case 'resize_element':
-          await executeResizeElement(canvasId, userId, toolCall.input as any)
+          await executeResizeElement(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] resize_element completed successfully')
           break
 
         case 'rotate_element':
-          await executeRotateElement(canvasId, userId, toolCall.input as any)
+          await executeRotateElement(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] rotate_element completed successfully')
           break
 
@@ -64,7 +66,7 @@ export async function executeToolCalls(
           break
 
         case 'align_elements':
-          await executeAlignElements(canvasId, userId, toolCall.input as any)
+          await executeAlignElements(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] align_elements completed successfully')
           break
 
