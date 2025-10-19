@@ -1902,13 +1902,61 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     // Multi-select resize - read final state from Konva nodes and save to Firestore
     if (selectedIds.length > 1) {
       try {
+        // First, update local React state immediately for all shapes
+        selectedIds.forEach(id => {
+          const node = cachedNodes.current.get(id)
+          const initialShape = initialShapesData.current.get(id)
+          if (!node || !initialShape) return
+
+          // Read final values from Konva node
+          let updates: Partial<Shape> = {
+            x: node.x(),
+            y: node.y()
+          }
+
+          // Read dimensions based on shape type
+          if ('width' in initialShape && 'height' in initialShape) {
+            (updates as any).width = node.width();
+            (updates as any).height = node.height()
+          } else if ('radius' in initialShape && !('radiusX' in initialShape)) {
+            (updates as any).radius = node.radius()
+          } else if ('radiusX' in initialShape && 'radiusY' in initialShape) {
+            (updates as any).radiusX = node.radiusX();
+            (updates as any).radiusY = node.radiusY()
+          } else if ('outerRadiusX' in initialShape && 'outerRadiusY' in initialShape) {
+            // Star - read from node and store as X/Y properties
+            const outerRadius = node.outerRadius()
+            const innerRadius = node.innerRadius();
+            (updates as any).outerRadiusX = outerRadius;
+            (updates as any).outerRadiusY = outerRadius;
+            (updates as any).innerRadiusX = innerRadius;
+            (updates as any).innerRadiusY = innerRadius
+          } else if ('x2' in initialShape && 'y2' in initialShape) {
+            // Lines/arrows - calculate from points array
+            const points = node.points()
+            const x = node.x()
+            const y = node.y();
+            (updates as any).x2 = x + points[points.length - 2];
+            (updates as any).y2 = y + points[points.length - 1]
+
+            if ('bendX' in initialShape && 'bendY' in initialShape && points.length === 6) {
+              (updates as any).bendX = x + points[2];
+              (updates as any).bendY = y + points[3]
+            }
+          }
+
+          // Update local state immediately (before async Firestore save)
+          updateShapeLocal(id, updates)
+        })
+
+        // Then save to Firestore asynchronously
         await Promise.all(
           selectedIds.map(id => {
             const node = cachedNodes.current.get(id)
             const initialShape = initialShapesData.current.get(id)
             if (!node || !initialShape) return Promise.resolve()
 
-            // Read final values from Konva node
+            // Read final values from Konva node (same as above)
             let updates: Partial<Shape> = {
               x: node.x(),
               y: node.y()
@@ -1967,7 +2015,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         }
       }
     }
-  }, [selectedIds, selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape])
+  }, [selectedIds, selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape, updateShapeLocal])
 
   // Rotation handlers
   const handleRotationStart = useCallback(() => {
