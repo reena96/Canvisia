@@ -1419,16 +1419,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   const handleResizeMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (!isResizing || !resizingHandle || !resizeStart) return
 
-    // Multi-select resize
-    if (selectedIds.length > 1 && initialGroupBounds) {
-      // TODO: Implement proportional group resizing
-      // For now, just return to prevent errors
-      return
-    }
-
-    // Single shape resize
-    if (!selectedShapeId || !initialShapeDimensions) return
-
     const stage = stageRef.current
     if (!stage) return
 
@@ -1436,8 +1426,111 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     if (!pointerPosition) return
 
     const currentPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-    let deltaX = currentPos.x - resizeStart.x
-    let deltaY = currentPos.y - resizeStart.y
+
+    // Multi-select resize - scale all shapes proportionally
+    if (selectedIds.length > 1 && initialGroupBounds) {
+      const { minX, minY, maxX, maxY } = initialGroupBounds
+      const initialWidth = maxX - minX
+      const initialHeight = maxY - minY
+      const initialCenterX = minX + initialWidth / 2
+      const initialCenterY = minY + initialHeight / 2
+
+      // Calculate new bounds based on handle and drag delta
+      let newMinX = minX
+      let newMinY = minY
+      let newMaxX = maxX
+      let newMaxY = maxY
+
+      const deltaX = currentPos.x - resizeStart.x
+      const deltaY = currentPos.y - resizeStart.y
+
+      // Update bounds based on which handle is being dragged
+      if (resizingHandle.includes('w')) newMinX = minX + deltaX
+      if (resizingHandle.includes('e')) newMaxX = maxX + deltaX
+      if (resizingHandle.includes('n')) newMinY = minY + deltaY
+      if (resizingHandle.includes('s')) newMaxY = maxY + deltaY
+
+      const newWidth = newMaxX - newMinX
+      const newHeight = newMaxY - newMinY
+
+      // Prevent negative or zero dimensions
+      if (newWidth <= 10 || newHeight <= 10) return
+
+      // Calculate scale factors
+      const scaleX = newWidth / initialWidth
+      const scaleY = newHeight / initialHeight
+
+      // Calculate new center (changes when dragging from edges)
+      const newCenterX = newMinX + newWidth / 2
+      const newCenterY = newMinY + newHeight / 2
+
+      // Apply transformations to all selected shapes
+      selectedIds.forEach(id => {
+        const initialShape = initialShapesData.current.get(id)
+        if (!initialShape) return
+
+        // Calculate shape's position relative to initial group center
+        const relX = initialShape.x - initialCenterX
+        const relY = initialShape.y - initialCenterY
+
+        // Scale the relative position
+        const newRelX = relX * scaleX
+        const newRelY = relY * scaleY
+
+        // Calculate new absolute position
+        const newX = newCenterX + newRelX
+        const newY = newCenterY + newRelY
+
+        let updates: Partial<Shape> = { x: newX, y: newY }
+
+        // Scale shape dimensions based on type
+        if ('width' in initialShape && 'height' in initialShape) {
+          (updates as any).width = initialShape.width * scaleX;
+          (updates as any).height = initialShape.height * scaleY
+        } else if ('radius' in initialShape && !('radiusX' in initialShape)) {
+          // Circle - use average scale to maintain circular shape
+          const avgScale = (scaleX + scaleY) / 2;
+          (updates as any).radius = initialShape.radius * avgScale
+        } else if ('radiusX' in initialShape && 'radiusY' in initialShape) {
+          (updates as any).radiusX = initialShape.radiusX * scaleX;
+          (updates as any).radiusY = initialShape.radiusY * scaleY
+        } else if ('outerRadiusX' in initialShape && 'outerRadiusY' in initialShape) {
+          // Star
+          (updates as any).outerRadiusX = initialShape.outerRadiusX * scaleX;
+          (updates as any).outerRadiusY = initialShape.outerRadiusY * scaleY
+          if ('innerRadiusX' in initialShape && 'innerRadiusY' in initialShape) {
+            (updates as any).innerRadiusX = initialShape.innerRadiusX * scaleX;
+            (updates as any).innerRadiusY = initialShape.innerRadiusY * scaleY
+          }
+        } else if ('x2' in initialShape && 'y2' in initialShape) {
+          // Lines, arrows, connectors - scale endpoints
+          const relX2 = initialShape.x2 - initialCenterX
+          const relY2 = initialShape.y2 - initialCenterY;
+          (updates as any).x2 = newCenterX + relX2 * scaleX;
+          (updates as any).y2 = newCenterY + relY2 * scaleY
+
+          if ('bendX' in initialShape && 'bendY' in initialShape) {
+            // Bent connector - also scale bend point
+            const relBendX = initialShape.bendX - initialCenterX
+            const relBendY = initialShape.bendY - initialCenterY;
+            (updates as any).bendX = newCenterX + relBendX * scaleX;
+            (updates as any).bendY = newCenterY + relBendY * scaleY
+          }
+        }
+
+        // Apply optimistic update
+        updateShapeLocal(id, updates)
+      })
+
+      return
+    }
+
+    // Single shape resize
+    if (!selectedShapeId || !initialShapeDimensions) return
+
+    const currentPosForSingle = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+    let deltaX = currentPosForSingle.x - resizeStart.x
+    let deltaY = currentPosForSingle.y - resizeStart.y
 
     const shiftPressed = e.evt?.shiftKey || false
     let updates: Partial<Shape> = {}
@@ -1625,48 +1718,107 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   }, [isResizing, resizingHandle, resizeStart, selectedShapeId, initialShapeDimensions, selectedIds, initialGroupBounds, viewport, updateShapeLocal, updateShapeThrottled])
 
   const handleResizeEnd = useCallback(async () => {
-    if (!selectedShapeId || !isResizing) return
+    if (!isResizing) return
 
     setIsResizing(false)
     setResizingHandle(null)
     setResizeStart(null)
     setInitialShapeDimensions(null)
+    setInitialGroupBounds(null)
 
-    // Final update to ensure sync
-    const currentShape = shapes.find(s => s.id === selectedShapeId)
-    if (currentShape) {
+    // Multi-select resize - save all shapes
+    if (selectedIds.length > 1) {
       try {
-        await updateShape(selectedShapeId, { ...localShapeUpdates[selectedShapeId] })
+        await Promise.all(
+          selectedIds.map(id => {
+            const updates = localShapeUpdates[id]
+            if (updates) {
+              return updateShape(id, updates)
+            }
+            return Promise.resolve()
+          })
+        )
+        initialShapesData.current.clear()
       } catch (err) {
-        console.error('Failed to save final resize:', err)
+        console.error('Failed to save group resize:', err)
         setError('Failed to save resize. Please try again.')
       }
     }
-  }, [selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape])
+    // Single shape resize
+    else if (selectedShapeId) {
+      const currentShape = shapes.find(s => s.id === selectedShapeId)
+      if (currentShape) {
+        try {
+          await updateShape(selectedShapeId, { ...localShapeUpdates[selectedShapeId] })
+        } catch (err) {
+          console.error('Failed to save final resize:', err)
+          setError('Failed to save resize. Please try again.')
+        }
+      }
+    }
+  }, [selectedIds, selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape])
 
   // Rotation handlers
   const handleRotationStart = useCallback(() => {
     const stage = stageRef.current
     if (!stage) return
 
-    const selectedShape = shapes.find(s => s.id === selectedShapeId)
-    if (!selectedShape) return
-
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
 
     const currentPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-    const initialAngle = calculateRotationDelta(selectedShape, currentPos.x, currentPos.y)
 
-    setIsRotating(true)
-    setRotationStart({
-      angle: initialAngle,
-      initialRotation: selectedShape.rotation
-    })
-  }, [selectedShapeId, shapes, viewport])
+    // Multi-select rotation
+    if (selectedIds.length > 1) {
+      const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
+
+      // Calculate group center
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      selectedShapes.forEach(shape => {
+        minX = Math.min(minX, shape.x)
+        minY = Math.min(minY, shape.y)
+        maxX = Math.max(maxX, shape.x)
+        maxY = Math.max(maxY, shape.y)
+      })
+
+      const groupCenterX = (minX + maxX) / 2
+      const groupCenterY = (minY + maxY) / 2
+
+      // Calculate initial angle relative to group center
+      const deltaX = currentPos.x - groupCenterX
+      const deltaY = currentPos.y - groupCenterY
+      const initialAngle = Math.atan2(deltaY, deltaX) * 180 / Math.PI
+
+      // Store initial data for all shapes
+      initialShapesData.current.clear()
+      selectedShapes.forEach(shape => {
+        initialShapesData.current.set(shape.id, { ...shape })
+      })
+
+      setInitialGroupBounds({ minX, minY, maxX, maxY })
+      setIsRotating(true)
+      setRotationStart({
+        angle: initialAngle,
+        initialRotation: 0 // Not used for multi-select
+      })
+    }
+    // Single shape rotation
+    else if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId)
+      if (!selectedShape) return
+
+      const initialAngle = calculateRotationDelta(selectedShape, currentPos.x, currentPos.y)
+
+      setIsRotating(true)
+      setRotationStart({
+        angle: initialAngle,
+        initialRotation: selectedShape.rotation
+      })
+    }
+  }, [selectedIds, selectedShapeId, shapes, viewport])
 
   const handleRotationMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    if (!isRotating || !selectedShapeId || !rotationStart) return
+    if (!isRotating || !rotationStart) return
 
     const stage = stageRef.current
     if (!stage) return
@@ -1674,47 +1826,143 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     const pointerPosition = stage.getPointerPosition()
     if (!pointerPosition) return
 
-    const selectedShape = shapes.find(s => s.id === selectedShapeId)
-    if (!selectedShape) return
-
     const currentPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-    const currentAngle = calculateRotationDelta(selectedShape, currentPos.x, currentPos.y)
 
-    // Calculate the angle delta from the initial drag position
-    let angleDelta = currentAngle - rotationStart.angle
+    // Multi-select rotation - rotate all shapes around group center
+    if (selectedIds.length > 1 && initialGroupBounds) {
+      const { minX, minY, maxX, maxY } = initialGroupBounds
+      const groupCenterX = (minX + maxX) / 2
+      const groupCenterY = (minY + maxY) / 2
 
-    // Calculate new rotation by adding delta to initial rotation
-    let newRotation = rotationStart.initialRotation + angleDelta
+      // Calculate current angle relative to group center
+      const deltaX = currentPos.x - groupCenterX
+      const deltaY = currentPos.y - groupCenterY
+      const currentAngle = Math.atan2(deltaY, deltaX) * 180 / Math.PI
 
-    // Normalize to 0-360 range
-    newRotation = normalizeAngle(newRotation)
+      // Calculate rotation delta
+      let angleDelta = currentAngle - rotationStart.angle
 
-    // Snap to 15-degree increments if shift is pressed
-    if (e.evt?.shiftKey) {
-      newRotation = snapAngle(newRotation, 15)
+      // Snap to 15-degree increments if shift is pressed
+      if (e.evt?.shiftKey) {
+        angleDelta = Math.round(angleDelta / 15) * 15
+      }
+
+      const angleRad = angleDelta * Math.PI / 180
+
+      // Rotate all shapes around group center
+      selectedIds.forEach(id => {
+        const initialShape = initialShapesData.current.get(id)
+        if (!initialShape) return
+
+        // Calculate position relative to group center
+        const relX = initialShape.x - groupCenterX
+        const relY = initialShape.y - groupCenterY
+
+        // Rotate position around group center
+        const cos = Math.cos(angleRad)
+        const sin = Math.sin(angleRad)
+        const newRelX = relX * cos - relY * sin
+        const newRelY = relX * sin + relY * cos
+
+        // Calculate new absolute position
+        const newX = groupCenterX + newRelX
+        const newY = groupCenterY + newRelY
+
+        // Update shape position and rotation
+        const newRotation = normalizeAngle((initialShape.rotation || 0) + angleDelta)
+
+        let updates: Partial<Shape> = {
+          x: newX,
+          y: newY,
+          rotation: newRotation
+        }
+
+        // For lines/arrows/connectors, also rotate endpoints
+        if ('x2' in initialShape && 'y2' in initialShape) {
+          const relX2 = initialShape.x2 - groupCenterX
+          const relY2 = initialShape.y2 - groupCenterY
+          const newRelX2 = relX2 * cos - relY2 * sin
+          const newRelY2 = relX2 * sin + relY2 * cos;
+          (updates as any).x2 = groupCenterX + newRelX2;
+          (updates as any).y2 = groupCenterY + newRelY2
+
+          if ('bendX' in initialShape && 'bendY' in initialShape) {
+            const relBendX = initialShape.bendX - groupCenterX
+            const relBendY = initialShape.bendY - groupCenterY
+            const newRelBendX = relBendX * cos - relBendY * sin
+            const newRelBendY = relBendX * sin + relBendY * cos;
+            (updates as any).bendX = groupCenterX + newRelBendX;
+            (updates as any).bendY = groupCenterY + newRelBendY
+          }
+        }
+
+        updateShapeLocal(id, updates)
+      })
     }
+    // Single shape rotation
+    else if (selectedShapeId) {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId)
+      if (!selectedShape) return
 
-    updateShapeLocal(selectedShapeId, { rotation: newRotation })
-    updateShapeThrottled(selectedShapeId, { rotation: newRotation })
-  }, [isRotating, selectedShapeId, rotationStart, shapes, viewport, updateShapeLocal, updateShapeThrottled])
+      const currentAngle = calculateRotationDelta(selectedShape, currentPos.x, currentPos.y)
+
+      // Calculate the angle delta from the initial drag position
+      let angleDelta = currentAngle - rotationStart.angle
+
+      // Calculate new rotation by adding delta to initial rotation
+      let newRotation = rotationStart.initialRotation + angleDelta
+
+      // Normalize to 0-360 range
+      newRotation = normalizeAngle(newRotation)
+
+      // Snap to 15-degree increments if shift is pressed
+      if (e.evt?.shiftKey) {
+        newRotation = snapAngle(newRotation, 15)
+      }
+
+      updateShapeLocal(selectedShapeId, { rotation: newRotation })
+      updateShapeThrottled(selectedShapeId, { rotation: newRotation })
+    }
+  }, [isRotating, selectedIds, selectedShapeId, rotationStart, initialGroupBounds, shapes, viewport, updateShapeLocal, updateShapeThrottled])
 
   const handleRotationEnd = useCallback(async () => {
-    if (!selectedShapeId || !isRotating) return
+    if (!isRotating) return
 
     setIsRotating(false)
     setRotationStart(null)
+    setInitialGroupBounds(null)
 
-    // Final update to ensure sync
-    const currentShape = shapes.find(s => s.id === selectedShapeId)
-    if (currentShape) {
+    // Multi-select rotation - save all shapes
+    if (selectedIds.length > 1) {
       try {
-        await updateShape(selectedShapeId, { rotation: currentShape.rotation })
+        await Promise.all(
+          selectedIds.map(id => {
+            const updates = localShapeUpdates[id]
+            if (updates) {
+              return updateShape(id, updates)
+            }
+            return Promise.resolve()
+          })
+        )
+        initialShapesData.current.clear()
       } catch (err) {
-        console.error('Failed to save final rotation:', err)
+        console.error('Failed to save group rotation:', err)
         setError('Failed to save rotation. Please try again.')
       }
     }
-  }, [selectedShapeId, isRotating, shapes, updateShape])
+    // Single shape rotation
+    else if (selectedShapeId) {
+      const currentShape = shapes.find(s => s.id === selectedShapeId)
+      if (currentShape) {
+        try {
+          await updateShape(selectedShapeId, { rotation: currentShape.rotation })
+        } catch (err) {
+          console.error('Failed to save final rotation:', err)
+          setError('Failed to save rotation. Please try again.')
+        }
+      }
+    }
+  }, [selectedIds, selectedShapeId, isRotating, shapes, localShapeUpdates, updateShape])
 
   // Zoom control handlers
   const handleZoomIn = useCallback(() => {
@@ -1969,6 +2217,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
               <MultiSelectResizeHandles
                 shapes={selectedShapes}
                 onResizeStart={handleResizeStart}
+                onRotationStart={handleRotationStart}
                 viewport={viewport}
               />
             )

@@ -1,16 +1,19 @@
-import { Group, Rect } from 'react-konva'
+import { Group, Rect, Circle } from 'react-konva'
 import type { ResizeHandle } from '@/utils/resizeCalculations'
 import type { Shape } from '@/types/shapes'
 
 interface MultiSelectResizeHandlesProps {
   shapes: Shape[]
   onResizeStart: (handle: ResizeHandle) => void
+  onRotationStart: () => void
   viewport: { zoom: number }
 }
 
 const HANDLE_SIZE = 8
 const HANDLE_COLOR = '#3B82F6'
 const HANDLE_STROKE = '#FFFFFF'
+const ROTATION_HANDLE_SIZE = 12
+const ROTATION_HANDLE_OFFSET = 40
 
 /**
  * Calculate the appropriate cursor based on handle position
@@ -32,8 +35,9 @@ function getCursor(handle: ResizeHandle): string {
 /**
  * Component that renders resize handles for multiple selected shapes
  * Shows 8 handles (4 corners + 4 edges) around the group bounding box
+ * Plus a rotation handle above the group
  */
-export function MultiSelectResizeHandles({ shapes, onResizeStart, viewport }: MultiSelectResizeHandlesProps) {
+export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStart, viewport }: MultiSelectResizeHandlesProps) {
   if (shapes.length === 0) return null
 
   // Calculate bounding box of all selected shapes
@@ -116,18 +120,24 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, viewport }: Mu
 
   const width = maxX - minX
   const height = maxY - minY
+  const centerX = minX + width / 2
+  const centerY = minY + height / 2
 
   // Resize handle positions (4 corners + 4 edges)
   const handles: { handle: ResizeHandle; x: number; y: number }[] = [
     { handle: 'nw', x: minX, y: minY },
-    { handle: 'n', x: minX + width / 2, y: minY },
+    { handle: 'n', x: centerX, y: minY },
     { handle: 'ne', x: maxX, y: minY },
-    { handle: 'w', x: minX, y: minY + height / 2 },
-    { handle: 'e', x: maxX, y: minY + height / 2 },
+    { handle: 'w', x: minX, y: centerY },
+    { handle: 'e', x: maxX, y: centerY },
     { handle: 'sw', x: minX, y: maxY },
-    { handle: 's', x: minX + width / 2, y: maxY },
+    { handle: 's', x: centerX, y: maxY },
     { handle: 'se', x: maxX, y: maxY },
   ]
+
+  // Rotation handle position (above the group)
+  const rotationHandleX = centerX
+  const rotationHandleY = minY - ROTATION_HANDLE_OFFSET
 
   return (
     <Group>
@@ -141,6 +151,46 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, viewport }: Mu
         strokeWidth={2 / viewport.zoom}
         dash={[8 / viewport.zoom, 4 / viewport.zoom]}
         listening={false}
+      />
+
+      {/* Rotation handle connector line */}
+      <Rect
+        x={rotationHandleX - 1}
+        y={rotationHandleY + ROTATION_HANDLE_SIZE}
+        width={2}
+        height={ROTATION_HANDLE_OFFSET - ROTATION_HANDLE_SIZE}
+        fill={HANDLE_COLOR}
+        listening={false}
+      />
+
+      {/* Rotation handle */}
+      <Circle
+        x={rotationHandleX}
+        y={rotationHandleY}
+        radius={ROTATION_HANDLE_SIZE / 2}
+        fill={HANDLE_COLOR}
+        stroke={HANDLE_STROKE}
+        strokeWidth={2}
+        onMouseDown={(e) => {
+          e.cancelBubble = true
+          onRotationStart()
+        }}
+        onTouchStart={(e) => {
+          e.cancelBubble = true
+          onRotationStart()
+        }}
+        onMouseEnter={(e) => {
+          const container = e.target.getStage()?.container()
+          if (container) {
+            container.style.cursor = 'grab'
+          }
+        }}
+        onMouseLeave={(e) => {
+          const container = e.target.getStage()?.container()
+          if (container) {
+            container.style.cursor = 'default'
+          }
+        }}
       />
 
       {/* Resize handles */}
