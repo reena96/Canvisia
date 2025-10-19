@@ -113,6 +113,10 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // PERFORMANCE: Cache shape data during drag to avoid array.find() on every mousemove
   const cachedShapeData = useRef<Map<string, { type: string; isLine: boolean; isBentConnector: boolean }>>(new Map())
 
+  // PERFORMANCE: Cache selection box node to move it during drag
+  const selectionBoxNode = useRef<any>(null)
+  const initialSelectionBoxPos = useRef<{ x: number; y: number } | null>(null)
+
   // PERFORMANCE: Batch RTDB position data (all shapes written in single update)
   const rtdbWriteQueue = useRef<Map<string, any>>(new Map())
 
@@ -1083,6 +1087,15 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       })
 
       initialDragPositions.current = positions
+
+      // PERFORMANCE: Cache selection box position for multi-select
+      if (shapesToMove.length > 1) {
+        const selectionBox = stage.findOne('#multi-select-box')
+        if (selectionBox) {
+          selectionBoxNode.current = selectionBox
+          initialSelectionBoxPos.current = { x: selectionBox.x(), y: selectionBox.y() }
+        }
+      }
     },
     [shapes, selectedIds]
   )
@@ -1181,6 +1194,12 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         // Add to batch for immediate write
         rtdbWriteQueue.current.set(id, positionData)
       })
+
+      // PERFORMANCE: Also move the selection box with the shapes
+      if (selectionBoxNode.current && initialSelectionBoxPos.current) {
+        selectionBoxNode.current.x(initialSelectionBoxPos.current.x + dx)
+        selectionBoxNode.current.y(initialSelectionBoxPos.current.y + dy)
+      }
 
       // PERFORMANCE: Write ALL positions in a SINGLE batch update IMMEDIATELY
       // This gives us both benefits: low latency (no delay) + low overhead (1 RTDB write instead of 100)
@@ -1284,6 +1303,8 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         movingShapeIds.current.clear()
         cachedNodes.current.clear()
         cachedShapeData.current.clear()
+        selectionBoxNode.current = null
+        initialSelectionBoxPos.current = null
       } catch (err) {
         console.error('Failed to update shape positions:', err)
         setError('Failed to save shape positions. Please try again.')
@@ -1929,6 +1950,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             const padding = 10 / viewport.zoom
             return (
               <Rect
+                id="multi-select-box"
                 x={minX - padding}
                 y={minY - padding}
                 width={maxX - minX + padding * 2}
