@@ -44,6 +44,19 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
 
   shapes.forEach(shape => {
+    // Debug: Log any shape with suspicious values
+    if (shape.x > 10000 || shape.y > 10000 ||
+        ('width' in shape && (shape.width === undefined || shape.width > 10000)) ||
+        ('height' in shape && (shape.height === undefined || shape.height > 10000))) {
+      console.warn('[MultiSelectResizeHandles] Suspicious shape data:', {
+        id: shape.id,
+        type: shape.type,
+        x: shape.x,
+        y: shape.y,
+        width: 'width' in shape ? shape.width : 'N/A',
+        height: 'height' in shape ? shape.height : 'N/A'
+      })
+    }
     let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
 
     // Calculate bounds based on shape type
@@ -112,10 +125,21 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
         break
     }
 
-    minX = Math.min(minX, left)
-    minY = Math.min(minY, top)
-    maxX = Math.max(maxX, right)
-    maxY = Math.max(maxY, bottom)
+    // Guard against NaN or invalid values
+    if (!isNaN(left) && !isNaN(right) && !isNaN(top) && !isNaN(bottom) &&
+        isFinite(left) && isFinite(right) && isFinite(top) && isFinite(bottom)) {
+      minX = Math.min(minX, left)
+      minY = Math.min(minY, top)
+      maxX = Math.max(maxX, right)
+      maxY = Math.max(maxY, bottom)
+    } else {
+      console.error('[MultiSelectResizeHandles] Invalid bounds for shape:', {
+        id: shape.id,
+        type: shape.type,
+        left, top, right, bottom,
+        shape
+      })
+    }
   })
 
   const width = maxX - minX

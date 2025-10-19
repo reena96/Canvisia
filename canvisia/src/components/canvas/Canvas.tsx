@@ -1933,22 +1933,32 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           }
 
           // Read dimensions based on shape type
+          // CRITICAL: Only add properties if they have valid values (not undefined/NaN)
           if ('width' in initialShape && 'height' in initialShape) {
-            (updates as any).width = node.width();
-            (updates as any).height = node.height()
+            const width = node.width()
+            const height = node.height()
+            if (width !== undefined && !isNaN(width)) (updates as any).width = width
+            if (height !== undefined && !isNaN(height)) (updates as any).height = height
           } else if ('radius' in initialShape && !('radiusX' in initialShape)) {
-            (updates as any).radius = node.radius()
+            const radius = node.radius()
+            if (radius !== undefined && !isNaN(radius)) (updates as any).radius = radius
           } else if ('radiusX' in initialShape && 'radiusY' in initialShape) {
-            (updates as any).radiusX = node.radiusX();
-            (updates as any).radiusY = node.radiusY()
+            const radiusX = node.radiusX()
+            const radiusY = node.radiusY()
+            if (radiusX !== undefined && !isNaN(radiusX)) (updates as any).radiusX = radiusX
+            if (radiusY !== undefined && !isNaN(radiusY)) (updates as any).radiusY = radiusY
           } else if ('outerRadiusX' in initialShape && 'outerRadiusY' in initialShape) {
             // Star - read from node and store as X/Y properties
             const outerRadius = node.outerRadius()
-            const innerRadius = node.innerRadius();
-            (updates as any).outerRadiusX = outerRadius;
-            (updates as any).outerRadiusY = outerRadius;
-            (updates as any).innerRadiusX = innerRadius;
-            (updates as any).innerRadiusY = innerRadius
+            const innerRadius = node.innerRadius()
+            if (outerRadius !== undefined && !isNaN(outerRadius)) {
+              (updates as any).outerRadiusX = outerRadius;
+              (updates as any).outerRadiusY = outerRadius
+            }
+            if (innerRadius !== undefined && !isNaN(innerRadius)) {
+              (updates as any).innerRadiusX = innerRadius;
+              (updates as any).innerRadiusY = innerRadius
+            }
           } else if ('x2' in initialShape && 'y2' in initialShape) {
             // Lines/arrows - calculate from points array
             const points = node.points()
@@ -1981,22 +1991,32 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             }
 
             // Read dimensions based on shape type
+            // CRITICAL: Only add properties if they have valid values (not undefined/NaN)
             if ('width' in initialShape && 'height' in initialShape) {
-              (updates as any).width = node.width();
-              (updates as any).height = node.height()
+              const width = node.width()
+              const height = node.height()
+              if (width !== undefined && !isNaN(width)) (updates as any).width = width
+              if (height !== undefined && !isNaN(height)) (updates as any).height = height
             } else if ('radius' in initialShape && !('radiusX' in initialShape)) {
-              (updates as any).radius = node.radius()
+              const radius = node.radius()
+              if (radius !== undefined && !isNaN(radius)) (updates as any).radius = radius
             } else if ('radiusX' in initialShape && 'radiusY' in initialShape) {
-              (updates as any).radiusX = node.radiusX();
-              (updates as any).radiusY = node.radiusY()
+              const radiusX = node.radiusX()
+              const radiusY = node.radiusY()
+              if (radiusX !== undefined && !isNaN(radiusX)) (updates as any).radiusX = radiusX
+              if (radiusY !== undefined && !isNaN(radiusY)) (updates as any).radiusY = radiusY
             } else if ('outerRadiusX' in initialShape && 'outerRadiusY' in initialShape) {
               // Star - read from node and store as X/Y properties
               const outerRadius = node.outerRadius()
-              const innerRadius = node.innerRadius();
-              (updates as any).outerRadiusX = outerRadius;
-              (updates as any).outerRadiusY = outerRadius;
-              (updates as any).innerRadiusX = innerRadius;
-              (updates as any).innerRadiusY = innerRadius
+              const innerRadius = node.innerRadius()
+              if (outerRadius !== undefined && !isNaN(outerRadius)) {
+                (updates as any).outerRadiusX = outerRadius;
+                (updates as any).outerRadiusY = outerRadius
+              }
+              if (innerRadius !== undefined && !isNaN(innerRadius)) {
+                (updates as any).innerRadiusX = innerRadius;
+                (updates as any).innerRadiusY = innerRadius
+              }
             } else if ('x2' in initialShape && 'y2' in initialShape) {
               // Lines/arrows - calculate from points array
               const points = node.points()
