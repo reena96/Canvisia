@@ -1940,27 +1940,27 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           // Read dimensions based on shape type
           // CRITICAL: Use Konva values if valid, otherwise fall back to initialShape
           if ('width' in initialShape && 'height' in initialShape) {
-            const width = node.width()
-            const height = node.height()
+            const width = node.width();
+            const height = node.height();
             // Use Konva values if valid, otherwise keep initialShape values
-            (updates as any).width = (width !== undefined && !isNaN(width) && width > 0) ? width : initialShape.width
-            ;(updates as any).height = (height !== undefined && !isNaN(height) && height > 0) ? height : initialShape.height
+            (updates as any).width = (width !== undefined && !isNaN(width) && width > 0) ? width : initialShape.width;
+            (updates as any).height = (height !== undefined && !isNaN(height) && height > 0) ? height : initialShape.height
           } else if ('radius' in initialShape && !('radiusX' in initialShape)) {
-            const nodeRadius = node.radius()
-            ;(updates as any).radius = (nodeRadius !== undefined && !isNaN(nodeRadius) && nodeRadius > 0) ? nodeRadius : initialShape.radius
+            const nodeRadius = node.radius();
+            (updates as any).radius = (nodeRadius !== undefined && !isNaN(nodeRadius) && nodeRadius > 0) ? nodeRadius : initialShape.radius
           } else if ('radiusX' in initialShape && 'radiusY' in initialShape) {
-            const radiusX = node.radiusX()
-            const radiusY = node.radiusY()
-            (updates as any).radiusX = (radiusX !== undefined && !isNaN(radiusX) && radiusX > 0) ? radiusX : initialShape.radiusX
-            ;(updates as any).radiusY = (radiusY !== undefined && !isNaN(radiusY) && radiusY > 0) ? radiusY : initialShape.radiusY
+            const radiusX = node.radiusX();
+            const radiusY = node.radiusY();
+            (updates as any).radiusX = (radiusX !== undefined && !isNaN(radiusX) && radiusX > 0) ? radiusX : initialShape.radiusX;
+            (updates as any).radiusY = (radiusY !== undefined && !isNaN(radiusY) && radiusY > 0) ? radiusY : initialShape.radiusY
           } else if ('outerRadiusX' in initialShape && 'outerRadiusY' in initialShape) {
             // Star - read from node and store as X/Y properties
-            const outerRadius = node.outerRadius()
-            const innerRadius = node.innerRadius()
-            (updates as any).outerRadiusX = (outerRadius !== undefined && !isNaN(outerRadius) && outerRadius > 0) ? outerRadius : initialShape.outerRadiusX
-            ;(updates as any).outerRadiusY = (outerRadius !== undefined && !isNaN(outerRadius) && outerRadius > 0) ? outerRadius : initialShape.outerRadiusY
-            ;(updates as any).innerRadiusX = (innerRadius !== undefined && !isNaN(innerRadius) && innerRadius > 0) ? innerRadius : initialShape.innerRadiusX
-            ;(updates as any).innerRadiusY = (innerRadius !== undefined && !isNaN(innerRadius) && innerRadius > 0) ? innerRadius : initialShape.innerRadiusY
+            const outerRadius = node.outerRadius();
+            const innerRadius = node.innerRadius();
+            (updates as any).outerRadiusX = (outerRadius !== undefined && !isNaN(outerRadius) && outerRadius > 0) ? outerRadius : initialShape.outerRadiusX;
+            (updates as any).outerRadiusY = (outerRadius !== undefined && !isNaN(outerRadius) && outerRadius > 0) ? outerRadius : initialShape.outerRadiusY;
+            (updates as any).innerRadiusX = (innerRadius !== undefined && !isNaN(innerRadius) && innerRadius > 0) ? innerRadius : initialShape.innerRadiusX;
+            (updates as any).innerRadiusY = (innerRadius !== undefined && !isNaN(innerRadius) && innerRadius > 0) ? innerRadius : initialShape.innerRadiusY
           } else if ('x2' in initialShape && 'y2' in initialShape) {
             // Lines/arrows - calculate from points array
             const points = node.points()
