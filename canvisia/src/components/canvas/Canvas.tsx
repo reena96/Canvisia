@@ -1481,9 +1481,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // Prevent negative or zero dimensions
       if (newWidth <= 10 || newHeight <= 10) return
 
-      // Update current group bounds for live selection box rendering
-      setCurrentGroupBounds({ minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY })
-
       // Calculate scale factors
       const scaleX = newWidth / initialWidth
       const scaleY = newHeight / initialHeight
@@ -1595,6 +1592,101 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // PERFORMANCE: Single batch RTDB write for all shapes
       writeBatchShapePositions(canvasId, rtdbWriteQueue.current).catch(() => {})
       rtdbWriteQueue.current.clear()
+
+      // Calculate actual bounding box from transformed shapes
+      let actualMinX = Infinity, actualMinY = Infinity, actualMaxX = -Infinity, actualMaxY = -Infinity
+
+      selectedIds.forEach(id => {
+        const node = cachedNodes.current.get(id)
+        const initialShape = initialShapesData.current.get(id)
+        if (!node || !initialShape) return
+
+        const x = node.x()
+        const y = node.y()
+        let left = x, top = y, right = x, bottom = y
+
+        // Calculate bounds based on shape type
+        switch (initialShape.type) {
+          case 'rectangle':
+          case 'roundedRectangle':
+          case 'cylinder':
+            // Rectangle-like shapes (center-based)
+            const width = node.width()
+            const height = node.height()
+            left = x - width / 2
+            top = y - height / 2
+            right = x + width / 2
+            bottom = y + height / 2
+            break
+
+          case 'circle':
+            // Circle
+            const radius = node.radius()
+            left = x - radius
+            top = y - radius
+            right = x + radius
+            bottom = y + radius
+            break
+
+          case 'ellipse':
+          case 'triangle':
+          case 'pentagon':
+          case 'hexagon':
+            // Ellipse, polygon
+            const radiusX = node.radiusX()
+            const radiusY = node.radiusY()
+            left = x - radiusX
+            top = y - radiusY
+            right = x + radiusX
+            bottom = y + radiusY
+            break
+
+          case 'star':
+            // Star
+            const outerRadius = node.outerRadius()
+            left = x - outerRadius
+            top = y - outerRadius
+            right = x + outerRadius
+            bottom = y + outerRadius
+            break
+
+          case 'text':
+            // Text (top-left based)
+            const textWidth = node.width()
+            const textHeight = node.height()
+            left = x
+            top = y
+            right = x + textWidth
+            bottom = y + textHeight
+            break
+
+          case 'line':
+          case 'arrow':
+          case 'bidirectionalArrow':
+          case 'bentConnector':
+            // Lines/connectors - get from points array
+            const points = node.points()
+            const xs = [x]
+            const ys = [y]
+            for (let i = 0; i < points.length; i += 2) {
+              xs.push(x + points[i])
+              ys.push(y + points[i + 1])
+            }
+            left = Math.min(...xs)
+            top = Math.min(...ys)
+            right = Math.max(...xs)
+            bottom = Math.max(...ys)
+            break
+        }
+
+        actualMinX = Math.min(actualMinX, left)
+        actualMinY = Math.min(actualMinY, top)
+        actualMaxX = Math.max(actualMaxX, right)
+        actualMaxY = Math.max(actualMaxY, bottom)
+      })
+
+      // Update current group bounds with actual calculated bounds
+      setCurrentGroupBounds({ minX: actualMinX, minY: actualMinY, maxX: actualMaxX, maxY: actualMaxY })
 
       // Redraw layer once for all updates
       const layer = stage.findOne('Layer')
