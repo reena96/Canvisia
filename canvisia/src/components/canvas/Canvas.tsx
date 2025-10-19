@@ -579,11 +579,29 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Clear local updates when Firestore syncs back
   useMemo(() => {
     // When firestoreShapes change, clear local updates for those shapes
+    // BUT ONLY if Firestore has actually caught up with the local changes
     setLocalShapeUpdates((prev) => {
       const updated = { ...prev }
       firestoreShapes.forEach((shape) => {
-        if (updated[shape.id]) {
-          delete updated[shape.id]
+        const localUpdate = updated[shape.id]
+        if (localUpdate) {
+          // Check if ALL properties in local update match Firestore shape
+          const allPropertiesMatch = Object.keys(localUpdate).every((key) => {
+            const localValue = localUpdate[key as keyof typeof localUpdate]
+            const firestoreValue = shape[key as keyof typeof shape]
+
+            // For numbers, use approximate equality (floating point tolerance)
+            if (typeof localValue === 'number' && typeof firestoreValue === 'number') {
+              return Math.abs(localValue - firestoreValue) < 0.01
+            }
+
+            return localValue === firestoreValue
+          })
+
+          // Only clear local update if Firestore has caught up
+          if (allPropertiesMatch) {
+            delete updated[shape.id]
+          }
         }
       })
       return updated
