@@ -2,6 +2,7 @@ import type { AIToolCall } from '@/types/ai'
 import type { Viewport } from '@/types/canvas'
 import {
   executeCreateShape,
+  executeCreateMultipleShapes,
   executeCreateText,
   executeCreateArrow,
   executeMoveElement,
@@ -31,6 +32,11 @@ export async function executeToolCalls(
         case 'create_shape':
           await executeCreateShape(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_shape completed successfully')
+          break
+
+        case 'create_multiple_shapes':
+          await executeCreateMultipleShapes(canvasId, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_multiple_shapes completed successfully')
           break
 
         case 'create_text':

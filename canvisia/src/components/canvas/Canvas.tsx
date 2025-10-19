@@ -31,11 +31,12 @@ import {
 } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
-import { throttle } from '@/utils/throttle'
 import type { Shape, Text } from '@/types/shapes'
+import { usePerformanceMonitor } from '@/hooks/usePerformanceMonitor'
 import { calculateRectangleResize, calculateCircleResize, calculateEllipseResize } from '@/utils/resizeCalculations'
 import { calculateRotationDelta, snapAngle, normalizeAngle } from '@/utils/rotationCalculations'
 import type { ResizeHandle } from '@/utils/resizeCalculations'
+import { writeShapePosition, clearShapePositions, subscribeToLivePositions, type LivePosition } from '@/services/rtdb'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
@@ -56,13 +57,28 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
   // Local state for tools and selection
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null)
+
+  // Use store's selectedIds for multi-select support
+  const selectedIds = useCanvasStore((state) => state.selectedIds)
+  const setSelectedIds = useCanvasStore((state) => state.setSelectedIds)
+  const selectShape = useCanvasStore((state) => state.selectShape)
+  const deselectShape = useCanvasStore((state) => state.deselectShape)
+  const clearSelection = useCanvasStore((state) => state.clearSelection)
+
+  // Helper to get first selected shape ID (for backward compatibility)
+  const selectedShapeId = selectedIds[0] || null
+
   // @ts-ignore - Used in later tasks
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
 
   // Pan state (for spacebar + drag)
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null)
+
+  // Drag-to-select state
+  const [isBoxSelecting, setIsBoxSelecting] = useState(false)
+  const [selectionBox, setSelectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null)
 
   // Text preview state (shows "Add text" following cursor)
   const [textPreviewPos, setTextPreviewPos] = useState<{ x: number; y: number } | null>(null)
@@ -80,6 +96,16 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Rotation state
   const [isRotating, setIsRotating] = useState(false)
   const [rotationStart, setRotationStart] = useState<{ angle: number; initialRotation: number } | null>(null)
+
+  // Multi-drag state: store initial positions when drag starts (using ref for synchronous access)
+  const initialDragPositions = useRef<Map<string, { x: number; y: number; x2?: number; y2?: number; bendX?: number; bendY?: number }>>(new Map())
+
+  // Track ALL shapes being moved during drag to prevent React interference with Konva's direct manipulation
+  const movingShapeIds = useRef<Set<string>>(new Set())
+
+  // Track shapes with active RTDB positions (being dragged by other users)
+  // This prevents Firestore updates from causing jitter during remote drags
+  const rtdbActiveShapeIds = useRef<Set<string>>(new Set())
 
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
@@ -124,6 +150,107 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Setup Firestore sync for shapes
   const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasId)
 
+  // Setup RTDB subscription for live position updates from other users
+  useEffect(() => {
+    console.log('[RTDB] Setting up live position subscription for canvas:', canvasId)
+
+    // Store pending position updates to be applied on next animation frame
+    const pendingPositions = new Map<string, LivePosition>()
+    let animationFrameId: number | null = null
+
+    // Apply updates on animation frame for smooth 60fps rendering
+    const applyPendingUpdates = () => {
+      const stage = stageRef.current
+      if (!stage || pendingPositions.size === 0) {
+        animationFrameId = null
+        return
+      }
+
+      // Process all pending position updates
+      pendingPositions.forEach((position, shapeId) => {
+        // Skip if this shape is being moved by the current user
+        if (movingShapeIds.current.has(shapeId)) {
+          return
+        }
+
+        // Skip if this update was made by the current user
+        if (position.updatedBy === userId) {
+          return
+        }
+
+        // Find the Konva node for this shape
+        const node = stage.findOne(`#${shapeId}`)
+        if (!node) {
+          return
+        }
+
+        // Update the node's position directly via Konva (bypasses React)
+        node.x(position.x)
+        node.y(position.y)
+
+        // For line-based shapes, also update endpoints via points array
+        const shape = firestoreShapes.find(s => s.id === shapeId)
+        if (!shape) return
+
+        if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+          if (position.x2 !== undefined && position.y2 !== undefined) {
+            node.points([0, 0, position.x2 - position.x, position.y2 - position.y])
+          }
+        } else if (shape.type === 'bentConnector') {
+          if (position.x2 !== undefined && position.y2 !== undefined &&
+              position.bendX !== undefined && position.bendY !== undefined) {
+            node.points([
+              0,
+              0,
+              position.bendX - position.x,
+              position.bendY - position.y,
+              position.x2 - position.x,
+              position.y2 - position.y,
+            ])
+          }
+        }
+      })
+
+      // Clear pending updates
+      pendingPositions.clear()
+
+      // Redraw the layer after all updates (once per frame)
+      const layer = stage.findOne('Layer')
+      if (layer) {
+        layer.batchDraw()
+      }
+
+      animationFrameId = null
+    }
+
+    const unsubscribe = subscribeToLivePositions(canvasId, (positions) => {
+      // Track which shapes have active RTDB positions
+      rtdbActiveShapeIds.current = new Set(positions.keys())
+
+      // Store all position updates
+      positions.forEach((position, shapeId) => {
+        pendingPositions.set(shapeId, position)
+      })
+
+      // Schedule update on next animation frame if not already scheduled
+      if (animationFrameId === null) {
+        animationFrameId = requestAnimationFrame(applyPendingUpdates)
+      }
+    })
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('[RTDB] Cleaning up live position subscription')
+      unsubscribe()
+      rtdbActiveShapeIds.current.clear() // Clear tracking on cleanup
+
+      // Cancel pending animation frame
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
+    }
+  }, [canvasId, userId])
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -133,25 +260,77 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         return
       }
 
-      // Delete key - remove selected shape
+      // Delete key - remove all selected shapes
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedShapeId) {
+        if (selectedIds.length > 0) {
           e.preventDefault()
           try {
-            await deleteShape(selectedShapeId)
-            setSelectedShapeId(null)
+            // Delete all selected shapes in parallel
+            await Promise.all(selectedIds.map(id => deleteShape(id)))
+            clearSelection()
           } catch (err) {
-            console.error('Failed to delete shape:', err)
-            setError('Failed to delete shape. Please try again.')
+            console.error('Failed to delete shapes:', err)
+            setError('Failed to delete shapes. Please try again.')
           }
         }
       }
 
-      // Escape key - deselect shape
+      // Escape key - deselect all shapes
       if (e.key === 'Escape') {
-        if (selectedShapeId) {
+        if (selectedIds.length > 0) {
           e.preventDefault()
-          setSelectedShapeId(null)
+          clearSelection()
+        }
+      }
+
+      // Layer ordering shortcuts
+      // Cmd/Ctrl + ] - Bring Forward
+      if ((e.metaKey || e.ctrlKey) && e.key === ']') {
+        if (selectedIds.length > 0) {
+          e.preventDefault()
+          selectedIds.forEach((id) => {
+            const shape = firestoreShapes.find(s => s.id === id)
+            if (shape) {
+              const currentZ = shape.zIndex || 0
+              updateShape(id, { zIndex: currentZ + 1 })
+            }
+          })
+        }
+      }
+
+      // Cmd/Ctrl + [ - Send Backward
+      if ((e.metaKey || e.ctrlKey) && e.key === '[') {
+        if (selectedIds.length > 0) {
+          e.preventDefault()
+          selectedIds.forEach((id) => {
+            const shape = firestoreShapes.find(s => s.id === id)
+            if (shape) {
+              const currentZ = shape.zIndex || 0
+              updateShape(id, { zIndex: currentZ - 1 })
+            }
+          })
+        }
+      }
+
+      // Cmd/Ctrl + Shift + ] - Bring to Front
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === ']') {
+        if (selectedIds.length > 0) {
+          e.preventDefault()
+          const maxZ = Math.max(...firestoreShapes.map(s => s.zIndex || 0), 0)
+          selectedIds.forEach((id) => {
+            updateShape(id, { zIndex: maxZ + 1 })
+          })
+        }
+      }
+
+      // Cmd/Ctrl + Shift + [ - Send to Back
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === '[') {
+        if (selectedIds.length > 0) {
+          e.preventDefault()
+          const minZ = Math.min(...firestoreShapes.map(s => s.zIndex || 0), 0)
+          selectedIds.forEach((id) => {
+            updateShape(id, { zIndex: minZ - 1 })
+          })
         }
       }
     }
@@ -160,7 +339,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [selectedShapeId, deleteShape])
+  }, [selectedIds, deleteShape, clearSelection, firestoreShapes, updateShape])
 
   // Auto-dismiss errors after 5 seconds
   useEffect(() => {
@@ -172,25 +351,188 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     }
   }, [error])
 
-  // Merge Firestore shapes with local optimistic updates
+  // Merge Firestore shapes with local optimistic updates and sort by zIndex
+  // CRITICAL: Use useRef to cache previous shapes and only create new objects when data changes
+  const prevShapesRef = useRef<Shape[]>([])
+
   const shapes = useMemo(() => {
-    return firestoreShapes.map((shape) => ({
-      ...shape,
-      ...(localShapeUpdates[shape.id] || {}),
-    })) as Shape[]
+
+    const merged = firestoreShapes.map((shape) => {
+      // CRITICAL: Don't apply any updates to ANY shape being moved during multi-drag
+      // This prevents React from interfering with Konva's direct node manipulation
+      if (movingShapeIds.current.has(shape.id)) {
+        // Return previous reference if data unchanged to prevent re-renders
+        const prevShape = prevShapesRef.current.find(s => s.id === shape.id)
+        if (prevShape &&
+            prevShape.x === shape.x &&
+            prevShape.y === shape.y &&
+            prevShape.updatedAt === shape.updatedAt) {
+          return prevShape // Same reference = no re-render
+        }
+        return shape
+      }
+
+      // CRITICAL: Don't apply Firestore updates to shapes with active RTDB positions
+      // This prevents jitter when remote users are dragging shapes
+      if (rtdbActiveShapeIds.current.has(shape.id)) {
+        // Return previous reference to freeze this shape in React
+        // RTDB subscription is updating Konva nodes directly
+        const prevShape = prevShapesRef.current.find(s => s.id === shape.id)
+        if (prevShape) {
+          return prevShape // Freeze in React, RTDB controls position
+        }
+        return shape
+      }
+
+      const localUpdate = localShapeUpdates[shape.id]
+
+      // If no local update, try to return previous reference to avoid re-render
+      if (!localUpdate) {
+        const prevShape = prevShapesRef.current.find(s => s.id === shape.id)
+        if (prevShape &&
+            prevShape.x === shape.x &&
+            prevShape.y === shape.y &&
+            prevShape.updatedAt === shape.updatedAt) {
+          return prevShape // Same reference = no re-render
+        }
+        return shape
+      }
+
+      // Has local update - merge and create new object
+      const mergedShape = {
+        ...shape,
+        ...localUpdate,
+      }
+
+      // Check if this matches previous merged version
+      const prevShape = prevShapesRef.current.find(s => s.id === shape.id)
+      if (prevShape &&
+          prevShape.x === mergedShape.x &&
+          prevShape.y === mergedShape.y &&
+          prevShape.updatedAt === mergedShape.updatedAt) {
+        return prevShape // Same data = return same reference
+      }
+
+      return mergedShape
+    }) as Shape[]
+
+    // Sort by zIndex for proper layer ordering (shapes with lower zIndex render first/behind)
+    const sorted = merged.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+
+    // Cache for next comparison
+    prevShapesRef.current = sorted
+
+    return sorted
   }, [firestoreShapes, localShapeUpdates])
 
-  // Throttled Firestore update function (10-20 updates per second)
-  // Using 50ms = 20 updates/sec, 100ms = 10 updates/sec
-  const updateShapeThrottled = useMemo(
-    () =>
-      throttle((shapeId: string, updates: Partial<Shape>) => {
-        updateShape(shapeId, updates).catch((error) => {
-          console.error('Throttled shape update failed:', error)
-        })
-      }, 50), // 20 updates per second
-    [updateShape]
+  // Viewport culling: filter shapes that are visible in current viewport
+  // This dramatically improves performance with 500+ objects
+  const visibleShapes = useMemo(() => {
+    // Calculate viewport bounds in canvas coordinates
+    // Canvas starts below header
+    const viewportLeft = -viewport.x / viewport.zoom
+    const viewportTop = -viewport.y / viewport.zoom
+    const viewportRight = (window.innerWidth - viewport.x) / viewport.zoom
+    const viewportBottom = ((window.innerHeight - CANVAS_CONFIG.HEADER_HEIGHT) - viewport.y) / viewport.zoom
+
+    // Add padding to viewport bounds to render shapes slightly outside viewport
+    // This prevents popping when shapes are partially visible
+    const padding = 200 / viewport.zoom
+    const left = viewportLeft - padding
+    const top = viewportTop - padding
+    const right = viewportRight + padding
+    const bottom = viewportBottom + padding
+
+    return shapes.filter((shape) => {
+      // Calculate shape bounds
+      let shapeLeft = shape.x
+      let shapeTop = shape.y
+      let shapeRight = shape.x
+      let shapeBottom = shape.y
+
+      // Calculate bounds based on shape type
+      if ('width' in shape && 'height' in shape) {
+        // Rectangle-like shapes (account for rotation by using full diagonal)
+        const halfWidth = shape.width / 2
+        const halfHeight = shape.height / 2
+        const diagonal = Math.sqrt(halfWidth * halfWidth + halfHeight * halfHeight)
+        shapeLeft = shape.x - diagonal
+        shapeTop = shape.y - diagonal
+        shapeRight = shape.x + diagonal
+        shapeBottom = shape.y + diagonal
+      } else if ('radius' in shape) {
+        // Circle
+        shapeLeft = shape.x - shape.radius
+        shapeTop = shape.y - shape.radius
+        shapeRight = shape.x + shape.radius
+        shapeBottom = shape.y + shape.radius
+      } else if ('radiusX' in shape && 'radiusY' in shape) {
+        // Ellipse, polygon shapes
+        const maxRadius = Math.max(shape.radiusX || 0, shape.radiusY || 0)
+        shapeLeft = shape.x - maxRadius
+        shapeTop = shape.y - maxRadius
+        shapeRight = shape.x + maxRadius
+        shapeBottom = shape.y + maxRadius
+      } else if ('outerRadiusX' in shape && 'outerRadiusY' in shape) {
+        // Star
+        const maxRadius = Math.max((shape as any).outerRadiusX, (shape as any).outerRadiusY)
+        shapeLeft = shape.x - maxRadius
+        shapeTop = shape.y - maxRadius
+        shapeRight = shape.x + maxRadius
+        shapeBottom = shape.y + maxRadius
+      } else if ('x2' in shape && 'y2' in shape) {
+        // Line, arrow, connector
+        shapeLeft = Math.min(shape.x, (shape as any).x2) - 50
+        shapeTop = Math.min(shape.y, (shape as any).y2) - 50
+        shapeRight = Math.max(shape.x, (shape as any).x2) + 50
+        shapeBottom = Math.max(shape.y, (shape as any).y2) + 50
+      }
+
+      // Check if shape intersects with viewport
+      return !(shapeRight < left || shapeLeft > right || shapeBottom < top || shapeTop > bottom)
+    })
+  }, [shapes, viewport])
+
+  // Performance monitoring (only in development)
+  usePerformanceMonitor(
+    shapes.length,
+    visibleShapes.length,
+    process.env.NODE_ENV === 'development'
   )
+
+  // Batch shape updates to send to Firestore together (avoids throttle overwrite bug)
+  const pendingUpdatesRef = useRef<Map<string, Partial<Shape>>>(new Map())
+  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flushPendingUpdates = useCallback(() => {
+    const updates = new Map(pendingUpdatesRef.current)
+    pendingUpdatesRef.current.clear()
+    flushTimeoutRef.current = null
+
+    // Send all batched updates to Firestore in parallel
+    const promises = Array.from(updates.entries()).map(([shapeId, shapeUpdates]) =>
+      updateShape(shapeId, shapeUpdates).catch((error) => {
+        console.error('Batched shape update failed for', shapeId, error)
+      })
+    )
+
+    Promise.all(promises).catch(console.error)
+  }, [updateShape])
+
+  // Batch updates and flush very frequently for smooth real-time collaboration
+  // Using requestAnimationFrame for natural 60fps batching
+  const updateShapeThrottled = useCallback((shapeId: string, updates: Partial<Shape>) => {
+    // Add/merge this shape's updates into pending batch
+    const existing = pendingUpdatesRef.current.get(shapeId)
+    pendingUpdatesRef.current.set(shapeId, { ...existing, ...updates })
+
+    // Schedule flush on next animation frame if not already scheduled
+    if (!flushTimeoutRef.current) {
+      flushTimeoutRef.current = requestAnimationFrame(() => {
+        flushPendingUpdates()
+      }) as any
+    }
+  }, [flushPendingUpdates])
 
   // Optimistic local update (immediate UI feedback)
   const updateShapeLocal = useCallback((shapeId: string, updates: Partial<Shape>) => {
@@ -379,6 +721,17 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       return
     }
 
+    // Handle drag-to-select box
+    if (isBoxSelecting && selectionStart) {
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      const x = Math.min(selectionStart.x, canvasPos.x)
+      const y = Math.min(selectionStart.y, canvasPos.y)
+      const width = Math.abs(canvasPos.x - selectionStart.x)
+      const height = Math.abs(canvasPos.y - selectionStart.y)
+      setSelectionBox({ x, y, width, height })
+      return
+    }
+
     // Show text preview when text tool is selected or dragging text
     if (selectedTool === 'text' || isDraggingText) {
       const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
@@ -394,29 +747,47 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     updateCursor(canvasPos.x, canvasPos.y)
   }
 
-  // Handle mouse down for panning and text creation
+  // Handle mouse down for panning, text creation, and drag-to-select
   const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
     if (!stage) return
 
+    const pointerPosition = stage.getPointerPosition()
+    if (!pointerPosition) return
+
     // Handle panning
     if (isPanning) {
-      const pointerPosition = stage.getPointerPosition()
-      if (pointerPosition) {
-        setPanStart(pointerPosition)
-      }
+      setPanStart(pointerPosition)
       return
     }
 
-    // Handle text tool drag start
     const clickedOnEmpty = e.target === e.target.getStage()
+
+    // Handle text tool drag start
     if (clickedOnEmpty && selectedTool === 'text') {
       setIsDraggingText(true)
+      return
+    }
+
+    // Handle drag-to-select box with select tool
+    // Start selection box if: clicking on empty canvas OR holding Cmd/Ctrl/Shift modifier key
+    if (selectedTool === 'select') {
+      const clickedShape = e.target
+      const clickedOnEmpty = clickedShape === clickedShape.getStage() || clickedShape.getType() === 'Layer'
+      const modifierKey = e.evt?.shiftKey || e.evt?.ctrlKey || e.evt?.metaKey // Shift, Ctrl (Windows/Linux) or Cmd (Mac)
+
+      // Start selection box if clicking on empty canvas OR holding any modifier key
+      if (clickedOnEmpty || modifierKey) {
+        const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+        setIsBoxSelecting(true)
+        setSelectionStart(canvasPos)
+        setSelectionBox({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 })
+      }
     }
   }
 
-  // Handle mouse up for panning and text creation
-  const handleMouseUp = async () => {
+  // Handle mouse up for panning, text creation, and drag-to-select
+  const handleMouseUp = async (_e: KonvaEventObject<MouseEvent>) => {
     // Handle resize end
     if (isResizing) {
       handleResizeEnd()
@@ -436,6 +807,38 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       return
     }
 
+    // Handle drag-to-select box end
+    if (isBoxSelecting && selectionBox) {
+      console.log('[Selection] Mouse up - box selecting:', {
+        isBoxSelecting,
+        selectionBox,
+        shapesCount: shapes.length
+      })
+
+      // Find all shapes that intersect with the selection box
+      const selectedShapeIds: string[] = []
+      shapes.forEach((shape) => {
+        if (isShapeInBox(shape, selectionBox)) {
+          selectedShapeIds.push(shape.id)
+        }
+      })
+
+      console.log('[Selection] Found shapes in box:', selectedShapeIds.length)
+      console.log('[Selection] Previously selected:', selectedIds.length)
+
+      // Always add to existing selection when using selection box
+      // This matches intuitive behavior: keep selecting more shapes
+      const newSelection = [...new Set([...selectedIds, ...selectedShapeIds])]
+      console.log('[Selection] New total selection:', newSelection.length)
+      setSelectedIds(newSelection)
+
+      // Clear selection box
+      setIsBoxSelecting(false)
+      setSelectionBox(null)
+      setSelectionStart(null)
+      return
+    }
+
     // Handle text drop
     if (isDraggingText && textPreviewPos) {
       // Create text at the current preview position
@@ -445,7 +848,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         await createShape(newShape)
         // Automatically enter edit mode for new text
         setEditingTextId(newShape.id)
-        setSelectedShapeId(newShape.id)
+        setSelectedIds([newShape.id])
         setSelectedTextId(newShape.id)
         // Switch back to select tool and clear preview
         setSelectedTool('select')
@@ -459,15 +862,67 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     }
   }
 
+  // Helper function to check if a shape intersects with selection box
+  const isShapeInBox = (shape: Shape, box: { x: number; y: number; width: number; height: number }): boolean => {
+    // Get shape bounds
+    let shapeLeft = shape.x
+    let shapeTop = shape.y
+    let shapeRight = shape.x
+    let shapeBottom = shape.y
+
+    // Calculate bounds based on shape type
+    // NOTE: Rectangles use center-based coordinates (offset = width/2, height/2 in Konva)
+    if ('width' in shape && 'height' in shape) {
+      // Rectangle-like shapes (rectangle, roundedRectangle, cylinder)
+      // x,y is the CENTER, not top-left
+      shapeLeft = shape.x - shape.width / 2
+      shapeTop = shape.y - shape.height / 2
+      shapeRight = shape.x + shape.width / 2
+      shapeBottom = shape.y + shape.height / 2
+    } else if ('radius' in shape) {
+      // Circle (center-based)
+      shapeLeft = shape.x - shape.radius
+      shapeTop = shape.y - shape.radius
+      shapeRight = shape.x + shape.radius
+      shapeBottom = shape.y + shape.radius
+    } else if ('radiusX' in shape && 'radiusY' in shape) {
+      // Ellipse, polygon shapes (center-based)
+      shapeLeft = shape.x - (shape.radiusX || 0)
+      shapeTop = shape.y - (shape.radiusY || 0)
+      shapeRight = shape.x + (shape.radiusX || 0)
+      shapeBottom = shape.y + (shape.radiusY || 0)
+    } else if ('outerRadiusX' in shape && 'outerRadiusY' in shape) {
+      // Star (center-based)
+      const outerRadiusX = (shape as any).outerRadiusX
+      const outerRadiusY = (shape as any).outerRadiusY
+      shapeLeft = shape.x - outerRadiusX
+      shapeTop = shape.y - outerRadiusY
+      shapeRight = shape.x + outerRadiusX
+      shapeBottom = shape.y + outerRadiusY
+    } else if ('x2' in shape && 'y2' in shape) {
+      // Line, arrow, connector
+      shapeLeft = Math.min(shape.x, (shape as any).x2)
+      shapeTop = Math.min(shape.y, (shape as any).y2)
+      shapeRight = Math.max(shape.x, (shape as any).x2)
+      shapeBottom = Math.max(shape.y, (shape as any).y2)
+    }
+
+    // Check if shape intersects with box
+    return !(shapeRight < box.x || shapeLeft > box.x + box.width ||
+             shapeBottom < box.y || shapeTop > box.y + box.height)
+  }
+
   // Handle stage click for creating shapes
   const handleStageClick = async (e: KonvaEventObject<MouseEvent>) => {
     // If clicked on empty area
     const clickedOnEmpty = e.target === e.target.getStage()
 
     if (clickedOnEmpty) {
-      // Deselect shape
-      setSelectedShapeId(null)
-      setSelectedTextId(null)
+      // Deselect all shapes (unless shift is held for multi-select)
+      if (!e.evt.shiftKey) {
+        clearSelection()
+        setSelectedTextId(null)
+      }
 
       // Create new shape if tool is selected (except text, which uses drag-to-create)
       if (selectedTool !== 'select' && selectedTool !== 'text') {
@@ -540,63 +995,183 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     }
   }
 
-  // Handle shape selection
-  const handleShapeSelect = (shapeId: string) => {
+  // Handle shape selection with shift-click and ctrl/cmd-click multi-select support
+  const handleShapeSelect = (shapeId: string, modifierKey: boolean = false) => {
     const shape = shapes.find(s => s.id === shapeId)
-    if (shape?.type === 'text') {
-      setSelectedTextId(shapeId)
+
+    if (modifierKey) {
+      // Shift-click or Ctrl/Cmd-click: toggle selection
+      if (selectedIds.includes(shapeId)) {
+        deselectShape(shapeId)
+        // If deselecting the current text shape, clear selectedTextId
+        if (shapeId === selectedTextId) {
+          setSelectedTextId(null)
+        }
+      } else {
+        selectShape(shapeId)
+        // Update selectedTextId if this is a text shape
+        if (shape?.type === 'text') {
+          setSelectedTextId(shapeId)
+        }
+      }
     } else {
-      setSelectedTextId(null)
+      // Regular click: replace selection
+      setSelectedIds([shapeId])
+      if (shape?.type === 'text') {
+        setSelectedTextId(shapeId)
+      } else {
+        setSelectedTextId(null)
+      }
     }
-    setSelectedShapeId(shapeId)
     setSelectedTool('select')
   }
 
-  // Handle shape drag move (optimistic + throttled)
+  // Handle shape drag start - capture initial positions
+  const handleShapeDragStart = useCallback(
+    (shapeId: string) => {
+      // Determine which shapes will move
+      const shapesToMove = selectedIds.includes(shapeId) ? selectedIds : [shapeId]
+
+      // Track ALL shapes being moved to prevent React interference with Konva's direct manipulation
+      movingShapeIds.current = new Set(shapesToMove)
+
+      // Capture initial positions for all shapes that will move
+      const positions = new Map()
+      shapesToMove.forEach((id) => {
+        const shape = shapes.find((s) => s.id === id)
+        if (!shape) return
+
+        if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+          positions.set(id, { x: shape.x, y: shape.y, x2: shape.x2, y2: shape.y2 })
+        } else if (shape.type === 'bentConnector') {
+          positions.set(id, { x: shape.x, y: shape.y, x2: shape.x2, y2: shape.y2, bendX: shape.bendX, bendY: shape.bendY })
+        } else {
+          positions.set(id, { x: shape.x, y: shape.y })
+        }
+      })
+
+      initialDragPositions.current = positions
+    },
+    [shapes, selectedIds]
+  )
+
+  // Handle shape drag move (optimistic + throttled) with multi-select support
   const handleShapeDragMove = useCallback(
     (shapeId: string, x: number, y: number) => {
-      // Find the shape to check its type
-      const shape = shapes.find((s) => s.id === shapeId)
-      if (!shape) return
-
-      // For lines and connectors, we need to update both endpoints to preserve length and angle
-      let updates: Partial<Shape>
-      if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
-        // Calculate offset from old position
-        const dx = x - shape.x
-        const dy = y - shape.y
-        // Update both start and end points
-        updates = {
-          x,
-          y,
-          x2: shape.x2 + dx,
-          y2: shape.y2 + dy,
-        }
-      } else if (shape.type === 'bentConnector') {
-        // For bent connectors, also update the bend point
-        const dx = x - shape.x
-        const dy = y - shape.y
-        updates = {
-          x,
-          y,
-          x2: shape.x2 + dx,
-          y2: shape.y2 + dy,
-          bendX: shape.bendX + dx,
-          bendY: shape.bendY + dy,
-        }
-      } else {
-        // For other shapes, just update x and y
-        updates = { x, y }
+      // Get initial position of the dragged shape
+      const initialPos = initialDragPositions.current.get(shapeId)
+      if (!initialPos) {
+        console.warn('[Multi-Drag] No initial position for', shapeId)
+        return
       }
 
-      // Optimistic: update local state immediately for instant feedback
-      updateShapeLocal(shapeId, updates)
+      // Calculate the delta from the INITIAL position (not current)
+      const dx = x - initialPos.x
+      const dy = y - initialPos.y
 
-      // Throttled: sync to Firestore (max 20 updates/sec)
-      updateShapeThrottled(shapeId, updates)
+      // If multiple shapes are selected and this shape is one of them, move all selected shapes
+      const shapesToMove = selectedIds.includes(shapeId) ? selectedIds : [shapeId]
+
+      // Get the Konva stage to directly manipulate other shape nodes
+      const stage = stageRef.current
+      if (!stage) return
+
+      shapesToMove.forEach((id) => {
+        const shape = shapes.find((s) => s.id === id)
+        const shapeInitialPos = initialDragPositions.current.get(id)
+
+        if (!shape) {
+          console.warn('[Multi-Drag] Shape not found:', id)
+          return
+        }
+        if (!shapeInitialPos) {
+          console.warn('[Multi-Drag] No initial position for shape:', id)
+          return
+        }
+
+        // Calculate updates based on shape type using INITIAL positions
+        let updates: Partial<Shape>
+        if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+          // For lines and connectors, update both endpoints
+          updates = {
+            x: shapeInitialPos.x + dx,
+            y: shapeInitialPos.y + dy,
+            x2: shapeInitialPos.x2! + dx,
+            y2: shapeInitialPos.y2! + dy,
+          }
+        } else if (shape.type === 'bentConnector') {
+          // For bent connectors, also update the bend point
+          updates = {
+            x: shapeInitialPos.x + dx,
+            y: shapeInitialPos.y + dy,
+            x2: shapeInitialPos.x2! + dx,
+            y2: shapeInitialPos.y2! + dy,
+            bendX: shapeInitialPos.bendX! + dx,
+            bendY: shapeInitialPos.bendY! + dy,
+          }
+        } else {
+          // For other shapes, just update x and y
+          updates = { x: shapeInitialPos.x + dx, y: shapeInitialPos.y + dy }
+        }
+
+        // CRITICAL: For non-dragged shapes, directly update Konva nodes for real-time movement
+        // This bypasses React rendering and moves shapes immediately via Konva's native API
+        if (id !== shapeId) {
+          const node = stage.findOne(`#${id}`)
+          if (node) {
+            node.x(updates.x!)
+            node.y(updates.y!)
+
+            // For line-based shapes, also update endpoints via points array
+            if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+              const lineUpdates = updates as { x: number; y: number; x2: number; y2: number }
+              node.points([0, 0, lineUpdates.x2 - lineUpdates.x, lineUpdates.y2 - lineUpdates.y])
+            } else if (shape.type === 'bentConnector') {
+              const connectorUpdates = updates as { x: number; y: number; x2: number; y2: number; bendX: number; bendY: number }
+              node.points([
+                0,
+                0,
+                connectorUpdates.bendX - connectorUpdates.x,
+                connectorUpdates.bendY - connectorUpdates.y,
+                connectorUpdates.x2 - connectorUpdates.x,
+                connectorUpdates.y2 - connectorUpdates.y,
+              ])
+            }
+          }
+        }
+
+        // Write position to RTDB for low-latency real-time collaboration (10-50ms)
+        // This replaces updateShapeThrottled during drag for much faster updates
+        // Firestore will be updated with final position on drag end
+
+        // Build position data, only including defined properties (RTDB rejects undefined)
+        const positionData: any = {
+          x: updates.x!,
+          y: updates.y!,
+          updatedBy: userId,
+        }
+
+        // Only add optional properties if they're defined
+        if ((updates as any).x2 !== undefined) positionData.x2 = (updates as any).x2
+        if ((updates as any).y2 !== undefined) positionData.y2 = (updates as any).y2
+        if ((updates as any).bendX !== undefined) positionData.bendX = (updates as any).bendX
+        if ((updates as any).bendY !== undefined) positionData.bendY = (updates as any).bendY
+
+        // Log RTDB write during drag
+        console.log(`[DURING DRAG - ${new Date().toISOString()}] Writing to RTDB:`, id, `x=${positionData.x}, y=${positionData.y}`)
+
+        writeShapePosition(canvasId, id, positionData).catch((error) => {
+          console.error('[RTDB] Failed to write position for', id, error)
+        })
+      })
+
+      // Redraw the layer once after all nodes are updated (batch drawing for performance)
+      const layer = stage.findOne('Layer')
+      if (layer) {
+        layer.batchDraw()
+      }
 
       // Update cursor position during drag (since event bubbling is prevented)
-      const stage = stageRef.current
       if (stage && user) {
         const pointerPosition = stage.getPointerPosition()
         if (pointerPosition) {
@@ -605,58 +1180,84 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         }
       }
     },
-    [shapes, updateShapeLocal, updateShapeThrottled, user, viewport, updateCursor]
+    [shapes, selectedIds, user, viewport, updateCursor, canvasId, userId]
   )
 
-  // Handle shape drag end (ensure final position is persisted)
+  // Handle shape drag end (ensure final position is persisted) with multi-select support
   const handleShapeDragEnd = useCallback(
     async (shapeId: string, x: number, y: number) => {
-      // Find the shape to check its type
-      const shape = shapes.find((s) => s.id === shapeId)
-      if (!shape) return
+      // Get initial position of the dragged shape
+      const initialPos = initialDragPositions.current.get(shapeId)
+      if (!initialPos) return
 
-      // For lines and connectors, we need to update both endpoints to preserve length and angle
-      let updates: Partial<Shape>
-      if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
-        // Calculate offset from old position
-        const dx = x - shape.x
-        const dy = y - shape.y
-        // Update both start and end points
-        updates = {
-          x,
-          y,
-          x2: shape.x2 + dx,
-          y2: shape.y2 + dy,
-        }
-      } else if (shape.type === 'bentConnector') {
-        // For bent connectors, also update the bend point
-        const dx = x - shape.x
-        const dy = y - shape.y
-        updates = {
-          x,
-          y,
-          x2: shape.x2 + dx,
-          y2: shape.y2 + dy,
-          bendX: shape.bendX + dx,
-          bendY: shape.bendY + dy,
-        }
-      } else {
-        // For other shapes, just update x and y
-        updates = { x, y }
-      }
+      // Calculate the delta from the INITIAL position
+      const dx = x - initialPos.x
+      const dy = y - initialPos.y
 
-      // Update local state
-      updateShapeLocal(shapeId, updates)
+      // If multiple shapes are selected and this shape is one of them, save all selected shapes
+      const shapesToSave = selectedIds.includes(shapeId) ? selectedIds : [shapeId]
 
-      // Send final position to Firestore (not throttled)
+      // Batch all local updates for atomic state update
+      const batchedUpdates: Record<string, Partial<Shape>> = {}
+
       try {
-        await updateShape(shapeId, updates)
+        await Promise.all(
+          shapesToSave.map(async (id) => {
+            const shape = shapes.find((s) => s.id === id)
+            const shapeInitialPos = initialDragPositions.current.get(id)
+            if (!shape || !shapeInitialPos) return
+
+            // Calculate updates based on shape type using INITIAL positions
+            let updates: Partial<Shape>
+            if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+              updates = {
+                x: shapeInitialPos.x + dx,
+                y: shapeInitialPos.y + dy,
+                x2: shapeInitialPos.x2! + dx,
+                y2: shapeInitialPos.y2! + dy,
+              }
+            } else if (shape.type === 'bentConnector') {
+              updates = {
+                x: shapeInitialPos.x + dx,
+                y: shapeInitialPos.y + dy,
+                x2: shapeInitialPos.x2! + dx,
+                y2: shapeInitialPos.y2! + dy,
+                bendX: shapeInitialPos.bendX! + dx,
+                bendY: shapeInitialPos.bendY! + dy,
+              }
+            } else {
+              updates = { x: shapeInitialPos.x + dx, y: shapeInitialPos.y + dy }
+            }
+
+            // Add to batch
+            batchedUpdates[id] = updates
+
+            // Send final position to Firestore (not throttled)
+            console.log(`[DRAG END - ${new Date().toISOString()}] Writing to Firestore:`, id, `x=${updates.x}, y=${updates.y}`)
+            return updateShape(id, updates)
+          })
+        )
+
+        // Single atomic local state update for ALL shapes
+        setLocalShapeUpdates((prev) => ({
+          ...prev,
+          ...batchedUpdates
+        }))
+
+        // Clear RTDB positions for all moved shapes (cleanup temporary live data)
+        await clearShapePositions(canvasId, shapesToSave).catch((error) => {
+          console.error('[RTDB] Failed to clear positions:', error)
+        })
+
+        // Clear initial positions and moving shapes state after drag end
+        initialDragPositions.current = new Map()
+        movingShapeIds.current = new Set()
       } catch (err) {
-        console.error('Failed to update shape position:', err)
-        setError('Failed to save shape position. Please try again.')
+        console.error('Failed to update shape positions:', err)
+        setError('Failed to save shape positions. Please try again.')
       }
     },
-    [shapes, updateShape, updateShapeLocal]
+    [shapes, selectedIds, updateShape]
   )
 
   // Resize handlers
@@ -1077,9 +1678,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   return (
     <div
       style={{
-        position: 'relative',
+        position: 'absolute',
+        top: `${CANVAS_CONFIG.HEADER_HEIGHT}px`,
+        left: 0,
         width: '100%',
-        height: '100vh',
+        height: `calc(100vh - ${CANVAS_CONFIG.HEADER_HEIGHT}px)`,
         overflow: 'hidden',
         backgroundColor: 'white',
       }}
@@ -1156,7 +1759,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       <Stage
         ref={stageRef}
         width={window.innerWidth}
-        height={window.innerHeight}
+        height={window.innerHeight - CANVAS_CONFIG.HEADER_HEIGHT}
         x={viewport.x}
         y={viewport.y}
         scaleX={viewport.zoom}
@@ -1172,15 +1775,18 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           {/* Grid lines */}
           {renderGrid()}
 
-          {/* Render shapes */}
-          {shapes.map((shape) => (
+          {/* Render shapes (using viewport culling for performance) */}
+          {visibleShapes.map((shape) => (
             <ShapeRenderer
               key={shape.id}
               shape={shape}
-              isSelected={shape.id === selectedShapeId}
-              onSelect={() => handleShapeSelect(shape.id)}
-              onDragMove={(x, y) => {
+              isSelected={selectedIds.includes(shape.id)}
+              onSelect={(shiftKey) => handleShapeSelect(shape.id, shiftKey)}
+              onDragStart={() => {
                 setIsDraggingShape(true)
+                handleShapeDragStart(shape.id)
+              }}
+              onDragMove={(x, y) => {
                 handleShapeDragMove(shape.id, x, y)
               }}
               onDragEnd={(x, y) => {
@@ -1189,6 +1795,120 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
               }}
             />
           ))}
+
+          {/* Drag-to-select box */}
+          {isBoxSelecting && selectionBox && (
+            <Rect
+              x={selectionBox.x}
+              y={selectionBox.y}
+              width={selectionBox.width}
+              height={selectionBox.height}
+              fill="rgba(59, 130, 246, 0.1)"
+              stroke="#3B82F6"
+              strokeWidth={1 / viewport.zoom}
+              dash={[5 / viewport.zoom, 5 / viewport.zoom]}
+              listening={false}
+            />
+          )}
+
+          {/* Multi-selection bounding box */}
+          {selectedIds.length > 1 && (() => {
+            const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
+            if (selectedShapes.length === 0) return null
+
+            // Calculate bounding box of all selected shapes
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
+            selectedShapes.forEach(shape => {
+              let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
+
+              // Use type-based approach to avoid TypeScript narrowing issues
+              switch (shape.type) {
+                case 'rectangle':
+                case 'roundedRectangle':
+                case 'cylinder':
+                  // Rectangle-like shapes (center-based)
+                  left = shape.x - shape.width / 2
+                  top = shape.y - shape.height / 2
+                  right = shape.x + shape.width / 2
+                  bottom = shape.y + shape.height / 2
+                  break
+
+                case 'circle':
+                  // Circle
+                  left = shape.x - shape.radius
+                  top = shape.y - shape.radius
+                  right = shape.x + shape.radius
+                  bottom = shape.y + shape.radius
+                  break
+
+                case 'ellipse':
+                case 'triangle':
+                case 'pentagon':
+                case 'hexagon':
+                  // Ellipse, polygon
+                  left = shape.x - shape.radiusX
+                  top = shape.y - shape.radiusY
+                  right = shape.x + shape.radiusX
+                  bottom = shape.y + shape.radiusY
+                  break
+
+                case 'star':
+                  // Star
+                  left = shape.x - shape.outerRadiusX
+                  top = shape.y - shape.outerRadiusY
+                  right = shape.x + shape.outerRadiusX
+                  bottom = shape.y + shape.outerRadiusY
+                  break
+
+                case 'text':
+                  // Text (top-left based)
+                  left = shape.x
+                  top = shape.y
+                  right = shape.x + shape.width
+                  bottom = shape.y + (shape.height || shape.fontSize * 1.5)
+                  break
+
+                case 'line':
+                case 'arrow':
+                case 'bidirectionalArrow':
+                  // Line, arrow
+                  left = Math.min(shape.x, shape.x2)
+                  top = Math.min(shape.y, shape.y2)
+                  right = Math.max(shape.x, shape.x2)
+                  bottom = Math.max(shape.y, shape.y2)
+                  break
+
+                case 'bentConnector':
+                  // Bent connector
+                  left = Math.min(shape.x, shape.bendX, shape.x2)
+                  top = Math.min(shape.y, shape.bendY, shape.y2)
+                  right = Math.max(shape.x, shape.bendX, shape.x2)
+                  bottom = Math.max(shape.y, shape.bendY, shape.y2)
+                  break
+              }
+
+              minX = Math.min(minX, left)
+              minY = Math.min(minY, top)
+              maxX = Math.max(maxX, right)
+              maxY = Math.max(maxY, bottom)
+            })
+
+            const padding = 10 / viewport.zoom
+            return (
+              <Rect
+                x={minX - padding}
+                y={minY - padding}
+                width={maxX - minX + padding * 2}
+                height={maxY - minY + padding * 2}
+                stroke="#3B82F6"
+                strokeWidth={2 / viewport.zoom}
+                dash={[8 / viewport.zoom, 4 / viewport.zoom]}
+                fill="transparent"
+                listening={false}
+              />
+            )
+          })()}
 
           {/* Text creation preview */}
           {selectedTool === 'text' && textPreviewPos && (

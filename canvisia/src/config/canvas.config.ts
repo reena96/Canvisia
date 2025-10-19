@@ -16,6 +16,10 @@ export const CANVAS_CONFIG = {
   // Performance settings
   CURSOR_THROTTLE_MS: 50, // 20 updates/sec
   POSITION_THROTTLE_MS: 50, // ~20 updates/sec during drag
+
+  // Layout constants
+  HEADER_HEIGHT: 64, // Fixed header height (padding + content + border)
+  TOOLBAR_HEIGHT: 80, // Toolbar height + bottom margin (56px toolbar + 20px margin + padding)
 } as const;
 
 // Default shape configurations

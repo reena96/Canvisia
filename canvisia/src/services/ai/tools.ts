@@ -100,6 +100,62 @@ export const AI_TOOLS = [
     }
   },
   {
+    name: 'create_multiple_shapes',
+    description: 'Create multiple shapes at once (e.g., "create 100 circles", "create 10 squares"). Shapes are automatically arranged in a grid pattern by default.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        count: {
+          type: 'number',
+          description: 'Number of shapes to create (1-1000)'
+        },
+        shapeType: {
+          type: 'string',
+          enum: ['rectangle', 'circle', 'ellipse', 'roundedRectangle', 'cylinder', 'triangle', 'pentagon', 'hexagon', 'star'],
+          description: 'The type of shape to create'
+        },
+        width: {
+          type: 'number',
+          description: 'Width in pixels (for rectangle, roundedRectangle, cylinder)'
+        },
+        height: {
+          type: 'number',
+          description: 'Height in pixels (for rectangle, roundedRectangle, cylinder)'
+        },
+        radius: {
+          type: 'number',
+          description: 'Radius in pixels (for circle)'
+        },
+        radiusX: {
+          type: 'number',
+          description: 'Horizontal radius (for ellipse, triangle, pentagon, hexagon)'
+        },
+        radiusY: {
+          type: 'number',
+          description: 'Vertical radius (for ellipse, triangle, pentagon, hexagon)'
+        },
+        color: {
+          type: 'string',
+          description: 'Fill color (hex code, e.g., #FF0000 for red)'
+        },
+        cornerRadius: {
+          type: 'number',
+          description: 'Corner radius for roundedRectangle'
+        },
+        pattern: {
+          type: 'string',
+          enum: ['grid', 'row', 'column'],
+          description: 'Arrangement pattern (default: grid)'
+        },
+        spacing: {
+          type: 'number',
+          description: 'Spacing between shapes in pixels (default: 20)'
+        }
+      },
+      required: ['count', 'shapeType']
+    }
+  },
+  {
     name: 'create_text',
     description: 'Create a text label on the canvas',
     input_schema: {

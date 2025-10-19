@@ -1,5 +1,6 @@
 import type { Shape } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
+import { CANVAS_CONFIG } from '@/config/canvas.config'
 
 /**
  * Viewport bounds in canvas coordinates
@@ -34,21 +35,31 @@ export interface PlacementResult {
 
 /**
  * Get viewport bounds in canvas coordinates
- * Accounts for zoom level and pan position
+ * Returns the visible canvas area accounting for zoom and pan
+ *
+ * Canvas coordinate (0, 0) = top-left of visible canvas area (below header)
+ * Viewport extends to bottom of window (includes the toolbar overlay area)
  */
 export function getViewportBounds(viewport: Viewport): ViewportBounds {
+  // Visible canvas dimensions (excludes header at top, extends to bottom of window)
+  const visibleWidth = window.innerWidth
+  const visibleHeight = window.innerHeight - CANVAS_CONFIG.HEADER_HEIGHT
+
+  // Convert to canvas coordinates accounting for pan and zoom
   return {
     x: -viewport.x / viewport.zoom,
     y: -viewport.y / viewport.zoom,
-    width: window.innerWidth / viewport.zoom,
-    height: window.innerHeight / viewport.zoom
+    width: visibleWidth / viewport.zoom,
+    height: visibleHeight / viewport.zoom
   }
 }
 
 /**
- * Get viewport edges with margins
+ * Get viewport edges in canvas coordinates
+ * Returns the actual edges of the visible viewport without any padding
+ * Use this for alignment commands to align shapes to exact viewport edges
  */
-export function getViewportEdges(viewport: ViewportBounds, margin = 20): ViewportEdges {
+export function getViewportEdges(viewport: ViewportBounds, margin = 0): ViewportEdges {
   return {
     left: viewport.x + margin,
     right: viewport.x + viewport.width - margin,
@@ -60,7 +71,7 @@ export function getViewportEdges(viewport: ViewportBounds, margin = 20): Viewpor
 }
 
 /**
- * Get width of a shape
+ * Get width of a shape (bounding box)
  */
 export function getShapeWidth(shape: Shape): number {
   switch (shape.type) {
@@ -78,6 +89,8 @@ export function getShapeWidth(shape: Shape): number {
       return shape.radiusX * 2
 
     case 'triangle':
+      return shape.radiusX * Math.sqrt(3)
+
     case 'pentagon':
     case 'hexagon':
       return shape.radiusX * 2
@@ -92,12 +105,12 @@ export function getShapeWidth(shape: Shape): number {
       return Math.abs(shape.x2 - shape.x)
 
     default:
-      return 100 // Default fallback
+      return 100
   }
 }
 
 /**
- * Get height of a shape
+ * Get height of a shape (bounding box)
  */
 export function getShapeHeight(shape: Shape): number {
   switch (shape.type) {
@@ -115,9 +128,13 @@ export function getShapeHeight(shape: Shape): number {
       return shape.radiusY * 2
 
     case 'triangle':
+      return shape.radiusY * 1.5
+
     case 'pentagon':
+      return shape.radiusY * 1.9
+
     case 'hexagon':
-      return shape.radiusY * 2
+      return shape.radiusY * Math.sqrt(3)
 
     case 'star':
       return shape.outerRadiusY * 2
@@ -129,8 +146,65 @@ export function getShapeHeight(shape: Shape): number {
       return Math.abs(shape.y2 - shape.y)
 
     default:
-      return 100 // Default fallback
+      return 100
   }
+}
+
+/**
+ * Get offset from center to top edge for asymmetric shapes
+ * For shapes where the center is NOT at height/2 from the top
+ */
+export function getTopOffset(shape: Shape): number {
+  switch (shape.type) {
+    case 'triangle':
+      // Triangle: top vertex is at distance 'radius' from center
+      return shape.radiusY
+
+    case 'pentagon':
+      // Pentagon: top is at distance 'radius' from center
+      return shape.radiusY
+
+    case 'hexagon':
+      // Hexagon with flat top: top is at distance 'radius * cos(30°)' from center
+      return shape.radiusY * (Math.sqrt(3) / 2)
+
+    default:
+      // Symmetric shapes: top offset is half the height
+      return getShapeHeight(shape) / 2
+  }
+}
+
+/**
+ * Get offset from center to left edge for asymmetric shapes
+ */
+export function getLeftOffset(shape: Shape): number {
+  switch (shape.type) {
+    case 'triangle':
+      // Triangle: left edge is at distance 'radius * sqrt(3)/2' from center
+      return shape.radiusX * (Math.sqrt(3) / 2)
+
+    default:
+      // Symmetric shapes: left offset is half the width
+      return getShapeWidth(shape) / 2
+  }
+}
+
+/**
+ * Get offset from center to right edge for asymmetric shapes
+ */
+export function getRightOffset(shape: Shape): number {
+  const width = getShapeWidth(shape)
+  const leftOffset = getLeftOffset(shape)
+  return width - leftOffset
+}
+
+/**
+ * Get offset from center to bottom edge for asymmetric shapes
+ */
+export function getBottomOffset(shape: Shape): number {
+  const height = getShapeHeight(shape)
+  const topOffset = getTopOffset(shape)
+  return height - topOffset
 }
 
 /**
@@ -292,9 +366,11 @@ export function calculateRequiredZoom(
   const contentWidth = maxX - minX
   const contentHeight = maxY - minY
 
-  // Calculate zoom to fit content with 20% margin
-  const zoomX = (window.innerWidth * 0.8) / contentWidth
-  const zoomY = (window.innerHeight * 0.8) / contentHeight
+  // Calculate zoom to fit content with 20% margin (accounting for header)
+  const visibleWidth = window.innerWidth
+  const visibleHeight = window.innerHeight - CANVAS_CONFIG.HEADER_HEIGHT
+  const zoomX = (visibleWidth * 0.8) / contentWidth
+  const zoomY = (visibleHeight * 0.8) / contentHeight
 
   return Math.min(zoomX, zoomY, 1) // Don't zoom in beyond 100%
 }

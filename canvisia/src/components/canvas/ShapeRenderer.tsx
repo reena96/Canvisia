@@ -1,29 +1,39 @@
 import { Rect, Circle as KonvaCircle, Ellipse as KonvaEllipse, Line as KonvaLine, Text as KonvaText, Image as KonvaImage, RegularPolygon, Star as KonvaStar, Arrow as KonvaArrow, Group } from 'react-konva'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import type { Shape } from '@/types/shapes'
 import { useCanvasStore } from '@/stores/canvasStore'
 
 interface ShapeRendererProps {
   shape: Shape
   isSelected?: boolean
-  onSelect?: () => void
+  onSelect?: (shiftKey: boolean) => void
+  onDragStart?: () => void
   onDragMove?: (x: number, y: number) => void
   onDragEnd?: (x: number, y: number) => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
 }
 
-export function ShapeRenderer({
+// Memoized ShapeRenderer to prevent unnecessary re-renders
+export const ShapeRenderer = memo(function ShapeRenderer({
   shape,
   isSelected,
   onSelect,
+  onDragStart,
   onDragMove,
   onDragEnd,
   onMouseEnter,
   onMouseLeave,
 }: ShapeRendererProps) {
+  const handleClick = (e: any) => {
+    // Check for Shift, Ctrl (Windows/Linux), or Cmd (Mac)
+    const modifierKey = e.evt?.shiftKey || e.evt?.ctrlKey || e.evt?.metaKey || false
+    onSelect?.(modifierKey)
+  }
+
   const handleDragStart = (e: any) => {
     e.cancelBubble = true // Prevent Stage from dragging while shape is being dragged
+    onDragStart?.() // Call the onDragStart callback
   }
 
   const handleDragMove = (e: any) => {
@@ -53,9 +63,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -75,9 +85,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -98,9 +108,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -124,9 +134,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -146,9 +156,9 @@ export function ShapeRenderer({
           offsetX={shape.width / 2}
           offsetY={shape.height / 2}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -198,9 +208,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? shape.strokeWidth + 1 : shape.strokeWidth}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -241,9 +251,9 @@ export function ShapeRenderer({
           lineHeight={shape.lineHeight}
           fill={shape.fill}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDblClick={handleDoubleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
@@ -272,9 +282,9 @@ export function ShapeRenderer({
           height={shape.height}
           opacity={shape.opacity !== undefined ? shape.opacity : 1}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -300,9 +310,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -325,9 +335,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -350,9 +360,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -376,9 +386,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? 2 : shape.strokeWidth || 0}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -401,8 +411,8 @@ export function ShapeRenderer({
           pointerWidth={shape.pointerWidth}
           rotation={shape.rotation}
           draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -427,8 +437,8 @@ export function ShapeRenderer({
           pointerAtEnding={true}
           rotation={shape.rotation}
           draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -454,9 +464,9 @@ export function ShapeRenderer({
           stroke={isSelected ? '#3B82F6' : shape.stroke}
           strokeWidth={isSelected ? shape.strokeWidth + 1 : shape.strokeWidth}
           rotation={shape.rotation}
-          draggable
-          onClick={onSelect}
-          onTap={onSelect}
+          draggable={isSelected}
+          onClick={handleClick}
+          onTap={handleClick}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}
@@ -469,4 +479,22 @@ export function ShapeRenderer({
       // Exhaustive type checking - should never reach here
       return null
   }
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Return true if props are equal (skip re-render), false otherwise
+  const areEqual = (
+    prevProps.shape.id === nextProps.shape.id &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.shape.x === nextProps.shape.x &&
+    prevProps.shape.y === nextProps.shape.y &&
+    prevProps.shape.rotation === nextProps.shape.rotation &&
+    prevProps.shape.updatedAt === nextProps.shape.updatedAt &&
+    // Deep equality check for shape properties would be expensive,
+    // so we rely on updatedAt timestamp as a proxy for shape changes
+    prevProps.onSelect === nextProps.onSelect &&
+    prevProps.onDragMove === nextProps.onDragMove &&
+    prevProps.onDragEnd === nextProps.onDragEnd
+  )
+
+  return areEqual
+})

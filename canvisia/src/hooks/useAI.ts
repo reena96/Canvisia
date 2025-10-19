@@ -24,6 +24,14 @@ function generateToolCallResponse(toolCalls: any[]): string {
         descriptions.push(`Created a ${shapeType}${color}`)
         break
 
+      case 'create_multiple_shapes':
+        const count = input.count || 0
+        const multiShapeType = input.shapeType || 'shapes'
+        const multiColor = input.color ? ` in ${input.color}` : ''
+        const multiPattern = input.pattern || 'grid'
+        descriptions.push(`Created ${count} ${multiShapeType}s${multiColor} in a ${multiPattern}`)
+        break
+
       case 'create_text':
         const text = input.text ? `"${input.text}"` : 'text'
         descriptions.push(`Added ${text}`)

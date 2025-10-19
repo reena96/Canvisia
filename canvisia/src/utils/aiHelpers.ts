@@ -7,6 +7,10 @@ import {
   getViewportEdges,
   getShapeWidth,
   getShapeHeight,
+  getTopOffset,
+  getLeftOffset,
+  getRightOffset,
+  getBottomOffset,
   findEmptySpaceInViewport,
   calculateRequiredZoom,
 } from './viewportHelpers'
@@ -132,6 +136,246 @@ function resolveColor(color?: string): string {
 
   console.log(`[AI Helpers] Resolved color: "${color}" → ${resolved}`)
   return resolved
+}
+
+/**
+ * Execute create_multiple_shapes tool call
+ * Creates N shapes and arranges them in a grid pattern by default
+ */
+export async function executeCreateMultipleShapes(
+  canvasId: string,
+  userId: string,
+  input: {
+    count: number
+    shapeType: string
+    width?: number
+    height?: number
+    radius?: number
+    radiusX?: number
+    radiusY?: number
+    color?: string
+    cornerRadius?: number
+    pattern?: 'grid' | 'row' | 'column'
+    spacing?: number
+  },
+  viewport: Viewport
+): Promise<void> {
+  console.log('[AI Helpers] executeCreateMultipleShapes called with:', input, 'userId:', userId)
+
+  const {
+    count,
+    shapeType,
+    width = DEFAULTS.width,
+    height = DEFAULTS.height,
+    radius = DEFAULTS.radius,
+    radiusX = DEFAULTS.radiusX,
+    radiusY = DEFAULTS.radiusY,
+    color,
+    cornerRadius = DEFAULTS.cornerRadius,
+    pattern = 'grid', // Default to grid if not specified
+    spacing = 20,
+  } = input
+
+  if (count <= 0 || count > 1000) {
+    throw new Error('Count must be between 1 and 1000')
+  }
+
+  console.log(`[AI Helpers] Creating ${count} ${shapeType} shapes in ${pattern} pattern`)
+
+  // Smart placement starting position
+  const viewportBounds = getViewportBounds(viewport)
+  const existingShapes = await getShapes(canvasId)
+
+  // Determine shape size for initial placement
+  let shapeWidth = width
+  let shapeHeight = height
+
+  if (shapeType === 'circle') {
+    shapeWidth = radius * 2
+    shapeHeight = radius * 2
+  } else if (['triangle', 'pentagon', 'hexagon', 'ellipse'].includes(shapeType)) {
+    shapeWidth = radiusX * 2
+    shapeHeight = radiusY * 2
+  }
+
+  // Find a good starting position in viewport
+  const placement = findEmptySpaceInViewport(
+    viewportBounds,
+    existingShapes,
+    { width: shapeWidth, height: shapeHeight }
+  )
+
+  const fill = resolveColor(color)
+
+  // Create all shapes first (at temporary positions)
+  const newShapes: Shape[] = []
+
+  for (let i = 0; i < count; i++) {
+    const id = uuidv4()
+    const baseProps = {
+      id,
+      x: placement.x, // Temporary position, will be arranged
+      y: placement.y,
+      createdBy: userId,
+      updatedAt: new Date().toISOString(),
+      rotation: DEFAULTS.rotation,
+    }
+
+    let shape: Shape
+
+    switch (shapeType) {
+      case 'rectangle':
+        shape = {
+          ...baseProps,
+          type: 'rectangle',
+          width,
+          height,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Rectangle
+        break
+
+      case 'circle':
+        shape = {
+          ...baseProps,
+          type: 'circle',
+          radius,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Circle
+        break
+
+      case 'ellipse':
+        shape = {
+          ...baseProps,
+          type: 'ellipse',
+          radiusX,
+          radiusY,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Ellipse
+        break
+
+      case 'roundedRectangle':
+        shape = {
+          ...baseProps,
+          type: 'roundedRectangle',
+          width,
+          height,
+          cornerRadius,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as RoundedRectangle
+        break
+
+      case 'cylinder':
+        shape = {
+          ...baseProps,
+          type: 'cylinder',
+          width,
+          height,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Cylinder
+        break
+
+      case 'triangle':
+        shape = {
+          ...baseProps,
+          type: 'triangle',
+          radiusX,
+          radiusY,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Triangle
+        break
+
+      case 'pentagon':
+        shape = {
+          ...baseProps,
+          type: 'pentagon',
+          radiusX,
+          radiusY,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Pentagon
+        break
+
+      case 'hexagon':
+        shape = {
+          ...baseProps,
+          type: 'hexagon',
+          radiusX,
+          radiusY,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Hexagon
+        break
+
+      case 'star':
+        shape = {
+          ...baseProps,
+          type: 'star',
+          outerRadiusX: radiusX,
+          outerRadiusY: radiusY,
+          innerRadiusX: radiusX * 0.5,
+          innerRadiusY: radiusY * 0.5,
+          numPoints: 5,
+          fill,
+          stroke: DEFAULTS.stroke,
+          strokeWidth: DEFAULTS.strokeWidth,
+        } as Star
+        break
+
+      default:
+        throw new Error(`Unsupported shape type: ${shapeType}`)
+    }
+
+    newShapes.push(shape)
+  }
+
+  // Arrange shapes in specified pattern
+  let arrangedShapes: Shape[]
+
+  switch (pattern) {
+    case 'grid':
+      arrangedShapes = arrangeInGrid(newShapes, spacing)
+      break
+    case 'row':
+      arrangedShapes = arrangeInRow(newShapes, spacing)
+      break
+    case 'column':
+      arrangedShapes = arrangeInColumn(newShapes, spacing)
+      break
+    default:
+      arrangedShapes = arrangeInGrid(newShapes, spacing) // Default to grid
+  }
+
+  // Offset to starting position
+  const offsetX = placement.x
+  const offsetY = placement.y
+
+  for (const shape of arrangedShapes) {
+    shape.x += offsetX
+    shape.y += offsetY
+  }
+
+  // Create all shapes in Firestore
+  console.log(`[AI Helpers] Creating ${arrangedShapes.length} shapes in Firestore`)
+
+  for (const shape of arrangedShapes) {
+    await createShape(canvasId, shape)
+  }
+
+  console.log('[AI Helpers] Multiple shapes created successfully')
 }
 
 /**
@@ -1196,6 +1440,12 @@ export function alignShapes(
 
 /**
  * Align shapes to viewport edges (viewport-aware alignment)
+ * Viewport starts after header and extends to bottom of window
+ *
+ * Top: Top vertices align to viewport.top (no padding)
+ * Bottom: Bottom vertices with 10px padding from viewport.bottom
+ * Left: Left vertices with 10px padding from viewport.left
+ * Right: Right vertices with 10px padding from viewport.right
  */
 function alignShapesToViewport(
   shapes: Shape[],
@@ -1207,51 +1457,76 @@ function alignShapesToViewport(
   const aligned: Shape[] = []
 
   console.log(`[AI Helpers] Aligning ${shapes.length} shapes to viewport ${alignment}`)
+  console.log(`[AI Helpers] Viewport bounds:`, viewportBounds)
   console.log(`[AI Helpers] Viewport edges:`, edges)
+
+  // Padding to ensure shapes are inside viewport on all sides (in screen pixels)
+  const EDGE_PADDING_PX = 10
+  const edgePadding = EDGE_PADDING_PX / viewport.zoom
+
+  console.log(`[AI Helpers] Edge padding (all sides): ${edgePadding}px (${EDGE_PADDING_PX}px screen)`)
 
   switch (alignment) {
     case 'left': {
+      // Left vertices should be inside viewport with padding
+      // center.x = viewport.left + padding + leftOffset
       for (const shape of shapes) {
-        aligned.push({ ...shape, x: edges.left })
+        const leftOffset = getLeftOffset(shape)
+        const alignX = edges.left + edgePadding + leftOffset
+        console.log(`[AI Helpers] ${shape.type}: left vertex will be at x=${edges.left + edgePadding}, center at x=${alignX}`)
+        aligned.push({ ...shape, x: alignX })
       }
       break
     }
 
     case 'right': {
+      // Right vertices should be inside viewport with padding
+      // center.x = viewport.right - padding - rightOffset
       for (const shape of shapes) {
-        const shapeWidth = getShapeWidth(shape)
-        aligned.push({ ...shape, x: edges.right - shapeWidth })
+        const rightOffset = getRightOffset(shape)
+        const alignX = edges.right - edgePadding - rightOffset
+        console.log(`[AI Helpers] ${shape.type}: right vertex will be at x=${edges.right - edgePadding}, center at x=${alignX}`)
+        aligned.push({ ...shape, x: alignX })
       }
       break
     }
 
     case 'top': {
+      // Top vertices align to viewport top edge (no padding at top)
+      // center.y = viewport.top + topOffset
       for (const shape of shapes) {
-        aligned.push({ ...shape, y: edges.top })
+        const topOffset = getTopOffset(shape)
+        const alignY = edges.top + topOffset
+        console.log(`[AI Helpers] ${shape.type}: top vertex will be at y=${edges.top}, center at y=${alignY}`)
+        aligned.push({ ...shape, y: alignY })
       }
       break
     }
 
     case 'bottom': {
+      // Bottom vertices with 10px padding from viewport bottom
+      // center.y = viewport.bottom - edgePadding - bottomOffset
       for (const shape of shapes) {
-        const shapeHeight = getShapeHeight(shape)
-        aligned.push({ ...shape, y: edges.bottom - shapeHeight })
+        const bottomOffset = getBottomOffset(shape)
+        const alignY = edges.bottom - edgePadding - bottomOffset
+        console.log(`[AI Helpers] ${shape.type}: bottom vertex will be at y=${edges.bottom - edgePadding} (10px from bottom), center at y=${alignY}`)
+        aligned.push({ ...shape, y: alignY })
       }
       break
     }
 
     case 'center-horizontal': {
+      // Center horizontally in viewport
       for (const shape of shapes) {
-        const shapeWidth = getShapeWidth(shape)
-        aligned.push({ ...shape, x: edges.centerX - shapeWidth / 2 })
+        aligned.push({ ...shape, x: edges.centerX })
       }
       break
     }
 
     case 'center-vertical': {
+      // Center vertically in viewport
       for (const shape of shapes) {
-        const shapeHeight = getShapeHeight(shape)
-        aligned.push({ ...shape, y: edges.centerY - shapeHeight / 2 })
+        aligned.push({ ...shape, y: edges.centerY })
       }
       break
     }
@@ -1261,6 +1536,7 @@ function alignShapesToViewport(
       return shapes
   }
 
+  console.log(`[AI Helpers] Aligned shapes:`, aligned.map(s => ({ id: s.id, type: s.type, x: s.x, y: s.y })))
   return aligned
 }
 

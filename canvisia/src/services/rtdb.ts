@@ -371,3 +371,133 @@ export async function removeAllUserPresence(userId: string): Promise<void> {
   // This is a placeholder for future enhancement if needed
   console.debug('removeAllUserPresence called for user:', userId)
 }
+
+/**
+ * ============================================================================
+ * LIVE POSITION UPDATES (for real-time collaborative shape dragging)
+ * ============================================================================
+ *
+ * These functions provide low-latency position updates (10-50ms) for shapes
+ * being dragged in real-time collaboration. RTDB is used for temporary live
+ * updates during drag, while Firestore remains the source of truth for
+ * persistent data.
+ */
+
+/**
+ * Position data structure for live updates
+ */
+export interface LivePosition {
+  x: number
+  y: number
+  x2?: number // For lines, arrows, connectors
+  y2?: number
+  bendX?: number // For bent connectors
+  bendY?: number
+  updatedBy: string // User ID who made the update
+  updatedAt: number // Timestamp
+}
+
+/**
+ * Write a shape's position to RTDB for live collaboration
+ * Called during shape drag to broadcast position updates to other users
+ *
+ * @param canvasId - Canvas ID
+ * @param shapeId - Shape ID
+ * @param position - Position data to write
+ */
+export async function writeShapePosition(
+  canvasId: string,
+  shapeId: string,
+  position: Omit<LivePosition, 'updatedAt'>
+): Promise<void> {
+  const positionRef = ref(rtdb, `live-positions/${canvasId}/${shapeId}`)
+
+  const positionData: LivePosition = {
+    ...position,
+    updatedAt: Date.now(),
+  }
+
+  await set(positionRef, positionData)
+}
+
+/**
+ * Subscribe to live position updates for all shapes in a canvas
+ * Other users' drag operations will trigger this callback with updated positions
+ *
+ * @param canvasId - Canvas ID
+ * @param callback - Callback function called with positions map when data changes
+ * @returns Unsubscribe function
+ */
+export function subscribeToLivePositions(
+  canvasId: string,
+  callback: (positions: Map<string, LivePosition>) => void
+): () => void {
+  const positionsRef = ref(rtdb, `live-positions/${canvasId}`)
+
+  const handleValue = (snapshot: DataSnapshot) => {
+    const positions = new Map<string, LivePosition>()
+
+    if (snapshot.exists()) {
+      const data = snapshot.val()
+
+      // Convert object to Map
+      Object.entries(data).forEach(([shapeId, positionData]) => {
+        positions.set(shapeId, positionData as LivePosition)
+      })
+    }
+
+    callback(positions)
+  }
+
+  const handleError = (error: Error) => {
+    console.error('[RTDB] Live positions subscription error:', error)
+  }
+
+  // Listen for all position updates under this canvas
+  const unsubscribe = onValue(positionsRef, handleValue, handleError)
+
+  // Return unsubscribe function
+  return unsubscribe
+}
+
+/**
+ * Clear a shape's position from RTDB (called when drag ends)
+ * This removes temporary live position data and allows Firestore to be the source of truth
+ *
+ * @param canvasId - Canvas ID
+ * @param shapeId - Shape ID
+ */
+export async function clearShapePosition(
+  canvasId: string,
+  shapeId: string
+): Promise<void> {
+  const positionRef = ref(rtdb, `live-positions/${canvasId}/${shapeId}`)
+  await remove(positionRef)
+}
+
+/**
+ * Clear all positions for a canvas (cleanup on unmount or reset)
+ *
+ * @param canvasId - Canvas ID
+ */
+export async function clearAllPositions(canvasId: string): Promise<void> {
+  const positionsRef = ref(rtdb, `live-positions/${canvasId}`)
+  await remove(positionsRef)
+}
+
+/**
+ * Clear positions for multiple shapes (batch cleanup)
+ * Used when multiple shapes finish dragging at once
+ *
+ * @param canvasId - Canvas ID
+ * @param shapeIds - Array of shape IDs to clear
+ */
+export async function clearShapePositions(
+  canvasId: string,
+  shapeIds: string[]
+): Promise<void> {
+  // Clear all positions in parallel for performance
+  await Promise.all(
+    shapeIds.map((shapeId) => clearShapePosition(canvasId, shapeId))
+  )
+}

@@ -24,6 +24,12 @@
         }
       }
     },
+    "live-positions": {
+      "$canvasId": {
+        ".read": true,
+        ".write": "auth != null"
+      }
+    },
     "canvases": {
       "$canvasId": {
         "aiLock": {
