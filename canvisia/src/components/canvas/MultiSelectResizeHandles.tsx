@@ -44,19 +44,110 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
 
   shapes.forEach(shape => {
-    // Debug: Log any shape with suspicious values
-    if (shape.x > 10000 || shape.y > 10000 ||
-        ('width' in shape && (shape.width === undefined || shape.width > 10000)) ||
-        ('height' in shape && (shape.height === undefined || shape.height > 10000))) {
-      console.warn('[MultiSelectResizeHandles] Suspicious shape data:', {
+    // CRITICAL: Validate core position properties first
+    if (shape.x === undefined || shape.y === undefined ||
+        isNaN(shape.x) || isNaN(shape.y) ||
+        !isFinite(shape.x) || !isFinite(shape.y)) {
+      console.error('[MultiSelectResizeHandles] Shape has invalid position, skipping:', {
         id: shape.id,
         type: shape.type,
         x: shape.x,
-        y: shape.y,
-        width: 'width' in shape ? shape.width : 'N/A',
-        height: 'height' in shape ? shape.height : 'N/A'
+        y: shape.y
       })
+      return // Skip this shape entirely
     }
+
+    // Validate shape-specific required properties
+    let hasValidProperties = true
+    switch (shape.type) {
+      case 'rectangle':
+      case 'roundedRectangle':
+      case 'cylinder':
+      case 'text':
+        if (shape.width === undefined || shape.height === undefined ||
+            isNaN(shape.width) || isNaN(shape.height) ||
+            shape.width <= 0 || shape.height <= 0) {
+          console.error('[MultiSelectResizeHandles] Shape has invalid dimensions, skipping:', {
+            id: shape.id,
+            type: shape.type,
+            width: shape.width,
+            height: shape.height
+          })
+          hasValidProperties = false
+        }
+        break
+      case 'circle':
+        if (shape.radius === undefined || isNaN(shape.radius) || shape.radius <= 0) {
+          console.error('[MultiSelectResizeHandles] Circle has invalid radius, skipping:', {
+            id: shape.id,
+            radius: shape.radius
+          })
+          hasValidProperties = false
+        }
+        break
+      case 'ellipse':
+      case 'triangle':
+      case 'pentagon':
+      case 'hexagon':
+        if (shape.radiusX === undefined || shape.radiusY === undefined ||
+            isNaN(shape.radiusX) || isNaN(shape.radiusY) ||
+            shape.radiusX <= 0 || shape.radiusY <= 0) {
+          console.error('[MultiSelectResizeHandles] Shape has invalid radii, skipping:', {
+            id: shape.id,
+            type: shape.type,
+            radiusX: shape.radiusX,
+            radiusY: shape.radiusY
+          })
+          hasValidProperties = false
+        }
+        break
+      case 'star':
+        if (shape.outerRadiusX === undefined || shape.outerRadiusY === undefined ||
+            isNaN(shape.outerRadiusX) || isNaN(shape.outerRadiusY) ||
+            shape.outerRadiusX <= 0 || shape.outerRadiusY <= 0) {
+          console.error('[MultiSelectResizeHandles] Star has invalid radii, skipping:', {
+            id: shape.id,
+            outerRadiusX: shape.outerRadiusX,
+            outerRadiusY: shape.outerRadiusY
+          })
+          hasValidProperties = false
+        }
+        break
+      case 'line':
+      case 'arrow':
+      case 'bidirectionalArrow':
+        if (shape.x2 === undefined || shape.y2 === undefined ||
+            isNaN(shape.x2) || isNaN(shape.y2)) {
+          console.error('[MultiSelectResizeHandles] Line has invalid endpoints, skipping:', {
+            id: shape.id,
+            type: shape.type,
+            x2: shape.x2,
+            y2: shape.y2
+          })
+          hasValidProperties = false
+        }
+        break
+      case 'bentConnector':
+        if (shape.x2 === undefined || shape.y2 === undefined ||
+            shape.bendX === undefined || shape.bendY === undefined ||
+            isNaN(shape.x2) || isNaN(shape.y2) ||
+            isNaN(shape.bendX) || isNaN(shape.bendY)) {
+          console.error('[MultiSelectResizeHandles] Bent connector has invalid points, skipping:', {
+            id: shape.id,
+            x2: shape.x2,
+            y2: shape.y2,
+            bendX: shape.bendX,
+            bendY: shape.bendY
+          })
+          hasValidProperties = false
+        }
+        break
+    }
+
+    if (!hasValidProperties) {
+      return // Skip this shape
+    }
+
     let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
 
     // Calculate bounds based on shape type
@@ -125,21 +216,10 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
         break
     }
 
-    // Guard against NaN or invalid values
-    if (!isNaN(left) && !isNaN(right) && !isNaN(top) && !isNaN(bottom) &&
-        isFinite(left) && isFinite(right) && isFinite(top) && isFinite(bottom)) {
-      minX = Math.min(minX, left)
-      minY = Math.min(minY, top)
-      maxX = Math.max(maxX, right)
-      maxY = Math.max(maxY, bottom)
-    } else {
-      console.error('[MultiSelectResizeHandles] Invalid bounds for shape:', {
-        id: shape.id,
-        type: shape.type,
-        left, top, right, bottom,
-        shape
-      })
-    }
+    minX = Math.min(minX, left)
+    minY = Math.min(minY, top)
+    maxX = Math.max(maxX, right)
+    maxY = Math.max(maxY, bottom)
   })
 
   const width = maxX - minX
