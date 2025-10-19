@@ -206,6 +206,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         node.x(position.x)
         node.y(position.y)
 
+        // RESIZE SYNC: Update dimensions if present (for smooth remote resize viewing)
+        if (position.width !== undefined) node.width(position.width)
+        if (position.height !== undefined) node.height(position.height)
+        if (position.radius !== undefined) node.radius(position.radius)
+        if (position.radiusX !== undefined) node.radiusX(position.radiusX)
+        if (position.radiusY !== undefined) node.radiusY(position.radiusY)
+        if (position.outerRadiusX !== undefined || position.outerRadiusY !== undefined) {
+          // Star shapes - Konva uses single outerRadius/innerRadius
+          // We send X/Y separately but apply as average
+          const outerRadius = position.outerRadiusX || position.outerRadiusY || node.outerRadius()
+          const innerRadius = position.innerRadiusX || position.innerRadiusY || node.innerRadius()
+          node.outerRadius(outerRadius)
+          node.innerRadius(innerRadius)
+        }
+
         // For line-based shapes, also update endpoints via points array
         const shape = firestoreShapes.find(s => s.id === shapeId)
         if (!shape) return

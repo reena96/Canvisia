@@ -385,14 +385,29 @@ export async function removeAllUserPresence(userId: string): Promise<void> {
 
 /**
  * Position data structure for live updates
+ * Includes both position and dimension properties for smooth real-time collaboration
  */
 export interface LivePosition {
+  // Position properties
   x: number
   y: number
   x2?: number // For lines, arrows, connectors
   y2?: number
   bendX?: number // For bent connectors
   bendY?: number
+
+  // Dimension properties (for resize operations)
+  width?: number // For rectangles, text
+  height?: number
+  radius?: number // For circles
+  radiusX?: number // For ellipses, polygons
+  radiusY?: number
+  outerRadiusX?: number // For stars
+  outerRadiusY?: number
+  innerRadiusX?: number
+  innerRadiusY?: number
+
+  // Metadata
   updatedBy: string // User ID who made the update
   updatedAt: number // Timestamp
 }
