@@ -421,6 +421,38 @@ export async function writeShapePosition(
 }
 
 /**
+ * Write multiple shapes' positions to RTDB in a single batch update
+ * This is MUCH more efficient for multi-select drag operations
+ *
+ * @param canvasId - Canvas ID
+ * @param positions - Map of shapeId -> position data
+ */
+export async function writeBatchShapePositions(
+  canvasId: string,
+  positions: Map<string, Omit<LivePosition, 'updatedAt'>>
+): Promise<void> {
+  if (positions.size === 0) return
+
+  const timestamp = Date.now()
+
+  // Build update object with all positions
+  // Firebase update() accepts an object with paths as keys
+  const updates: Record<string, LivePosition> = {}
+
+  positions.forEach((position, shapeId) => {
+    // Each key is a path relative to the root
+    updates[`live-positions/${canvasId}/${shapeId}`] = {
+      ...position,
+      updatedAt: timestamp,
+    }
+  })
+
+  // Single atomic write for all positions
+  const rootRef = ref(rtdb, '/')
+  await update(rootRef, updates)
+}
+
+/**
  * Subscribe to live position updates for all shapes in a canvas
  * Other users' drag operations will trigger this callback with updated positions
  *

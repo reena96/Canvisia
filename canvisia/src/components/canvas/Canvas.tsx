@@ -36,7 +36,7 @@ import { usePerformanceMonitor } from '@/hooks/usePerformanceMonitor'
 import { calculateRectangleResize, calculateCircleResize, calculateEllipseResize } from '@/utils/resizeCalculations'
 import { calculateRotationDelta, snapAngle, normalizeAngle } from '@/utils/rotationCalculations'
 import type { ResizeHandle } from '@/utils/resizeCalculations'
-import { writeShapePosition, clearShapePositions, subscribeToLivePositions, type LivePosition } from '@/services/rtdb'
+import { writeBatchShapePositions, clearShapePositions, subscribeToLivePositions, type LivePosition } from '@/services/rtdb'
 
 interface CanvasProps {
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
@@ -106,6 +106,15 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Track shapes with active RTDB positions (being dragged by other users)
   // This prevents Firestore updates from causing jitter during remote drags
   const rtdbActiveShapeIds = useRef<Set<string>>(new Set())
+
+  // PERFORMANCE: Cache Konva nodes during drag to avoid stage.findOne() on every mousemove
+  const cachedNodes = useRef<Map<string, any>>(new Map())
+
+  // PERFORMANCE: Cache shape data during drag to avoid array.find() on every mousemove
+  const cachedShapeData = useRef<Map<string, { type: string; isLine: boolean; isBentConnector: boolean }>>(new Map())
+
+  // PERFORMANCE: Batch RTDB position data (all shapes written in single update)
+  const rtdbWriteQueue = useRef<Map<string, any>>(new Map())
 
   // Optimistic updates: store local shape updates that haven't synced to Firestore yet
   const [localShapeUpdates, setLocalShapeUpdates] = useState<Record<string, Partial<Shape>>>({})
@@ -1035,12 +1044,20 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // Track ALL shapes being moved to prevent React interference with Konva's direct manipulation
       movingShapeIds.current = new Set(shapesToMove)
 
-      // Capture initial positions for all shapes that will move
+      // Get Konva stage for caching nodes
+      const stage = stageRef.current
+      if (!stage) return
+
+      // PERFORMANCE: Clear and populate all caches on drag start
       const positions = new Map()
+      cachedNodes.current.clear()
+      cachedShapeData.current.clear()
+
       shapesToMove.forEach((id) => {
         const shape = shapes.find((s) => s.id === id)
         if (!shape) return
 
+        // Cache initial positions
         if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
           positions.set(id, { x: shape.x, y: shape.y, x2: shape.x2, y2: shape.y2 })
         } else if (shape.type === 'bentConnector') {
@@ -1048,6 +1065,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         } else {
           positions.set(id, { x: shape.x, y: shape.y })
         }
+
+        // PERFORMANCE: Cache Konva node reference (avoids stage.findOne on every mousemove)
+        const node = stage.findOne(`#${id}`)
+        if (node) {
+          cachedNodes.current.set(id, node)
+        }
+
+        // PERFORMANCE: Cache shape type data (avoids array.find and type checks on every mousemove)
+        const isLine = shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow'
+        const isBentConnector = shape.type === 'bentConnector'
+        cachedShapeData.current.set(id, {
+          type: shape.type,
+          isLine,
+          isBentConnector
+        })
       })
 
       initialDragPositions.current = positions
@@ -1060,10 +1092,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     (shapeId: string, x: number, y: number) => {
       // Get initial position of the dragged shape
       const initialPos = initialDragPositions.current.get(shapeId)
-      if (!initialPos) {
-        console.warn('[Multi-Drag] No initial position for', shapeId)
-        return
-      }
+      if (!initialPos) return
 
       // Calculate the delta from the INITIAL position (not current)
       const dx = x - initialPos.x
@@ -1077,21 +1106,15 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       if (!stage) return
 
       shapesToMove.forEach((id) => {
-        const shape = shapes.find((s) => s.id === id)
+        // PERFORMANCE: Use cached data instead of array.find()
+        const shapeData = cachedShapeData.current.get(id)
         const shapeInitialPos = initialDragPositions.current.get(id)
 
-        if (!shape) {
-          console.warn('[Multi-Drag] Shape not found:', id)
-          return
-        }
-        if (!shapeInitialPos) {
-          console.warn('[Multi-Drag] No initial position for shape:', id)
-          return
-        }
+        if (!shapeData || !shapeInitialPos) return
 
-        // Calculate updates based on shape type using INITIAL positions
+        // Calculate updates based on cached shape type using INITIAL positions
         let updates: Partial<Shape>
-        if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+        if (shapeData.isLine) {
           // For lines and connectors, update both endpoints
           updates = {
             x: shapeInitialPos.x + dx,
@@ -1099,7 +1122,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             x2: shapeInitialPos.x2! + dx,
             y2: shapeInitialPos.y2! + dy,
           }
-        } else if (shape.type === 'bentConnector') {
+        } else if (shapeData.isBentConnector) {
           // For bent connectors, also update the bend point
           updates = {
             x: shapeInitialPos.x + dx,
@@ -1117,16 +1140,17 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         // CRITICAL: For non-dragged shapes, directly update Konva nodes for real-time movement
         // This bypasses React rendering and moves shapes immediately via Konva's native API
         if (id !== shapeId) {
-          const node = stage.findOne(`#${id}`)
+          // PERFORMANCE: Use cached node instead of stage.findOne()
+          const node = cachedNodes.current.get(id)
           if (node) {
             node.x(updates.x!)
             node.y(updates.y!)
 
             // For line-based shapes, also update endpoints via points array
-            if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+            if (shapeData.isLine) {
               const lineUpdates = updates as { x: number; y: number; x2: number; y2: number }
               node.points([0, 0, lineUpdates.x2 - lineUpdates.x, lineUpdates.y2 - lineUpdates.y])
-            } else if (shape.type === 'bentConnector') {
+            } else if (shapeData.isBentConnector) {
               const connectorUpdates = updates as { x: number; y: number; x2: number; y2: number; bendX: number; bendY: number }
               node.points([
                 0,
@@ -1140,10 +1164,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           }
         }
 
-        // Write position to RTDB for low-latency real-time collaboration (10-50ms)
-        // This replaces updateShapeThrottled during drag for much faster updates
-        // Firestore will be updated with final position on drag end
-
+        // PERFORMANCE: Queue RTDB write instead of writing immediately
         // Build position data, only including defined properties (RTDB rejects undefined)
         const positionData: any = {
           x: updates.x!,
@@ -1157,13 +1178,16 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         if ((updates as any).bendX !== undefined) positionData.bendX = (updates as any).bendX
         if ((updates as any).bendY !== undefined) positionData.bendY = (updates as any).bendY
 
-        // Log RTDB write during drag
-        console.log(`[DURING DRAG - ${new Date().toISOString()}] Writing to RTDB:`, id, `x=${positionData.x}, y=${positionData.y}`)
-
-        writeShapePosition(canvasId, id, positionData).catch((error) => {
-          console.error('[RTDB] Failed to write position for', id, error)
-        })
+        // Add to batch for immediate write
+        rtdbWriteQueue.current.set(id, positionData)
       })
+
+      // PERFORMANCE: Write ALL positions in a SINGLE batch update IMMEDIATELY
+      // This gives us both benefits: low latency (no delay) + low overhead (1 RTDB write instead of 100)
+      writeBatchShapePositions(canvasId, rtdbWriteQueue.current).catch(() => {
+        // Silently ignore RTDB errors during drag
+      })
+      rtdbWriteQueue.current.clear()
 
       // Redraw the layer once after all nodes are updated (batch drawing for performance)
       const layer = stage.findOne('Layer')
@@ -1180,7 +1204,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         }
       }
     },
-    [shapes, selectedIds, user, viewport, updateCursor, canvasId, userId]
+    [selectedIds, user, viewport, updateCursor, canvasId, userId]
   )
 
   // Handle shape drag end (ensure final position is persisted) with multi-select support
@@ -1197,26 +1221,33 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // If multiple shapes are selected and this shape is one of them, save all selected shapes
       const shapesToSave = selectedIds.includes(shapeId) ? selectedIds : [shapeId]
 
+      // PERFORMANCE: Flush any remaining RTDB writes before finalizing
+      if (rtdbWriteQueue.current.size > 0) {
+        await writeBatchShapePositions(canvasId, rtdbWriteQueue.current).catch(() => {})
+        rtdbWriteQueue.current.clear()
+      }
+
       // Batch all local updates for atomic state update
       const batchedUpdates: Record<string, Partial<Shape>> = {}
 
       try {
         await Promise.all(
           shapesToSave.map(async (id) => {
-            const shape = shapes.find((s) => s.id === id)
+            // PERFORMANCE: Use cached data instead of array.find()
+            const shapeData = cachedShapeData.current.get(id)
             const shapeInitialPos = initialDragPositions.current.get(id)
-            if (!shape || !shapeInitialPos) return
+            if (!shapeData || !shapeInitialPos) return
 
-            // Calculate updates based on shape type using INITIAL positions
+            // Calculate updates based on cached shape type using INITIAL positions
             let updates: Partial<Shape>
-            if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+            if (shapeData.isLine) {
               updates = {
                 x: shapeInitialPos.x + dx,
                 y: shapeInitialPos.y + dy,
                 x2: shapeInitialPos.x2! + dx,
                 y2: shapeInitialPos.y2! + dy,
               }
-            } else if (shape.type === 'bentConnector') {
+            } else if (shapeData.isBentConnector) {
               updates = {
                 x: shapeInitialPos.x + dx,
                 y: shapeInitialPos.y + dy,
@@ -1232,8 +1263,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             // Add to batch
             batchedUpdates[id] = updates
 
-            // Send final position to Firestore (not throttled)
-            console.log(`[DRAG END - ${new Date().toISOString()}] Writing to Firestore:`, id, `x=${updates.x}, y=${updates.y}`)
+            // Send final position to Firestore
             return updateShape(id, updates)
           })
         )
@@ -1249,15 +1279,17 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           console.error('[RTDB] Failed to clear positions:', error)
         })
 
-        // Clear initial positions and moving shapes state after drag end
-        initialDragPositions.current = new Map()
-        movingShapeIds.current = new Set()
+        // PERFORMANCE: Clear all caches after drag end
+        initialDragPositions.current.clear()
+        movingShapeIds.current.clear()
+        cachedNodes.current.clear()
+        cachedShapeData.current.clear()
       } catch (err) {
         console.error('Failed to update shape positions:', err)
         setError('Failed to save shape positions. Please try again.')
       }
     },
-    [shapes, selectedIds, updateShape]
+    [selectedIds, updateShape, canvasId]
   )
 
   // Resize handlers
