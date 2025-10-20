@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { X as CloseIcon, Check, Search, ChevronDown, ChevronRight } from 'lucide-react'
+import { X as CloseIcon, Check, Search, ChevronDown, ChevronRight, Edit2 } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { subscribeToAnnotations, toggleAnnotationResolved, deleteAnnotation } from '@/services/firestore'
+import { subscribeToAnnotations, toggleAnnotationResolved, deleteAnnotation, updateAnnotation } from '@/services/firestore'
 import type { Annotation } from '@/types/shapes'
 import type { Shape } from '@/types/shapes'
 
@@ -32,6 +32,8 @@ export function CommentsPanel({
   const [searchQuery, setSearchQuery] = useState('')
   const [showResolved, setShowResolved] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
 
   const { user } = useAuth()
   const selectedRef = useRef<HTMLDivElement>(null)
@@ -120,6 +122,33 @@ export function CommentsPanel({
   const handleDelete = async (annotation: Annotation) => {
     if (window.confirm('Delete this comment?')) {
       await deleteAnnotation(canvasPath, annotation.id)
+    }
+  }
+
+  const handleStartEdit = (annotation: Annotation) => {
+    setEditingAnnotationId(annotation.id)
+    setEditingText(annotation.comment)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingAnnotationId(null)
+    setEditingText('')
+  }
+
+  const handleSaveEdit = async (annotationId: string) => {
+    if (!editingText.trim()) {
+      return
+    }
+
+    try {
+      await updateAnnotation(canvasPath, annotationId, {
+        comment: editingText.trim()
+      })
+      setEditingAnnotationId(null)
+      setEditingText('')
+    } catch (error) {
+      console.error('Error updating annotation:', error)
+      alert('Failed to update comment')
     }
   }
 
@@ -417,16 +446,40 @@ export function CommentsPanel({
                             )}
                           </div>
 
-                          {/* Comment text */}
-                          <div style={{
-                            fontSize: '14px',
-                            color: '#1f2937',
-                            lineHeight: '1.5',
-                            marginBottom: '8px',
-                            wordWrap: 'break-word'
-                          }}>
-                            {annotation.comment}
-                          </div>
+                          {/* Comment text - editable if in edit mode */}
+                          {editingAnnotationId === annotation.id ? (
+                            <div style={{ marginBottom: '8px' }}>
+                              <textarea
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  width: '100%',
+                                  minHeight: '80px',
+                                  padding: '8px',
+                                  fontSize: '14px',
+                                  color: '#1f2937',
+                                  lineHeight: '1.5',
+                                  border: '2px solid #8b5cf6',
+                                  borderRadius: '6px',
+                                  outline: 'none',
+                                  resize: 'vertical',
+                                  fontFamily: 'inherit'
+                                }}
+                                autoFocus
+                              />
+                            </div>
+                          ) : (
+                            <div style={{
+                              fontSize: '14px',
+                              color: '#1f2937',
+                              lineHeight: '1.5',
+                              marginBottom: '8px',
+                              wordWrap: 'break-word'
+                            }}>
+                              {annotation.comment}
+                            </div>
+                          )}
 
                           {/* Actions */}
                           <div style={{
@@ -435,55 +488,140 @@ export function CommentsPanel({
                             paddingTop: '8px',
                             borderTop: '1px solid #e5e7eb'
                           }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleResolve(annotation)
-                              }}
-                              style={{
-                                fontSize: '12px',
-                                fontWeight: '500',
-                                color: annotation.resolved ? '#9ca3af' : '#8b5cf6',
-                                backgroundColor: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '4px 8px',
-                                borderRadius: '4px'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f3f4f6'
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent'
-                              }}
-                            >
-                              {annotation.resolved ? 'Unresolve' : 'Resolve'}
-                            </button>
-                            {isCurrentUser && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDelete(annotation)
-                                }}
-                                style={{
-                                  fontSize: '12px',
-                                  fontWeight: '500',
-                                  color: '#ef4444',
-                                  backgroundColor: 'transparent',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = '#fef2f2'
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = 'transparent'
-                                }}
-                              >
-                                Delete
-                              </button>
+                            {editingAnnotationId === annotation.id ? (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSaveEdit(annotation.id)
+                                  }}
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    color: 'white',
+                                    backgroundColor: '#8b5cf6',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px 12px',
+                                    borderRadius: '4px'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#7c3aed'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#8b5cf6'
+                                  }}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCancelEdit()
+                                  }}
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    color: '#6b7280',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f3f4f6'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleResolve(annotation)
+                                  }}
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    color: annotation.resolved ? '#9ca3af' : '#8b5cf6',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f3f4f6'
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                  }}
+                                >
+                                  {annotation.resolved ? 'Unresolve' : 'Resolve'}
+                                </button>
+                                {isCurrentUser && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleStartEdit(annotation)
+                                      }}
+                                      style={{
+                                        fontSize: '12px',
+                                        fontWeight: '500',
+                                        color: '#8b5cf6',
+                                        backgroundColor: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#ede9fe'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'transparent'
+                                      }}
+                                    >
+                                      <Edit2 size={12} />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDelete(annotation)
+                                      }}
+                                      style={{
+                                        fontSize: '12px',
+                                        fontWeight: '500',
+                                        color: '#ef4444',
+                                        backgroundColor: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#fef2f2'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = 'transparent'
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
