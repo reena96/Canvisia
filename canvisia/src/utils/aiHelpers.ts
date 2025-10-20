@@ -1060,6 +1060,102 @@ export function findShape(
 }
 
 /**
+ * Find similar shapes when exact match fails
+ * Returns array of similar shapes with reasons why they're similar
+ */
+export function findSimilarShapes(
+  shapes: Shape[],
+  descriptor: {
+    type?: string
+    color?: string
+  }
+): Array<{ shape: Shape; reason: string }> {
+  const similar: Array<{ shape: Shape; reason: string }> = []
+
+  // If looking for specific type and color, find shapes with matching type (different color)
+  if (descriptor.type && descriptor.color) {
+    const typeMatches = shapes.filter(s => s.type === descriptor.type)
+    for (const shape of typeMatches) {
+      if (!matchesColor(shape, descriptor.color)) {
+        const shapeColor = 'fill' in shape ? (shape as any).fill : ('stroke' in shape ? (shape as any).stroke : 'unknown')
+        similar.push({
+          shape,
+          reason: `${descriptor.type} with different color (${shapeColor})`
+        })
+      }
+    }
+  }
+
+  // If looking for specific type only, show all shapes of that type
+  if (descriptor.type && !descriptor.color) {
+    const typeMatches = shapes.filter(s => s.type === descriptor.type)
+    for (const shape of typeMatches) {
+      const shapeColor = 'fill' in shape ? (shape as any).fill : ('stroke' in shape ? (shape as any).stroke : 'N/A')
+      similar.push({
+        shape,
+        reason: `${descriptor.type} (${shapeColor})`
+      })
+    }
+  }
+
+  // If looking for specific color, find shapes with matching color (different type)
+  if (descriptor.color && !descriptor.type) {
+    const colorMatches = shapes.filter(s => matchesColor(s, descriptor.color!))
+    for (const shape of colorMatches) {
+      similar.push({
+        shape,
+        reason: `${shape.type} with matching color`
+      })
+    }
+  }
+
+  return similar.slice(0, 3) // Return max 3 suggestions
+}
+
+/**
+ * Generate helpful error message when shape is not found
+ */
+export function generateShapeNotFoundMessage(
+  descriptor: {
+    type?: string
+    color?: string
+  },
+  shapes: Shape[]
+): string {
+  let message = ''
+
+  // Build description of what was searched for
+  if (descriptor.type && descriptor.color) {
+    message = `I couldn't find a ${descriptor.color} ${descriptor.type} on the canvas.`
+  } else if (descriptor.type) {
+    message = `I couldn't find a ${descriptor.type} on the canvas.`
+  } else if (descriptor.color) {
+    message = `I couldn't find a ${descriptor.color} shape on the canvas.`
+  } else {
+    message = `I couldn't find that shape on the canvas.`
+  }
+
+  // Find similar shapes
+  const similar = findSimilarShapes(shapes, descriptor)
+
+  if (similar.length > 0) {
+    message += '\n\nDid you mean one of these?\n'
+    similar.forEach((item, index) => {
+      message += `${index + 1}. ${item.reason}\n`
+    })
+  } else {
+    // No similar shapes - offer to create
+    if (descriptor.type && descriptor.color) {
+      message += `\n\nWould you like me to create a ${descriptor.color} ${descriptor.type}?`
+    } else if (descriptor.type) {
+      message += `\n\nWould you like me to create a ${descriptor.type}?`
+    }
+  }
+
+  return message
+}
+
+/**
  * Execute move_element tool call with smooth rendering
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
@@ -1091,7 +1187,12 @@ export async function executeMoveElement(
   })
 
   if (!shape) {
-    throw new Error('Shape not found matching the description')
+    // Generate helpful error message with suggestions
+    const helpfulMessage = generateShapeNotFoundMessage(
+      { type: input.type, color: input.color },
+      shapes
+    )
+    throw new Error(helpfulMessage)
   }
 
   // Determine new position
@@ -1193,7 +1294,12 @@ export async function executeResizeElement(
   })
 
   if (!shape) {
-    throw new Error('Shape not found matching the description')
+    // Generate helpful error message with suggestions
+    const helpfulMessage = generateShapeNotFoundMessage(
+      { type: input.type, color: input.color },
+      shapes
+    )
+    throw new Error(helpfulMessage)
   }
 
   // Prepare update object (use any to handle different shape types)
@@ -1302,7 +1408,12 @@ export async function executeRotateElement(
   })
 
   if (!shape) {
-    throw new Error('Shape not found matching the description')
+    // Generate helpful error message with suggestions
+    const helpfulMessage = generateShapeNotFoundMessage(
+      { type: input.type, color: input.color },
+      shapes
+    )
+    throw new Error(helpfulMessage)
   }
 
   console.log(`[AI Helpers] Rotating shape ${shape.id} to ${input.angle} degrees`)

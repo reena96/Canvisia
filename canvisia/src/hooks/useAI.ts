@@ -169,7 +169,9 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
     } catch (error) {
       console.error('AI command error:', error)
-      onMessage?.(command, '❌ Failed to execute command')
+      // Pass through the helpful error message if available
+      const errorMessage = error instanceof Error ? error.message : 'Failed to execute command'
+      onMessage?.(command, `❌ ${errorMessage}`)
     } finally {
       setIsProcessing(false)
       await releaseAILock(canvasId)
