@@ -2033,7 +2033,7 @@ export async function executeCreateUIComponent(
         x: startX,
         y: startY,
         text: 'Username',
-        fontSize: 14,
+        fontSize: 18,
         fontFamily: 'Arial',
         fontWeight: 600,
         fontStyle: 'normal',
@@ -2042,7 +2042,7 @@ export async function executeCreateUIComponent(
         lineHeight: 1.2,
         fill: '#374151',
         width: width,
-        height: 20,
+        height: 24,
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
@@ -2071,7 +2071,7 @@ export async function executeCreateUIComponent(
         x: startX,
         y: startY + 84,
         text: 'Password',
-        fontSize: 14,
+        fontSize: 18,
         fontFamily: 'Arial',
         fontWeight: 600,
         fontStyle: 'normal',
@@ -2080,7 +2080,7 @@ export async function executeCreateUIComponent(
         lineHeight: 1.2,
         fill: '#374151',
         width: width,
-        height: 20,
+        height: 24,
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
@@ -2630,11 +2630,14 @@ export async function executeCreateDiagram(
           updatedAt: new Date().toISOString(),
         } as Text)
 
-        // Arrow from CEO to Manager
+        // Arrow from CEO to Manager - spread out to avoid overlap
+        // Calculate arrow start position along CEO bottom edge
+        const arrowStartX = startX + (nodeWidth * (i + 1) / (managerCount + 1))
+
         await createShape(canvasId, {
           id: uuidv4(),
           type: 'arrow',
-          x: startX + nodeWidth / 2,
+          x: arrowStartX,
           y: startY + nodeHeight,
           x2: managerX + nodeWidth / 2,
           y2: managerY,
