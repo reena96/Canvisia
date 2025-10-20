@@ -110,6 +110,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Clipboard state
   const [clipboard, setClipboard] = useState<Shape[]>([])
 
+  // Undo/Redo state
+  const [history, setHistory] = useState<Shape[][]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const isUndoRedoOperation = useRef(false) // Flag to prevent recording undo/redo actions
+
   // Multi-drag state: store initial positions when drag starts (using ref for synchronous access)
   const initialDragPositions = useRef<Map<string, { x: number; y: number; x2?: number; y2?: number; bendX?: number; bendY?: number }>>(new Map())
 
@@ -175,6 +180,109 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
   // Setup Firestore sync for shapes
   const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasId)
+
+  // Undo/Redo handlers (defined early to avoid circular dependencies)
+  const saveToHistory = useCallback((shapesSnapshot: Shape[]) => {
+    // Don't save during undo/redo operations
+    if (isUndoRedoOperation.current) return
+
+    setHistory((prev) => {
+      // Remove any "future" states (after current index)
+      const newHistory = prev.slice(0, historyIndex + 1)
+      // Add new snapshot
+      newHistory.push(shapesSnapshot)
+      // Limit history to 50 states to prevent memory issues
+      return newHistory.slice(-50)
+    })
+
+    setHistoryIndex((prev) => Math.min(prev + 1, 49))
+  }, [historyIndex])
+
+  const handleUndo = useCallback(async () => {
+    if (historyIndex <= 0) {
+      console.log('[Undo] No more history to undo')
+      return
+    }
+
+    const previousState = history[historyIndex - 1]
+    if (!previousState) return
+
+    console.log('[Undo] Restoring state from history index:', historyIndex - 1)
+    isUndoRedoOperation.current = true
+
+    try {
+      // Get current shape IDs
+      const currentIds = new Set(firestoreShapes.map(s => s.id))
+      const previousIds = new Set(previousState.map(s => s.id))
+
+      // Delete shapes that exist now but didn't exist before
+      const shapesToDelete = firestoreShapes.filter(s => !previousIds.has(s.id))
+      await Promise.all(shapesToDelete.map(s => deleteShape(s.id)))
+
+      // Create shapes that existed before but don't exist now
+      const shapesToCreate = previousState.filter(s => !currentIds.has(s.id))
+      await Promise.all(shapesToCreate.map(s => createShape(s)))
+
+      // Update shapes that exist in both
+      const shapesToUpdate = previousState.filter(s => currentIds.has(s.id))
+      await Promise.all(shapesToUpdate.map(s => {
+        const currentShape = firestoreShapes.find(curr => curr.id === s.id)
+        if (currentShape && JSON.stringify(currentShape) !== JSON.stringify(s)) {
+          return updateShape(s.id, s)
+        }
+        return Promise.resolve()
+      }))
+
+      setHistoryIndex(historyIndex - 1)
+    } catch (err) {
+      console.error('[Undo] Failed to undo:', err)
+    } finally {
+      isUndoRedoOperation.current = false
+    }
+  }, [historyIndex, history, firestoreShapes, deleteShape, createShape, updateShape])
+
+  const handleRedo = useCallback(async () => {
+    if (historyIndex >= history.length - 1) {
+      console.log('[Redo] No more history to redo')
+      return
+    }
+
+    const nextState = history[historyIndex + 1]
+    if (!nextState) return
+
+    console.log('[Redo] Restoring state from history index:', historyIndex + 1)
+    isUndoRedoOperation.current = true
+
+    try {
+      // Get current shape IDs
+      const currentIds = new Set(firestoreShapes.map(s => s.id))
+      const nextIds = new Set(nextState.map(s => s.id))
+
+      // Delete shapes that exist now but won't exist after redo
+      const shapesToDelete = firestoreShapes.filter(s => !nextIds.has(s.id))
+      await Promise.all(shapesToDelete.map(s => deleteShape(s.id)))
+
+      // Create shapes that will exist but don't exist now
+      const shapesToCreate = nextState.filter(s => !currentIds.has(s.id))
+      await Promise.all(shapesToCreate.map(s => createShape(s)))
+
+      // Update shapes that exist in both
+      const shapesToUpdate = nextState.filter(s => currentIds.has(s.id))
+      await Promise.all(shapesToUpdate.map(s => {
+        const currentShape = firestoreShapes.find(curr => curr.id === s.id)
+        if (currentShape && JSON.stringify(currentShape) !== JSON.stringify(s)) {
+          return updateShape(s.id, s)
+        }
+        return Promise.resolve()
+      }))
+
+      setHistoryIndex(historyIndex + 1)
+    } catch (err) {
+      console.error('[Redo] Failed to redo:', err)
+    } finally {
+      isUndoRedoOperation.current = false
+    }
+  }, [historyIndex, history, firestoreShapes, deleteShape, createShape, updateShape])
 
   // Setup RTDB subscription for live position updates from other users
   useEffect(() => {
@@ -667,6 +775,19 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     return () => clearTimeout(timeoutId)
   }, [firestoreShapes])
 
+  // Track shape changes for undo/redo history
+  useEffect(() => {
+    // Skip if this is an undo/redo operation or initial load
+    if (isUndoRedoOperation.current || shapes.length === 0) return
+
+    // Debounce history saves to avoid excessive snapshots
+    const timeoutId = setTimeout(() => {
+      saveToHistory([...shapes])
+    }, 500) // Save 500ms after last change
+
+    return () => clearTimeout(timeoutId)
+  }, [shapes, saveToHistory])
+
   // Handle text formatting keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -847,11 +968,24 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         return
       }
 
-      // Cmd+Z / Ctrl+Z - Undo (placeholder for now)
+      // Cmd+Shift+Z - Redo (Mac)
+      if (isMac && e.metaKey && e.shiftKey && e.key === 'z') {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
+
+      // Ctrl+Y - Redo (Windows/Linux)
+      if (!isMac && e.ctrlKey && e.key === 'y') {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
+
+      // Cmd+Z / Ctrl+Z - Undo
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
-        console.log('[Undo] Undo requested - not yet implemented')
-        // TODO: Implement undo functionality
+        handleUndo()
         return
       }
     }
@@ -861,7 +995,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     return () => {
       window.removeEventListener('keydown', handleKeyboardShortcut)
     }
-  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds])
+  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds, handleUndo, handleRedo])
 
   // Handle mouse move to broadcast cursor position and pan
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
