@@ -920,7 +920,55 @@ export async function removeProjectCollaborator(
 }
 
 // ============================================================================
-// Canvas Permission Services
+// Public Sharing Services
+// ============================================================================
+
+/**
+ * Enable public access for a project
+ * @param projectId - Project ID
+ */
+export async function setProjectPublicAccess(projectId: string, isPublic: boolean): Promise<void> {
+  await updateDoc(doc(db, 'projects', projectId), {
+    publicAccess: isPublic,
+  })
+}
+
+/**
+ * Enable public access for a canvas
+ * @param projectId - Project ID
+ * @param canvasId - Canvas ID
+ */
+export async function setCanvasPublicAccess(
+  projectId: string,
+  canvasId: string,
+  isPublic: boolean
+): Promise<void> {
+  await updateDoc(doc(db, `projects/${projectId}/canvases`, canvasId), {
+    publicAccess: isPublic,
+  })
+}
+
+/**
+ * Check if a project has public access
+ * @param projectId - Project ID
+ */
+export async function isProjectPublic(projectId: string): Promise<boolean> {
+  const projectDoc = await getDoc(doc(db, 'projects', projectId))
+  return projectDoc.exists() && projectDoc.data()?.publicAccess === true
+}
+
+/**
+ * Check if a canvas has public access
+ * @param projectId - Project ID
+ * @param canvasId - Canvas ID
+ */
+export async function isCanvasPublic(projectId: string, canvasId: string): Promise<boolean> {
+  const canvasDoc = await getDoc(doc(db, `projects/${projectId}/canvases`, canvasId))
+  return canvasDoc.exists() && canvasDoc.data()?.publicAccess === true
+}
+
+// ============================================================================
+// Canvas Permission Services (DEPRECATED - Use public sharing instead)
 // ============================================================================
 
 export interface CanvasPermission {
