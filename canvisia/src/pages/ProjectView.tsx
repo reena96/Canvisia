@@ -5,7 +5,8 @@ import { CanvasSidebar } from '../components/canvas/CanvasSidebar';
 import { AIChat } from '@/components/ai/AIChat';
 import { Header } from '@/components/layout/Header';
 import { ShareDialog } from '@/components/share/ShareDialog';
-import { getProject, subscribeToProjectCanvases } from '@/services/firestore';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { getProject, subscribeToProjectCanvases, addUserViaLink, updateProject } from '@/services/firestore';
 import type { Project } from '@/types/project';
 import type { Presence } from '@/types/user';
 
@@ -25,6 +26,7 @@ interface CanvasData {
 export const ProjectView: React.FC = () => {
   const { projectId, canvasId } = useParams<{ projectId: string; canvasId?: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [canvases, setCanvases] = useState<CanvasData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isVegaOpen, setIsVegaOpen] = useState(false);
@@ -39,18 +41,20 @@ export const ProjectView: React.FC = () => {
   };
 
   const updateLastAccessed = async () => {
-    if (!projectId) return;
+    if (!projectId || !user) return;
 
     try {
-      // This can be implemented later if needed
-      // For now, we're using Firestore timestamps which update automatically
+      // Update the project's lastAccessed timestamp
+      await updateProject(projectId, {
+        lastAccessed: new Date()
+      });
     } catch (error) {
       console.error('Error updating last accessed:', error);
     }
   };
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !user) return;
 
     updateLastAccessed();
 
@@ -62,6 +66,13 @@ export const ProjectView: React.FC = () => {
     }).catch(error => {
       console.error('Error loading project:', error);
     });
+
+    // Add user to project if accessing via shared link
+    if (user.uid && user.email) {
+      addUserViaLink(projectId, user.uid, user.email).catch(error => {
+        console.error('Error adding user via link:', error);
+      });
+    }
 
     // Set up real-time subscription to canvases
     setLoading(true);
@@ -79,7 +90,7 @@ export const ProjectView: React.FC = () => {
     return () => {
       unsubscribe();
     };
-  }, [projectId]);
+  }, [projectId, user]);
 
   if (loading) {
     return <div>Loading...</div>;
