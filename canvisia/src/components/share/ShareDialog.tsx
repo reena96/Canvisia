@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, Link2, Check, Globe, Lock } from 'lucide-react';
-import { useAuth } from '../auth/AuthProvider';
 import {
   setProjectPublicAccess,
   setCanvasPublicAccess,
@@ -24,7 +23,6 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   canvasName,
   onClose,
 }) => {
-  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(true);
