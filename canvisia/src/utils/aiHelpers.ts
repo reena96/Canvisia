@@ -2370,12 +2370,12 @@ export async function executeCreateFlowchart(
 
       case 'process':
       default: {
-        // Rectangle for process
+        // Rectangle for process - position by CENTER to match ellipse/pentagon positioning
         nodeShape = {
           id: nodeId,
           type: 'rectangle',
-          x: finalStartX,
-          y: y,
+          x: centerX - nodeWidth / 2, // Convert center position to top-left corner
+          y: centerY - nodeHeight / 2, // Convert center position to top-left corner
           width: nodeWidth,
           height: nodeHeight,
           fill: '#3B82F6',
