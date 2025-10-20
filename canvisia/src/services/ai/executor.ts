@@ -1,5 +1,6 @@
 import type { AIToolCall } from '@/types/ai'
 import type { Viewport } from '@/types/canvas'
+import type { Shape } from '@/types/shapes'
 import {
   executeCreateShape,
   executeCreateMultipleShapes,
@@ -15,10 +16,15 @@ import {
   executeCreateUIComponent,
   executeCreateFlowchart,
   executeCreateDiagram,
+  executeUndo,
 } from '@/utils/aiHelpers'
+// TODO: Implement undo tracking in execution functions
+// import { saveUndoAction } from './undo'
+// import type { UndoAction } from './undo'
+// import { v4 as uuidv4 } from 'uuid'
 
 /**
- * Execution result with metadata for partial match detection
+ * Execution result with metadata for partial match detection and undo tracking
  */
 export interface ExecutionResult {
   success: boolean
@@ -27,6 +33,16 @@ export interface ExecutionResult {
     actual: number | string
     type: string
     clarification: string
+  }
+  // Undo information
+  undoData?: {
+    actionType: 'create' | 'modify' | 'delete'
+    createdShapeIds?: string[]
+    modifiedShapes?: Array<{
+      id: string
+      originalState: Partial<Shape>
+    }>
+    deletedShapes?: Shape[]
   }
 }
 
@@ -122,6 +138,11 @@ export async function executeToolCalls(
         case 'create_diagram':
           await executeCreateDiagram(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_diagram completed successfully')
+          break
+
+        case 'undo':
+          result = await executeUndo(canvasId, userId)
+          console.log('[Executor] undo completed successfully', result)
           break
 
         default:

@@ -1,6 +1,7 @@
 import type { Shape } from '@/types/shapes'
+import { getLastUndoAction } from './undo'
 
-export function buildContext(shapes: Shape[], selectedShapeIds: string[] = []): string {
+export async function buildContext(shapes: Shape[], selectedShapeIds: string[] = [], canvasId?: string): Promise<string> {
   if (shapes.length === 0) {
     return 'Canvas is empty. No shapes present.'
   }
@@ -28,10 +29,27 @@ export function buildContext(shapes: Shape[], selectedShapeIds: string[] = []): 
     }
   })
 
+  // Check if undo is available
+  let undoAvailable = null
+  if (canvasId) {
+    try {
+      const lastAction = await getLastUndoAction(canvasId)
+      if (lastAction) {
+        undoAvailable = {
+          command: lastAction.command,
+          actionType: lastAction.actionType
+        }
+      }
+    } catch (error) {
+      console.error('[Context] Error checking undo availability:', error)
+    }
+  }
+
   // Summarize canvas state
   const summary = {
     totalShapes: shapes.length,
     shapesByType: {} as Record<string, number>,
+    undoAvailable,
     groups: groupsMap.size > 0 ? Array.from(groupsMap.values()).map(g => ({
       name: g.groupName,
       type: g.groupType,

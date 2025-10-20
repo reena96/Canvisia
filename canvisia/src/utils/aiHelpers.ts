@@ -1,5 +1,6 @@
 import { createShape, updateShape, getShapes, deleteShape } from '@/services/firestore'
 import { writeBatchShapePositions, clearShapePositions } from '@/services/rtdb'
+import { getLastUndoAction, deleteUndoAction } from '@/services/ai/undo'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
 import type { ExecutionResult } from '@/services/ai/executor'
@@ -3130,4 +3131,77 @@ export async function executeCreateDiagram(
   }
 
   console.log(`[AI Helpers] Diagram '${diagramType}' created successfully`)
+}
+
+// =============================================================================
+// Undo Functionality
+// =============================================================================
+
+/**
+ * Execute undo - reverts the last AI action
+ */
+export async function executeUndo(
+  canvasId: string,
+  _userId: string
+): Promise<ExecutionResult> {
+  console.log('[AI Helpers] executeUndo called for canvas:', canvasId)
+
+  // Get the last undo action
+  const lastAction = await getLastUndoAction(canvasId)
+
+  if (!lastAction) {
+    throw new Error('No action to undo. The last AI command has already been undone or there are no recent actions.')
+  }
+
+  console.log('[AI Helpers] Undoing action:', lastAction.actionType, 'from command:', lastAction.command)
+
+  try {
+    switch (lastAction.actionType) {
+      case 'create': {
+        // For creates, delete all created shapes
+        if (lastAction.createdShapeIds && lastAction.createdShapeIds.length > 0) {
+          for (const shapeId of lastAction.createdShapeIds) {
+            await deleteShape(canvasId, shapeId)
+          }
+          console.log(`[AI Helpers] Deleted ${lastAction.createdShapeIds.length} created shapes`)
+        }
+        break
+      }
+
+      case 'modify': {
+        // For modifies, restore original states
+        if (lastAction.modifiedShapes && lastAction.modifiedShapes.length > 0) {
+          for (const { id, originalState } of lastAction.modifiedShapes) {
+            await updateShape(canvasId, id, originalState)
+          }
+          console.log(`[AI Helpers] Restored ${lastAction.modifiedShapes.length} modified shapes`)
+        }
+        break
+      }
+
+      case 'delete': {
+        // For deletes, recreate the deleted shapes
+        if (lastAction.deletedShapes && lastAction.deletedShapes.length > 0) {
+          for (const shape of lastAction.deletedShapes) {
+            await createShape(canvasId, shape)
+          }
+          console.log(`[AI Helpers] Restored ${lastAction.deletedShapes.length} deleted shapes`)
+        }
+        break
+      }
+
+      default:
+        throw new Error(`Unknown action type: ${lastAction.actionType}`)
+    }
+
+    // Delete the undo action so it can't be undone again
+    await deleteUndoAction(canvasId, lastAction.id)
+
+    return {
+      success: true
+    }
+  } catch (error) {
+    console.error('[AI Helpers] Error during undo:', error)
+    throw error
+  }
 }

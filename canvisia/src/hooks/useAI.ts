@@ -147,7 +147,7 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
     try {
       // Build context with current shapes and selection state
-      const context = buildContext(shapes, selectedIds)
+      const context = await buildContext(shapes, selectedIds, canvasId)
 
       // Call Claude with context
       const response = await sendMessage(command, AI_TOOLS, SYSTEM_PROMPT, context)

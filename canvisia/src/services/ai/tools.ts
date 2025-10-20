@@ -616,5 +616,14 @@ export const AI_TOOLS = [
       },
       required: ['diagramType', 'data']
     }
+  },
+  {
+    name: 'undo',
+    description: 'Undo the last AI action. Use this when the user asks to "undo" or "revert" the last action.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
   }
 ]
