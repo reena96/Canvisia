@@ -160,8 +160,9 @@ const ProjectsPage: React.FC = () => {
 
     switch (activeTab) {
       case 'recent':
+        // Show ALL projects (owned + shared) sorted by lastAccessed
         return [...projects].sort((a, b) =>
-          b.lastModified.getTime() - a.lastModified.getTime()
+          (b.lastAccessed?.getTime() || b.lastModified.getTime()) - (a.lastAccessed?.getTime() || a.lastModified.getTime())
         );
       case 'shared':
         return projects.filter(p =>

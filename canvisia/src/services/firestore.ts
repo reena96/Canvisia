@@ -999,6 +999,69 @@ export async function getProjectAccessLevel(projectId: string): Promise<'viewer'
   return projectDoc.data()?.publicAccessLevel || null
 }
 
+/**
+ * Add user to project automatically when they access it via shared link
+ * Creates a permission entry so the project appears in "Shared with me"
+ * @param projectId - Project ID
+ * @param userId - User ID
+ * @param userEmail - User email
+ * @returns The role granted ('viewer' or 'editor'), or null if link sharing is disabled
+ */
+export async function addUserViaLink(
+  projectId: string,
+  userId: string,
+  userEmail: string
+): Promise<'viewer' | 'editor' | null> {
+  // Don't add the project owner to their own project
+  const project = await getProject(projectId)
+  if (!project) {
+    console.log(`[addUserViaLink] Project ${projectId} not found`)
+    return null
+  }
+
+  if (project.ownerId === userId) {
+    console.log(`[addUserViaLink] User ${userId} is the owner of project ${projectId}, skipping`)
+    return null
+  }
+
+  // Check if user already has permission
+  const existingPermission = await getUserProjectPermission(projectId, userId)
+  if (existingPermission) {
+    console.log(`[addUserViaLink] User ${userId} already has permission for project ${projectId}`)
+    // Owner shouldn't get added via link, but return null to be safe
+    return existingPermission.role === 'owner' ? null : existingPermission.role
+  }
+
+  // Get the project's public access level
+  const accessLevel = await getProjectAccessLevel(projectId)
+  if (!accessLevel) {
+    console.log(`[addUserViaLink] Project ${projectId} has no public access level`)
+    return null
+  }
+
+  // Create permission entry
+  const permissionId = `${projectId}_${userId}`
+  const now = Timestamp.now()
+
+  const permissionData: Omit<Permission, 'invitedAt' | 'acceptedAt'> & {
+    invitedAt: Timestamp
+    acceptedAt: Timestamp
+  } = {
+    projectId,
+    userId,
+    userEmail,
+    role: accessLevel,
+    invitedBy: project.ownerId, // Project owner is the "inviter"
+    invitedAt: now,
+    acceptedAt: now, // Auto-accepted via link
+  }
+
+  await setDoc(doc(db, 'permissions', permissionId), permissionData)
+  console.log(`[addUserViaLink] Added user ${userId} to project ${projectId} as ${accessLevel}`)
+
+  return accessLevel
+}
+
 // ============================================================================
 // Canvas Permission Services (DEPRECATED - Use public sharing instead)
 // ============================================================================
