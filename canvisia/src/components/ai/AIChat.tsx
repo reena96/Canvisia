@@ -96,7 +96,7 @@ interface ChatTab {
 }
 
 interface AIChatProps {
-  canvasId: string
+  canvasPath: string
   isOpen?: boolean
   onClose?: () => void
 }
@@ -104,7 +104,12 @@ interface AIChatProps {
 type WindowState = 'minimized' | 'normal' | 'maximized'
 type PinPosition = 'floating' | 'right' | 'left'
 
-export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
+export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   const [command, setCommand] = useState('')
   const [tabs, setTabs] = useState<ChatTab[]>([])
   const [activeTabId, setActiveTabId] = useState('1')
