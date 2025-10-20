@@ -1443,6 +1443,10 @@ export function arrangeInColumn(shapes: Shape[], spacing: number = 20): Shape[] 
 /**
  * Align shapes to a specific alignment
  * Returns new array with updated positions (immutable)
+ *
+ * NOTE: This function maintains relative positioning (moves shapes as a group)
+ * rather than aligning them to a common edge. This preserves the spatial
+ * relationships between shapes while aligning the group as a whole.
  */
 export function alignShapes(
   shapes: Shape[],
@@ -1461,9 +1465,8 @@ export function alignShapes(
     case 'left': {
       // Find leftmost x in the group
       const minX = Math.min(...shapes.map(s => s.x))
-      // Move all shapes so the leftmost shape stays at its current position
-      // (This aligns the group to the left-most shape's position)
-      deltaX = 0  // No change needed - already at leftmost position
+      // All shapes stay at their current positions (already at leftmost)
+      deltaX = 0
       for (const shape of shapes) {
         aligned.push({ ...shape })
       }
@@ -1471,13 +1474,15 @@ export function alignShapes(
     }
 
     case 'right': {
-      // Find the current rightmost edge and leftmost edge
-      const currentRightmost = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
-      const currentLeftmost = Math.min(...shapes.map(s => s.x))
-      // Calculate the leftmost x that would align the rightmost shape
-      const targetLeftmost = currentRightmost - getShapeWidth(shapes.find(s => s.x + getShapeWidth(s) === currentRightmost)!)
+      // Find the current rightmost edge
+      const maxRightEdge = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
+      // Find the rightmost shape
+      const rightmostShape = shapes.find(s => s.x + getShapeWidth(s) === maxRightEdge)!
+      const rightmostX = rightmostShape.x
+      // Find current leftmost
+      const minX = Math.min(...shapes.map(s => s.x))
       // Move all shapes by the delta
-      deltaX = targetLeftmost - currentLeftmost
+      deltaX = rightmostX - minX
       for (const shape of shapes) {
         aligned.push({ ...shape, x: shape.x + deltaX })
       }
@@ -1487,8 +1492,8 @@ export function alignShapes(
     case 'top': {
       // Find topmost y in the group
       const minY = Math.min(...shapes.map(s => s.y))
-      // Move all shapes so the topmost shape stays at its current position
-      deltaY = 0  // No change needed - already at topmost position
+      // All shapes stay at their current positions (already at topmost)
+      deltaY = 0
       for (const shape of shapes) {
         aligned.push({ ...shape })
       }
@@ -1496,13 +1501,15 @@ export function alignShapes(
     }
 
     case 'bottom': {
-      // Find the current bottommost edge and topmost edge
-      const currentBottommost = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
-      const currentTopmost = Math.min(...shapes.map(s => s.y))
-      // Calculate the topmost y that would align the bottommost shape
-      const targetTopmost = currentBottommost - getShapeHeight(shapes.find(s => s.y + getShapeHeight(s) === currentBottommost)!)
+      // Find the current bottommost edge
+      const maxBottomEdge = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
+      // Find the bottommost shape
+      const bottommostShape = shapes.find(s => s.y + getShapeHeight(s) === maxBottomEdge)!
+      const bottommostY = bottommostShape.y
+      // Find current topmost
+      const minY = Math.min(...shapes.map(s => s.y))
       // Move all shapes by the delta
-      deltaY = targetTopmost - currentTopmost
+      deltaY = bottommostY - minY
       for (const shape of shapes) {
         aligned.push({ ...shape, y: shape.y + deltaY })
       }
