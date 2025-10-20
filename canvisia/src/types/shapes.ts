@@ -9,6 +9,11 @@ export interface BaseShape {
   rotation: number; // Rotation in degrees (0-360)
   zIndex?: number;
 
+  // Group membership for shapes created together
+  groupId?: string; // UUID linking shapes created together (flowcharts, UI components, diagrams)
+  groupName?: string; // Human-readable name (e.g., "flowchart", "login form", "org chart")
+  groupType?: 'flowchart' | 'ui_component' | 'diagram' | 'custom'; // Type of group
+
   // Metadata for simulation and advanced features
   metadata?: {
     // Simulation node properties

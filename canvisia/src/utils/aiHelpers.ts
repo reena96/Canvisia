@@ -980,6 +980,8 @@ function applyFilters(
     type?: string
     color?: string
     textContent?: string
+    groupId?: string
+    groupName?: string
   }
 ): Shape[] {
   let filtered = shapes
@@ -988,6 +990,19 @@ function applyFilters(
   filtered = applyTypeFilter(filtered, filters.type)
   filtered = applyColorFilter(filtered, filters.color)
   filtered = applyTextContentFilter(filtered, filters.textContent)
+
+  // Filter by groupId (exact match)
+  if (filters.groupId) {
+    filtered = filtered.filter(s => s.groupId === filters.groupId)
+  }
+
+  // Filter by groupName (case-insensitive partial match)
+  if (filters.groupName) {
+    const lowerGroupName = filters.groupName.toLowerCase()
+    filtered = filtered.filter(s =>
+      s.groupName?.toLowerCase().includes(lowerGroupName)
+    )
+  }
 
   return filtered
 }
@@ -1458,6 +1473,7 @@ export async function executeChangeColor(
     type?: string
     color?: string
     textContent?: string
+    groupName?: string
   }
 ): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeChangeColor called with:', input)
@@ -1478,6 +1494,7 @@ export async function executeChangeColor(
         type: input.type,
         color: input.color,
         textContent: input.textContent,
+        groupName: input.groupName,
       })
       console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
     } else {
@@ -1543,6 +1560,7 @@ export async function executeDeleteElements(
     type?: string
     color?: string
     textContent?: string
+    groupName?: string
   }
 ): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeDeleteElements called with:', input)
@@ -1563,6 +1581,7 @@ export async function executeDeleteElements(
         type: input.type,
         color: input.color,
         textContent: input.textContent,
+        groupName: input.groupName,
       })
       console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
     } else {
@@ -1967,11 +1986,12 @@ export async function executeArrangeElements(
     type?: string
     color?: string
     textContent?: string
+    groupName?: string
   }
 ): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeArrangeElements called with:', input)
 
-  const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
+  const { elementIds, pattern, spacing = 20, category, type, color, textContent, groupName } = input
 
   // Get all shapes
   const allShapes = await getShapes(canvasId)
@@ -1985,7 +2005,7 @@ export async function executeArrangeElements(
 
   // Apply filters when using "all"
   if (shouldArrangeAll) {
-    shapesToArrange = applyFilters(shapesToArrange, { category, type, color, textContent })
+    shapesToArrange = applyFilters(shapesToArrange, { category, type, color, textContent, groupName })
   }
 
   if (shapesToArrange.length === 0) {
@@ -2080,12 +2100,13 @@ export async function executeAlignElements(
     type?: string
     color?: string
     textContent?: string
+    groupName?: string
   },
   viewport: Viewport
 ): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeAlignElements called with:', input)
 
-  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
+  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent, groupName } = input
 
   // Get all shapes
   const allShapes = await getShapes(canvasId)
@@ -2099,7 +2120,7 @@ export async function executeAlignElements(
 
   // Apply filters when using "all"
   if (shouldAlignAll) {
-    shapesToAlign = applyFilters(shapesToAlign, { category, type, color, textContent })
+    shapesToAlign = applyFilters(shapesToAlign, { category, type, color, textContent, groupName })
   }
 
   if (shapesToAlign.length === 0) {
@@ -2189,6 +2210,11 @@ export async function executeCreateUIComponent(
 
   const { componentType, label, width = 200, height = 50 } = input
 
+  // Generate group ID for all shapes in this UI component
+  const groupId = uuidv4()
+  const groupName = componentType
+  const groupType = 'ui_component' as const
+
   // Determine starting position using smart placement
   const viewportBounds = getViewportBounds(viewport)
   const existingShapes = await getShapes(canvasId)
@@ -2219,6 +2245,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
 
       const text: Text = {
@@ -2240,6 +2269,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
 
       shapes.push(button, text)
@@ -2267,6 +2299,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
 
       const title: Text = {
@@ -2288,6 +2323,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
 
       const content: Text = {
@@ -2309,6 +2347,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
 
       shapes.push(background, title, content)
@@ -2339,6 +2380,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Rectangle)
 
       // Password input rectangle (background layer)
@@ -2355,6 +2399,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Rectangle)
 
       // Submit button rectangle (background layer)
@@ -2371,6 +2418,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Rectangle)
 
       // Username label (text layer - on top)
@@ -2393,6 +2443,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Text)
 
       // Password label (text layer - on top)
@@ -2415,6 +2468,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Text)
 
       // Button text (text layer - on top)
@@ -2437,6 +2493,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Text)
 
       break
@@ -2464,6 +2523,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Rectangle)
 
       // LAYER 2: Menu text items (on top) - evenly spaced and centered
@@ -2487,6 +2549,9 @@ export async function executeCreateUIComponent(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
         } as Text)
       })
 
@@ -2512,6 +2577,9 @@ export async function executeCreateUIComponent(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Rectangle)
 
       // Menu items
@@ -2535,6 +2603,9 @@ export async function executeCreateUIComponent(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
         } as Text)
       })
 
@@ -2585,6 +2656,11 @@ export async function executeCreateFlowchart(
     throw new Error('Flowchart must have at least one node')
   }
 
+  // Generate group ID for all shapes in this flowchart
+  const groupId = uuidv4()
+  const groupName = 'flowchart'
+  const groupType = 'flowchart' as const
+
   // Determine starting position
   const viewportBounds = getViewportBounds(viewport)
   const existingShapes = await getShapes(canvasId)
@@ -2633,6 +2709,9 @@ export async function executeCreateFlowchart(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
           metadata: {
             nodeType: node.type,
             flowchartId: `flowchart-${Date.now()}`,
@@ -2657,6 +2736,9 @@ export async function executeCreateFlowchart(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
           metadata: {
             nodeType: 'decision',
             flowchartId: `flowchart-${Date.now()}`,
@@ -2682,6 +2764,9 @@ export async function executeCreateFlowchart(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
           metadata: {
             nodeType: 'process',
             flowchartId: `flowchart-${Date.now()}`,
@@ -2717,6 +2802,9 @@ export async function executeCreateFlowchart(
       rotation: 0,
       createdBy: userId,
       updatedAt: new Date().toISOString(),
+      groupId,
+      groupName,
+      groupType,
     }
     await createShape(canvasId, labelText)
   }
@@ -2759,6 +2847,9 @@ export async function executeCreateFlowchart(
       rotation: 0,
       createdBy: userId,
       updatedAt: new Date().toISOString(),
+      groupId,
+      groupName,
+      groupType,
       connections: {
         fromShapeId: fromNode.shape.id,
         toShapeId: toNode.shape.id,
@@ -2793,6 +2884,9 @@ export async function executeCreateFlowchart(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
       await createShape(canvasId, labelText)
     }
@@ -2819,6 +2913,11 @@ export async function executeCreateDiagram(
   console.log('[AI Helpers] executeCreateDiagram called with:', input, 'userId:', userId)
 
   const { diagramType, data, x, y } = input
+
+  // Generate group ID for all shapes in this diagram
+  const groupId = uuidv4()
+  const groupName = diagramType
+  const groupType = 'diagram' as const
 
   // Determine starting position
   const viewportBounds = getViewportBounds(viewport)
@@ -2857,6 +2956,9 @@ export async function executeCreateDiagram(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       }
       await createShape(canvasId, ceo)
 
@@ -2879,6 +2981,9 @@ export async function executeCreateDiagram(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Text)
 
       // Managers (3)
@@ -2906,6 +3011,9 @@ export async function executeCreateDiagram(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
         }
         await createShape(canvasId, manager)
         managerIds.push(managerId)
@@ -2929,6 +3037,9 @@ export async function executeCreateDiagram(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
         } as Text)
 
         // Arrow from CEO to Manager - connect from CEO bottom center to manager top center
@@ -2944,6 +3055,9 @@ export async function executeCreateDiagram(
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
+          groupId,
+          groupName,
+          groupType,
           connections: {
             fromShapeId: ceoId,
             toShapeId: managerId,
@@ -2975,6 +3089,9 @@ export async function executeCreateDiagram(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Circle)
 
       // Node label text - centered INSIDE the circle (not half-overlapping)
@@ -2997,6 +3114,9 @@ export async function executeCreateDiagram(
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
+        groupId,
+        groupName,
+        groupType,
       } as Text)
 
       console.log(`[AI Helpers] Created basic ${diagramType} diagram`)

@@ -348,7 +348,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'change_color',
-    description: 'Change the color of shapes. Use ["all"] to target all shapes, or filter by elementIds, type, color, or category. Follows object reference priority: explicit reference > selected shapes > all objects.',
+    description: 'Change the color of shapes. Use ["all"] to target all shapes, or filter by elementIds, type, color, category, or groupName. Follows object reference priority: explicit reference > selected shapes > all objects. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
     input_schema: {
       type: 'object',
       properties: {
@@ -377,6 +377,10 @@ export const AI_TOOLS = [
         textContent: {
           type: 'string',
           description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
         }
       },
       required: ['newColor']
@@ -384,7 +388,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'delete_elements',
-    description: 'Delete shapes from the canvas. Use ["all"] to target all shapes, or filter by elementIds, type, color, or category. Follows object reference priority: explicit reference > selected shapes > all objects.',
+    description: 'Delete shapes from the canvas. Use ["all"] to target all shapes, or filter by elementIds, type, color, category, or groupName. Follows object reference priority: explicit reference > selected shapes > all objects. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
     input_schema: {
       type: 'object',
       properties: {
@@ -409,6 +413,10 @@ export const AI_TOOLS = [
         textContent: {
           type: 'string',
           description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
         }
       },
       required: []
@@ -416,7 +424,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'arrange_elements',
-    description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
+    description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
     input_schema: {
       type: 'object',
       properties: {
@@ -450,6 +458,10 @@ export const AI_TOOLS = [
         textContent: {
           type: 'string',
           description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
         }
       },
       required: ['elementIds', 'pattern']
@@ -457,7 +469,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'align_elements',
-    description: 'Align multiple elements to viewport edges (default) or canvas. To align ALL shapes, use "all" keyword.',
+    description: 'Align multiple elements to viewport edges (default) or canvas. To align ALL shapes, use "all" keyword. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
     input_schema: {
       type: 'object',
       properties: {
@@ -492,6 +504,10 @@ export const AI_TOOLS = [
         textContent: {
           type: 'string',
           description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
         }
       },
       required: ['elementIds', 'alignment']
