@@ -2244,6 +2244,10 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         })))
         updateShapesLocalBatch(allUpdates)
 
+        // CRITICAL FIX: Clear rtdbActiveShapeIds so shapes merge properly with local updates
+        // Without this, shapes remain "frozen" and won't show new dimensions after reselection
+        selectedIds.forEach(id => rtdbActiveShapeIds.current.delete(id))
+
         // Now clear resize state - this will cause MultiSelectResizeHandles to render
         setIsResizing(false)
         setResizingHandle(null)
@@ -2275,6 +2279,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       const currentShape = shapes.find(s => s.id === selectedShapeId)
       if (currentShape) {
         try {
+          // CRITICAL FIX: Clear rtdbActiveShapeIds so shape merges properly with local updates
+          rtdbActiveShapeIds.current.delete(selectedShapeId)
+
           // Clear resize state first
           setIsResizing(false)
           setResizingHandle(null)
@@ -2540,6 +2547,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     // Multi-select rotation - save all shapes
     if (selectedIds.length > 1) {
       try {
+        // CRITICAL FIX: Clear rtdbActiveShapeIds so shapes merge properly with local updates
+        selectedIds.forEach(id => rtdbActiveShapeIds.current.delete(id))
+
         // Clear state first, then save to Firestore
         setIsRotating(false)
         setRotationStart(null)
@@ -2566,6 +2576,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       const currentShape = shapes.find(s => s.id === selectedShapeId)
       if (currentShape) {
         try {
+          // CRITICAL FIX: Clear rtdbActiveShapeIds so shape merges properly with local updates
+          rtdbActiveShapeIds.current.delete(selectedShapeId)
+
           // Clear state first
           setIsRotating(false)
           setRotationStart(null)
