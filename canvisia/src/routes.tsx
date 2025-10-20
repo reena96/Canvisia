@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import App from './App'
-import { ProjectsPage } from './pages/ProjectsPage'
+import ProjectsPage from './pages/ProjectsPage'
 import { ProjectView } from './pages/ProjectView'
 
 export const router = createBrowserRouter([
