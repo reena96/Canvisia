@@ -98,7 +98,11 @@ export const ProjectView: React.FC = () => {
         />
         {canvasId && (
           <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-            <Canvas canvasPath={canvasPath} />
+            <Canvas
+              canvasPath={canvasPath}
+              onAskVega={() => setIsVegaOpen(!isVegaOpen)}
+              isVegaOpen={isVegaOpen}
+            />
             <AIChat
               canvasPath={canvasPath}
               isOpen={isVegaOpen}
