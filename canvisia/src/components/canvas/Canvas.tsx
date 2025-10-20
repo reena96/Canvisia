@@ -441,32 +441,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         ...localUpdate,
       }
 
-      // DETAILED LOGGING: Track dimension merging
-      if ('width' in localUpdate || 'height' in localUpdate) {
-        console.log('[shapes useMemo] DIMENSION MERGE:', {
-          id: shape.id.substring(0, 8),
-          type: shape.type,
-          firestore: {
-            w: (shape as any).width,
-            h: (shape as any).height,
-            x: Math.round(shape.x),
-            y: Math.round(shape.y)
-          },
-          localUpdate: {
-            w: (localUpdate as any).width,
-            h: (localUpdate as any).height,
-            x: localUpdate.x ? Math.round(localUpdate.x) : undefined,
-            y: localUpdate.y ? Math.round(localUpdate.y) : undefined
-          },
-          merged: {
-            w: (mergedShape as any).width,
-            h: (mergedShape as any).height,
-            x: Math.round(mergedShape.x),
-            y: Math.round(mergedShape.y)
-          }
-        })
-      }
-
       // Check if this matches previous merged version
       // CRITICAL: Must check ALL properties that could have changed, not just x/y
       const prevShape = prevShapesRef.current.find(s => s.id === shape.id)
@@ -623,10 +597,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
   // Batch update multiple shapes at once (avoids race conditions)
   const updateShapesLocalBatch = useCallback((updates: Map<string, Partial<Shape>>) => {
-    console.log('[updateShapesLocalBatch] Setting local updates for shapes:', Array.from(updates.entries()).map(([id, u]) => ({
-      id,
-      updates: u
-    })))
     const now = Date.now()
     updates.forEach((_, shapeId) => {
       localUpdateTimestampsRef.current.set(shapeId, now)
@@ -636,7 +606,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       updates.forEach((shapeUpdates, shapeId) => {
         next[shapeId] = { ...(prev[shapeId] || {}), ...shapeUpdates }
       })
-      console.log('[updateShapesLocalBatch] New localShapeUpdates:', next)
       return next
     })
   }, [])
@@ -2234,14 +2203,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
         // CRITICAL: Update local React state BEFORE clearing resize state
         // Use batch update to ensure all shapes update atomically
-        console.log('[ResizeEnd] Updating local state with:', Array.from(allUpdates.entries()).map(([id, u]) => ({
-          id,
-          x: u.x,
-          y: u.y,
-          width: (u as any).width,
-          height: (u as any).height,
-          rotation: u.rotation
-        })))
         updateShapesLocalBatch(allUpdates)
 
         // CRITICAL FIX: Clear rtdbActiveShapeIds so shapes merge properly with local updates
@@ -2862,24 +2823,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           {selectedIds.length > 1 && !isDraggingShape && !isResizing && !isRotating && (() => {
             const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
             if (selectedShapes.length === 0) return null
-
-            // CRITICAL LOGGING: What dimensions do shapes have when passed to MultiSelectResizeHandles?
-            const localUpdatesForSelected = Object.fromEntries(
-              selectedShapes
-                .filter(s => localShapeUpdates[s.id])
-                .map(s => [s.id.substring(0, 8), localShapeUpdates[s.id]])
-            )
-            console.log('[Canvas] Passing shapes to MultiSelectResizeHandles:', {
-              shapes: selectedShapes.map(s => ({
-                id: s.id.substring(0, 8),
-                w: (s as any).width,
-                h: (s as any).height,
-                x: Math.round(s.x),
-                y: Math.round(s.y)
-              })),
-              hasLocalUpdates: Object.keys(localUpdatesForSelected).length > 0,
-              localUpdates: localUpdatesForSelected
-            })
 
             return (
               <MultiSelectResizeHandles
