@@ -26,9 +26,28 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid));
     }
 
-    // Combined check: either project OR canvas permission
+    // Check if project is publicly accessible
+    function isProjectPublic(projectId) {
+      let projectDoc = get(/databases/$(database)/documents/projects/$(projectId));
+      return projectDoc.data.keys().hasAny(['publicAccess']) &&
+             projectDoc.data.publicAccess == true;
+    }
+
+    // Check if canvas is publicly accessible
+    function isCanvasPublic(projectId, canvasId) {
+      let canvasDoc = get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId));
+      return canvasDoc.data.keys().hasAny(['publicAccess']) &&
+             canvasDoc.data.publicAccess == true;
+    }
+
+    // Combined check: project permission OR canvas permission OR public access
     function canAccessCanvas(projectId, canvasPath) {
-      return hasAnyPermission(projectId) || hasAnyCanvasPermission(canvasPath);
+      let pathParts = canvasPath.split('/');
+      let canvasId = pathParts[3];
+      return hasAnyPermission(projectId) ||
+             hasAnyCanvasPermission(canvasPath) ||
+             isProjectPublic(projectId) ||
+             (request.auth != null && isCanvasPublic(projectId, canvasId));
     }
 
     function canEditCanvas(projectId, canvasPath) {
@@ -38,11 +57,12 @@ service cloud.firestore {
              hasCanvasPermission(canvasPath, 'editor');
     }
 
-    // Projects: read if has permission, write if owner
+    // Projects: read if has permission or public, write if owner
     match /projects/{projectId} {
-      allow read: if hasAnyPermission(projectId);
+      allow read: if hasAnyPermission(projectId) || isProjectPublic(projectId);
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if hasPermission(projectId, 'owner');
+      allow update: if hasPermission(projectId, 'owner');
+      allow delete: if hasPermission(projectId, 'owner');
 
       // Canvases: allow project OR canvas-level permissions
       match /canvases/{canvasId} {
