@@ -1412,14 +1412,18 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     const clickedOnEmpty = e.target === e.target.getStage()
 
     if (clickedOnEmpty) {
-      // Deselect all shapes (unless shift is held for multi-select)
-      if (!e.evt.shiftKey) {
-        clearSelection()
-        setSelectedTextId(null)
+      // Don't clear selection if using box select or lasso tools
+      // (they handle their own selection logic)
+      if (selectedTool !== 'boxSelect' && selectedTool !== 'lasso') {
+        // Deselect all shapes (unless shift is held for multi-select)
+        if (!e.evt.shiftKey) {
+          clearSelection()
+          setSelectedTextId(null)
+        }
       }
 
       // Create new shape if tool is selected (except text, which uses drag-to-create)
-      if (selectedTool !== 'select' && selectedTool !== 'text') {
+      if (selectedTool !== 'select' && selectedTool !== 'text' && selectedTool !== 'boxSelect' && selectedTool !== 'lasso') {
         const stage = stageRef.current
         if (!stage) return
 
