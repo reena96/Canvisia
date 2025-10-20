@@ -558,23 +558,6 @@ export async function createProject(
 
   await setDoc(doc(db, 'projects', projectId), projectData)
 
-  // Create owner permission
-  const permissionId = `${projectId}_${userId}`
-  const permissionData: Omit<Permission, 'invitedAt' | 'acceptedAt'> & {
-    invitedAt: Timestamp
-    acceptedAt: Timestamp | null
-  } = {
-    projectId,
-    userId,
-    userEmail: userEmail,
-    role: 'owner',
-    invitedBy: userId,
-    invitedAt: now,
-    acceptedAt: now,
-  }
-
-  await setDoc(doc(db, 'permissions', permissionId), permissionData)
-
   // Create default canvas
   const canvasId = doc(collection(db, 'projects', projectId, 'canvases')).id
   const canvasData = {
@@ -596,40 +579,26 @@ export async function createProject(
 }
 
 /**
- * Get all projects accessible by user
+ * Get all projects owned by user
  * @param userId - User ID
  * @returns Array of projects
  */
 export async function getUserProjects(userId: string): Promise<Project[]> {
-  // Query permissions collection for user's accessible projects
-  const permissionsRef = collection(db, 'permissions')
-  const q = query(permissionsRef)
+  // Query projects collection for user's owned projects
+  const projectsRef = collection(db, 'projects')
+  const q = query(projectsRef, where('ownerId', '==', userId))
   const snapshot = await getDocs(q)
 
-  const projectIds: string[] = []
+  const projects: Project[] = []
   snapshot.forEach((doc) => {
     const data = doc.data()
-    if (doc.id.endsWith(`_${userId}`)) {
-      projectIds.push(data.projectId)
-    }
+    projects.push({
+      ...data,
+      createdAt: data.createdAt?.toDate?.() || data.createdAt,
+      lastModified: data.lastModified?.toDate?.() || data.lastModified,
+      lastAccessed: data.lastAccessed?.toDate?.() || data.lastAccessed,
+    } as Project)
   })
-
-  if (projectIds.length === 0) return []
-
-  // Fetch all projects
-  const projects: Project[] = []
-  for (const projectId of projectIds) {
-    const projectDoc = await getDoc(doc(db, 'projects', projectId))
-    if (projectDoc.exists()) {
-      const data = projectDoc.data()
-      projects.push({
-        ...data,
-        createdAt: data.createdAt?.toDate?.() || data.createdAt,
-        lastModified: data.lastModified?.toDate?.() || data.lastModified,
-        lastAccessed: data.lastAccessed?.toDate?.() || data.lastAccessed,
-      } as Project)
-    }
-  }
 
   return projects
 }
