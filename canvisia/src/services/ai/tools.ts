@@ -557,7 +557,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'create_ui_component',
-    description: 'Create a common UI component (button, card, form, etc.)',
+    description: 'Create a common UI component (button, card, form, navbar, sidebar) with smart viewport placement to avoid overlaps.',
     input_schema: {
       type: 'object',
       properties: {
@@ -568,11 +568,11 @@ export const AI_TOOLS = [
         },
         x: {
           type: 'number',
-          description: 'X coordinate'
+          description: 'X coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y: {
           type: 'number',
-          description: 'Y coordinate'
+          description: 'Y coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         label: {
           type: 'string',
@@ -587,12 +587,12 @@ export const AI_TOOLS = [
           description: 'Component height (default: 50)'
         }
       },
-      required: ['componentType', 'x', 'y']
+      required: ['componentType']
     }
   },
   {
     name: 'create_diagram',
-    description: 'Create a structured diagram (org chart, tree, network)',
+    description: 'Create a structured diagram (org chart, tree, network, sequence) with smart viewport placement to avoid overlaps.',
     input_schema: {
       type: 'object',
       properties: {
@@ -607,11 +607,11 @@ export const AI_TOOLS = [
         },
         x: {
           type: 'number',
-          description: 'Starting X coordinate (default: 500)'
+          description: 'Starting X coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y: {
           type: 'number',
-          description: 'Starting Y coordinate (default: 200)'
+          description: 'Starting Y coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         }
       },
       required: ['diagramType', 'data']

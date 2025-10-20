@@ -2199,8 +2199,8 @@ export async function executeCreateUIComponent(
   userId: string,
   input: {
     componentType: 'button' | 'card' | 'form' | 'navbar' | 'sidebar'
-    x: number
-    y: number
+    x?: number
+    y?: number
     label?: string
     width?: number
     height?: number
@@ -2209,21 +2209,54 @@ export async function executeCreateUIComponent(
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateUIComponent called with:', input, 'userId:', userId)
 
-  const { componentType, label, width = 200, height = 50 } = input
+  const { componentType, x, y, label, width = 200, height = 50 } = input
 
   // Generate group ID for all shapes in this UI component
   const groupId = uuidv4()
   const groupName = componentType
   const groupType = 'ui_component' as const
 
-  // Determine starting position using smart placement
+  // Calculate actual component dimensions for each type
+  let componentWidth: number
+  let componentHeight: number
+
+  switch (componentType) {
+    case 'button':
+      componentWidth = width
+      componentHeight = height
+      break
+    case 'card':
+      componentWidth = width
+      componentHeight = height * 3 // Cards are 3x taller
+      break
+    case 'form':
+      componentWidth = width
+      componentHeight = 210 // Username (24) + input (40) + gap (30) + Password (24) + input (40) + gap (30) + button (40) = 210
+      break
+    case 'navbar':
+      componentWidth = width * 2.5 // Wider for nav bar
+      componentHeight = 60
+      break
+    case 'sidebar':
+      componentWidth = 200
+      componentHeight = 400
+      break
+    default:
+      componentWidth = width
+      componentHeight = height
+  }
+
+  // Determine starting position using smart placement with actual dimensions
   const viewportBounds = getViewportBounds(viewport)
   const existingShapes = await getShapes(canvasId)
-  const { x: startX, y: startY } = findEmptySpaceInViewport(
+  const { x: defaultX, y: defaultY } = findEmptySpaceInViewport(
     viewportBounds,
     existingShapes,
-    { width, height: height + 300 } // Extra height for multi-element components
+    { width: componentWidth, height: componentHeight }
   )
+
+  const startX = x ?? defaultX
+  const startY = y ?? defaultY
 
   const shapes: Shape[] = []
 
@@ -3057,13 +3090,47 @@ export async function executeCreateDiagram(
   const groupName = diagramType
   const groupType = 'diagram' as const
 
-  // Determine starting position
+  // Calculate actual diagram dimensions for each type
+  let diagramWidth: number
+  let diagramHeight: number
+
+  switch (diagramType) {
+    case 'orgchart': {
+      // Org chart: CEO at top + 3 managers below horizontally
+      const nodeWidth = 140
+      const nodeHeight = 60
+      const horizontalSpacing = 180
+      const verticalSpacing = 120
+      const managerCount = 3
+
+      // Width: (managerCount-1) * horizontalSpacing + nodeWidth + extra padding
+      // Managers are centered, so leftmost is at -totalWidth/2, rightmost at +totalWidth/2 + nodeWidth
+      const totalManagerSpread = (managerCount - 1) * horizontalSpacing
+      diagramWidth = totalManagerSpread + nodeWidth + horizontalSpacing // Extra padding
+      diagramHeight = verticalSpacing + nodeHeight + 30 // Vertical spacing + node + padding
+      break
+    }
+    case 'tree':
+    case 'network':
+    case 'sequence': {
+      // Simple single-node diagrams
+      const radius = 40
+      diagramWidth = radius * 2 + 20 // Circle + padding
+      diagramHeight = radius * 2 + 20
+      break
+    }
+    default:
+      diagramWidth = 400
+      diagramHeight = 400
+  }
+
+  // Determine starting position using smart placement with actual dimensions
   const viewportBounds = getViewportBounds(viewport)
   const existingShapes = await getShapes(canvasId)
   const { x: defaultX, y: defaultY } = findEmptySpaceInViewport(
     viewportBounds,
     existingShapes,
-    { width: 400, height: 400 }
+    { width: diagramWidth, height: diagramHeight }
   )
 
   const startX = x ?? defaultX
