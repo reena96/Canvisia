@@ -1965,9 +1965,14 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
   // Handle shape drag end (ensure final position is persisted) with multi-select support
   const handleShapeDragEnd = useCallback(
     async (shapeId: string, x: number, y: number) => {
+      console.log('[DEBUG] handleShapeDragEnd called', { shapeId, x, y, userId, selectedIds })
+
       // Get initial position of the dragged shape
       const initialPos = initialDragPositions.current.get(shapeId)
-      if (!initialPos) return
+      if (!initialPos) {
+        console.log('[DEBUG] No initial position found, returning early')
+        return
+      }
 
       // Calculate the delta from the INITIAL position
       const dx = x - initialPos.x
@@ -2019,6 +2024,7 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
             batchedUpdates[id] = updates
 
             // Send final position to Firestore
+            console.log('[DEBUG] Calling updateShape from handleShapeDragEnd', { id, updates, userId })
             return updateShape(id, updates)
           })
         )
