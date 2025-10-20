@@ -3368,7 +3368,7 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
         isVegaOpen={isVegaOpen}
         onToggleComments={() => setIsCommentsOpen(!isCommentsOpen)}
         isCommentsOpen={isCommentsOpen}
-        unreadCommentsCount={annotations.filter(a => !a.resolved).length}
+        unreadCommentsCount={annotations.filter(a => !a.resolved && a.userId !== userId).length}
       />
 
       {/* Loading indicator */}
