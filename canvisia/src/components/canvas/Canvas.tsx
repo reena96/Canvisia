@@ -198,91 +198,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     setHistoryIndex((prev) => Math.min(prev + 1, 49))
   }, [historyIndex])
 
-  const handleUndo = useCallback(async () => {
-    if (historyIndex <= 0) {
-      console.log('[Undo] No more history to undo')
-      return
-    }
-
-    const previousState = history[historyIndex - 1]
-    if (!previousState) return
-
-    console.log('[Undo] Restoring state from history index:', historyIndex - 1)
-    isUndoRedoOperation.current = true
-
-    try {
-      // Get current shape IDs
-      const currentIds = new Set(firestoreShapes.map(s => s.id))
-      const previousIds = new Set(previousState.map(s => s.id))
-
-      // Delete shapes that exist now but didn't exist before
-      const shapesToDelete = firestoreShapes.filter(s => !previousIds.has(s.id))
-      await Promise.all(shapesToDelete.map(s => deleteShape(s.id)))
-
-      // Create shapes that existed before but don't exist now
-      const shapesToCreate = previousState.filter(s => !currentIds.has(s.id))
-      await Promise.all(shapesToCreate.map(s => createShape(s)))
-
-      // Update shapes that exist in both
-      const shapesToUpdate = previousState.filter(s => currentIds.has(s.id))
-      await Promise.all(shapesToUpdate.map(s => {
-        const currentShape = firestoreShapes.find(curr => curr.id === s.id)
-        if (currentShape && JSON.stringify(currentShape) !== JSON.stringify(s)) {
-          return updateShape(s.id, s)
-        }
-        return Promise.resolve()
-      }))
-
-      setHistoryIndex(historyIndex - 1)
-    } catch (err) {
-      console.error('[Undo] Failed to undo:', err)
-    } finally {
-      isUndoRedoOperation.current = false
-    }
-  }, [historyIndex, history, firestoreShapes, deleteShape, createShape, updateShape])
-
-  const handleRedo = useCallback(async () => {
-    if (historyIndex >= history.length - 1) {
-      console.log('[Redo] No more history to redo')
-      return
-    }
-
-    const nextState = history[historyIndex + 1]
-    if (!nextState) return
-
-    console.log('[Redo] Restoring state from history index:', historyIndex + 1)
-    isUndoRedoOperation.current = true
-
-    try {
-      // Get current shape IDs
-      const currentIds = new Set(firestoreShapes.map(s => s.id))
-      const nextIds = new Set(nextState.map(s => s.id))
-
-      // Delete shapes that exist now but won't exist after redo
-      const shapesToDelete = firestoreShapes.filter(s => !nextIds.has(s.id))
-      await Promise.all(shapesToDelete.map(s => deleteShape(s.id)))
-
-      // Create shapes that will exist but don't exist now
-      const shapesToCreate = nextState.filter(s => !currentIds.has(s.id))
-      await Promise.all(shapesToCreate.map(s => createShape(s)))
-
-      // Update shapes that exist in both
-      const shapesToUpdate = nextState.filter(s => currentIds.has(s.id))
-      await Promise.all(shapesToUpdate.map(s => {
-        const currentShape = firestoreShapes.find(curr => curr.id === s.id)
-        if (currentShape && JSON.stringify(currentShape) !== JSON.stringify(s)) {
-          return updateShape(s.id, s)
-        }
-        return Promise.resolve()
-      }))
-
-      setHistoryIndex(historyIndex + 1)
-    } catch (err) {
-      console.error('[Redo] Failed to redo:', err)
-    } finally {
-      isUndoRedoOperation.current = false
-    }
-  }, [historyIndex, history, firestoreShapes, deleteShape, createShape, updateShape])
+  // Undo/Redo handler refs (actual implementation defined later after dependencies)
+  const handleUndoRef = useRef<() => Promise<void>>(async () => {})
+  const handleRedoRef = useRef<() => Promise<void>>(async () => {})
 
   // Setup RTDB subscription for live position updates from other users
   useEffect(() => {
@@ -725,6 +643,181 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     })
   }, [])
 
+  // Define undo/redo handlers now that dependencies are available
+  useEffect(() => {
+    handleUndoRef.current = async () => {
+      if (historyIndex <= 0) {
+        console.log('[Undo] No more history to undo')
+        return
+      }
+
+      const previousState = history[historyIndex - 1]
+      if (!previousState) return
+
+      console.log('[Undo] Restoring state from history index:', historyIndex - 1)
+      isUndoRedoOperation.current = true
+
+      try {
+        const stage = stageRef.current
+        const currentIds = new Set(firestoreShapes.map(s => s.id))
+        const previousIds = new Set(previousState.map(s => s.id))
+
+        // Delete shapes that exist now but didn't exist before
+        const shapesToDelete = firestoreShapes.filter(s => !previousIds.has(s.id))
+        if (shapesToDelete.length > 0) {
+          await Promise.all(shapesToDelete.map(s => deleteShape(s.id)))
+        }
+
+        // Create shapes that existed before but don't exist now
+        const shapesToCreate = previousState.filter(s => !currentIds.has(s.id))
+        if (shapesToCreate.length > 0) {
+          await Promise.all(shapesToCreate.map(s => createShape(s)))
+        }
+
+        // Update shapes - SMOOTH RENDERING with batch operations
+        const shapesToUpdate = previousState.filter(s => currentIds.has(s.id))
+        if (shapesToUpdate.length > 0) {
+          const localUpdates = new Map<string, Partial<Shape>>()
+
+          shapesToUpdate.forEach(targetShape => {
+            const currentShape = firestoreShapes.find(curr => curr.id === targetShape.id)
+            if (!currentShape) return
+
+            const updates: Partial<Shape> = {}
+            let hasChanges = false
+
+            Object.keys(targetShape).forEach(key => {
+              if (JSON.stringify((targetShape as any)[key]) !== JSON.stringify((currentShape as any)[key])) {
+                (updates as any)[key] = (targetShape as any)[key]
+                hasChanges = true
+              }
+            })
+
+            if (hasChanges) {
+              localUpdates.set(targetShape.id, updates)
+
+              // Direct Konva manipulation
+              if (stage) {
+                const node = stage.findOne(`#${targetShape.id}`)
+                if (node) {
+                  Object.keys(updates).forEach(key => {
+                    if (typeof node[key as keyof typeof node] === 'function') {
+                      (node as any)[key]((updates as any)[key])
+                    }
+                  })
+                }
+              }
+
+              // Throttled Firestore update
+              updateShapeThrottled(targetShape.id, updates)
+            }
+          })
+
+          if (localUpdates.size > 0) {
+            updateShapesLocalBatch(localUpdates)
+          }
+
+          if (stage) {
+            const layer = stage.findOne('Layer')
+            if (layer) layer.batchDraw()
+          }
+        }
+
+        setHistoryIndex(historyIndex - 1)
+      } catch (err) {
+        console.error('[Undo] Failed:', err)
+      } finally {
+        isUndoRedoOperation.current = false
+      }
+    }
+
+    handleRedoRef.current = async () => {
+      if (historyIndex >= history.length - 1) {
+        console.log('[Redo] No more history to redo')
+        return
+      }
+
+      const nextState = history[historyIndex + 1]
+      if (!nextState) return
+
+      console.log('[Redo] Restoring state from history index:', historyIndex + 1)
+      isUndoRedoOperation.current = true
+
+      try {
+        const stage = stageRef.current
+        const currentIds = new Set(firestoreShapes.map(s => s.id))
+        const nextIds = new Set(nextState.map(s => s.id))
+
+        // Delete shapes that exist now but won't exist after redo
+        const shapesToDelete = firestoreShapes.filter(s => !nextIds.has(s.id))
+        if (shapesToDelete.length > 0) {
+          await Promise.all(shapesToDelete.map(s => deleteShape(s.id)))
+        }
+
+        // Create shapes that will exist but don't exist now
+        const shapesToCreate = nextState.filter(s => !currentIds.has(s.id))
+        if (shapesToCreate.length > 0) {
+          await Promise.all(shapesToCreate.map(s => createShape(s)))
+        }
+
+        // Update shapes - SMOOTH RENDERING with batch operations
+        const shapesToUpdate = nextState.filter(s => currentIds.has(s.id))
+        if (shapesToUpdate.length > 0) {
+          const localUpdates = new Map<string, Partial<Shape>>()
+
+          shapesToUpdate.forEach(targetShape => {
+            const currentShape = firestoreShapes.find(curr => curr.id === targetShape.id)
+            if (!currentShape) return
+
+            const updates: Partial<Shape> = {}
+            let hasChanges = false
+
+            Object.keys(targetShape).forEach(key => {
+              if (JSON.stringify((targetShape as any)[key]) !== JSON.stringify((currentShape as any)[key])) {
+                (updates as any)[key] = (targetShape as any)[key]
+                hasChanges = true
+              }
+            })
+
+            if (hasChanges) {
+              localUpdates.set(targetShape.id, updates)
+
+              // Direct Konva manipulation
+              if (stage) {
+                const node = stage.findOne(`#${targetShape.id}`)
+                if (node) {
+                  Object.keys(updates).forEach(key => {
+                    if (typeof node[key as keyof typeof node] === 'function') {
+                      (node as any)[key]((updates as any)[key])
+                    }
+                  })
+                }
+              }
+
+              // Throttled Firestore update
+              updateShapeThrottled(targetShape.id, updates)
+            }
+          })
+
+          if (localUpdates.size > 0) {
+            updateShapesLocalBatch(localUpdates)
+          }
+
+          if (stage) {
+            const layer = stage.findOne('Layer')
+            if (layer) layer.batchDraw()
+          }
+        }
+
+        setHistoryIndex(historyIndex + 1)
+      } catch (err) {
+        console.error('[Redo] Failed:', err)
+      } finally {
+        isUndoRedoOperation.current = false
+      }
+    }
+  }, [historyIndex, history, firestoreShapes, deleteShape, createShape, updateShapeThrottled, updateShapesLocalBatch])
+
   // Clear local updates when Firestore syncs back
   // Use useEffect with a small delay to ensure renders complete before clearing
   useEffect(() => {
@@ -971,21 +1064,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // Cmd+Shift+Z - Redo (Mac)
       if (isMac && e.metaKey && e.shiftKey && e.key === 'z') {
         e.preventDefault()
-        handleRedo()
+        handleRedoRef.current()
         return
       }
 
       // Ctrl+Y - Redo (Windows/Linux)
       if (!isMac && e.ctrlKey && e.key === 'y') {
         e.preventDefault()
-        handleRedo()
+        handleRedoRef.current()
         return
       }
 
       // Cmd+Z / Ctrl+Z - Undo
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
-        handleUndo()
+        handleUndoRef.current()
         return
       }
     }
@@ -995,7 +1088,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     return () => {
       window.removeEventListener('keydown', handleKeyboardShortcut)
     }
-  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds, handleUndo, handleRedo])
+  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds])
 
   // Handle mouse move to broadcast cursor position and pan
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
@@ -1167,16 +1260,28 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
     // Handle lasso selection end
     if (isLassoSelecting && lassoPoints.length > 0) {
+      console.log('[Lasso] Mouse up - lasso selecting:', {
+        isLassoSelecting,
+        pointsCount: lassoPoints.length / 2,
+        shapesCount: shapes.length
+      })
+
       // Find all shapes that are inside the lasso polygon
       const selectedShapeIds: string[] = []
       shapes.forEach((shape) => {
-        if (isShapeInLasso(shape, lassoPoints)) {
+        const inside = isShapeInLasso(shape, lassoPoints)
+        if (inside) {
+          console.log('[Lasso] Shape inside:', shape.id, 'at', shape.x, shape.y)
           selectedShapeIds.push(shape.id)
         }
       })
 
+      console.log('[Lasso] Found shapes in lasso:', selectedShapeIds.length)
+      console.log('[Lasso] Previously selected:', selectedIds.length)
+
       // Add to existing selection (similar to box select)
       const newSelection = [...new Set([...selectedIds, ...selectedShapeIds])]
+      console.log('[Lasso] New total selection:', newSelection.length)
       setSelectedIds(newSelection)
 
       // Clear lasso
@@ -3081,7 +3186,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
               stroke="#3B82F6"
               strokeWidth={2 / viewport.zoom}
               fill="rgba(59, 130, 246, 0.1)"
-              closed={false}
+              closed={true}
               listening={false}
             />
           )}
