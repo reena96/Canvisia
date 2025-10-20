@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Hand, Maximize } from 'lucide-react'
+import { Hand, Maximize, MousePointer2, Lasso } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
 
-type Tool = 'select' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
+type Tool = 'select' | 'lasso' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -62,12 +62,64 @@ export function Toolbar({
       }}
     >
       {/* Basic Tools */}
-      <ToolButton
-        icon="➚"
-        label="Select"
-        selected={selectedTool === 'select'}
+      <button
         onClick={() => onToolSelect('select')}
-      />
+        title="Select (Shift + drag)"
+        style={{
+          width: '40px',
+          height: '40px',
+          border: selectedTool === 'select' ? '2px solid #3B82F6' : '2px solid transparent',
+          borderRadius: '6px',
+          backgroundColor: selectedTool === 'select' ? '#EFF6FF' : 'white',
+          color: '#1F2937',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          if (selectedTool !== 'select') {
+            e.currentTarget.style.backgroundColor = '#F9FAFB'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (selectedTool !== 'select') {
+            e.currentTarget.style.backgroundColor = 'white'
+          }
+        }}
+      >
+        <MousePointer2 size={20} color="#1F2937" />
+      </button>
+      <button
+        onClick={() => onToolSelect('lasso')}
+        title="Lasso Select (Free Draw)"
+        style={{
+          width: '40px',
+          height: '40px',
+          border: selectedTool === 'lasso' ? '2px solid #3B82F6' : '2px solid transparent',
+          borderRadius: '6px',
+          backgroundColor: selectedTool === 'lasso' ? '#EFF6FF' : 'white',
+          color: '#1F2937',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          if (selectedTool !== 'lasso') {
+            e.currentTarget.style.backgroundColor = '#F9FAFB'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (selectedTool !== 'lasso') {
+            e.currentTarget.style.backgroundColor = 'white'
+          }
+        }}
+      >
+        <Lasso size={20} color="#1F2937" />
+      </button>
       <button
         onClick={() => onToolSelect('hand')}
         title="Hand (Pan)"

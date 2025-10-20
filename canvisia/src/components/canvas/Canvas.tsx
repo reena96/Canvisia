@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Stage, Layer, Circle, Text as KonvaText, Rect } from 'react-konva'
+import { Stage, Layer, Circle, Text as KonvaText, Rect, Line } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { useCanvasStore } from '@/stores/canvasStore'
 import { CANVAS_CONFIG } from '@/config/canvas.config'
@@ -81,6 +81,10 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   const [selectionBox, setSelectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null)
 
+  // Lasso selection state
+  const [isLassoSelecting, setIsLassoSelecting] = useState(false)
+  const [lassoPoints, setLassoPoints] = useState<number[]>([])
+
   // Text preview state (shows "Add text" following cursor)
   const [textPreviewPos, setTextPreviewPos] = useState<{ x: number; y: number } | null>(null)
   const [isDraggingText, setIsDraggingText] = useState(false)
@@ -102,6 +106,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   // Rotation state
   const [isRotating, setIsRotating] = useState(false)
   const [rotationStart, setRotationStart] = useState<{ angle: number; initialRotation: number } | null>(null)
+
+  // Clipboard state
+  const [clipboard, setClipboard] = useState<Shape[]>([])
 
   // Multi-drag state: store initial positions when drag starts (using ref for synchronous access)
   const initialDragPositions = useRef<Map<string, { x: number; y: number; x2?: number; y2?: number; bendX?: number; bendY?: number }>>(new Map())
@@ -789,6 +796,73 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     }
   }, [isPanning, selectedTool])
 
+  // Handle keyboard shortcuts (Cmd+C, Cmd+V, Cmd+Z)
+  useEffect(() => {
+    const handleKeyboardShortcut = async (e: KeyboardEvent) => {
+      // Don't interfere with shortcuts when typing in input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey
+
+      // Cmd+C / Ctrl+C - Copy selected shapes
+      if (cmdOrCtrl && e.key === 'c' && selectedIds.length > 0) {
+        e.preventDefault()
+        const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
+        setClipboard(selectedShapes)
+        console.log('[Clipboard] Copied', selectedShapes.length, 'shapes')
+        return
+      }
+
+      // Cmd+V / Ctrl+V - Paste copied shapes
+      if (cmdOrCtrl && e.key === 'v' && clipboard.length > 0) {
+        e.preventDefault()
+
+        // Create new shapes from clipboard with offset
+        const PASTE_OFFSET = 20
+        const newShapes = clipboard.map(shape => {
+          const newId = `${shape.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          return {
+            ...shape,
+            id: newId,
+            x: shape.x + PASTE_OFFSET,
+            y: shape.y + PASTE_OFFSET,
+            createdBy: userId || 'anonymous',
+            createdAt: Date.now()
+          }
+        })
+
+        // Create all shapes in Firestore
+        try {
+          await Promise.all(newShapes.map(shape => createShape(shape)))
+          // Select the newly pasted shapes
+          setSelectedIds(newShapes.map(s => s.id))
+          console.log('[Clipboard] Pasted', newShapes.length, 'shapes')
+        } catch (err) {
+          console.error('[Clipboard] Failed to paste shapes:', err)
+        }
+        return
+      }
+
+      // Cmd+Z / Ctrl+Z - Undo (placeholder for now)
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        console.log('[Undo] Undo requested - not yet implemented')
+        // TODO: Implement undo functionality
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyboardShortcut)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyboardShortcut)
+    }
+  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds])
+
   // Handle mouse move to broadcast cursor position and pan
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current
@@ -833,6 +907,13 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       const width = Math.abs(canvasPos.x - selectionStart.x)
       const height = Math.abs(canvasPos.y - selectionStart.y)
       setSelectionBox({ x, y, width, height })
+      return
+    }
+
+    // Handle lasso selection
+    if (isLassoSelecting) {
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      setLassoPoints((prev) => [...prev, canvasPos.x, canvasPos.y])
       return
     }
 
@@ -888,6 +969,13 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         setSelectionBox({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 })
       }
     }
+
+    // Handle lasso selection with lasso tool
+    if (selectedTool === 'lasso') {
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      setIsLassoSelecting(true)
+      setLassoPoints([canvasPos.x, canvasPos.y])
+    }
   }
 
   // Handle mouse up for panning, text creation, and drag-to-select
@@ -940,6 +1028,26 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       setIsBoxSelecting(false)
       setSelectionBox(null)
       setSelectionStart(null)
+      return
+    }
+
+    // Handle lasso selection end
+    if (isLassoSelecting && lassoPoints.length > 0) {
+      // Find all shapes that are inside the lasso polygon
+      const selectedShapeIds: string[] = []
+      shapes.forEach((shape) => {
+        if (isShapeInLasso(shape, lassoPoints)) {
+          selectedShapeIds.push(shape.id)
+        }
+      })
+
+      // Add to existing selection (similar to box select)
+      const newSelection = [...new Set([...selectedIds, ...selectedShapeIds])]
+      setSelectedIds(newSelection)
+
+      // Clear lasso
+      setIsLassoSelecting(false)
+      setLassoPoints([])
       return
     }
 
@@ -1014,6 +1122,34 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     // Check if shape intersects with box
     return !(shapeRight < box.x || shapeLeft > box.x + box.width ||
              shapeBottom < box.y || shapeTop > box.y + box.height)
+  }
+
+  // Helper function to check if a point is inside a polygon (for lasso selection)
+  const isPointInPolygon = (x: number, y: number, polygonPoints: number[]): boolean => {
+    // Ray casting algorithm
+    let inside = false
+    for (let i = 0, j = polygonPoints.length - 2; i < polygonPoints.length; j = i, i += 2) {
+      const xi = polygonPoints[i]
+      const yi = polygonPoints[i + 1]
+      const xj = polygonPoints[j]
+      const yj = polygonPoints[j + 1]
+
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+      if (intersect) inside = !inside
+    }
+    return inside
+  }
+
+  // Helper function to check if a shape is inside the lasso polygon
+  const isShapeInLasso = (shape: Shape, lassoPoints: number[]): boolean => {
+    if (lassoPoints.length < 6) return false // Need at least 3 points (6 coordinates)
+
+    // Check if shape's center is inside the lasso
+    const centerX = shape.x
+    const centerY = shape.y
+
+    return isPointInPolygon(centerX, centerY, lassoPoints)
   }
 
   // Handle stage click for creating shapes
@@ -2800,6 +2936,18 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
               stroke="#3B82F6"
               strokeWidth={1 / viewport.zoom}
               dash={[5 / viewport.zoom, 5 / viewport.zoom]}
+              listening={false}
+            />
+          )}
+
+          {/* Lasso selection path */}
+          {isLassoSelecting && lassoPoints.length > 0 && (
+            <Line
+              points={lassoPoints}
+              stroke="#3B82F6"
+              strokeWidth={2 / viewport.zoom}
+              fill="rgba(59, 130, 246, 0.1)"
+              closed={false}
               listening={false}
             />
           )}

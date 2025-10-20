@@ -186,3 +186,20 @@ export interface BidirectionalArrow extends BaseShape {
 }
 
 export type Shape = Rectangle | Circle | Ellipse | RoundedRectangle | Cylinder | Line | Text | Image | Triangle | Pentagon | Hexagon | Star | Arrow | BidirectionalArrow | BentConnector;
+
+// Annotation type for collaborative comments on shapes
+export interface Annotation {
+  id: string;
+  shapeId: string; // ID of the shape this annotation is attached to
+  userId: string;
+  userName: string;
+  userColor: string;
+  comment: string;
+  createdAt: Date | number;
+  updatedAt: Date | number;
+  // Position relative to shape (for manual repositioning)
+  offsetX?: number;
+  offsetY?: number;
+  // Whether this annotation is resolved
+  resolved?: boolean;
+}
