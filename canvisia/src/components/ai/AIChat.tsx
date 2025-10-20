@@ -3,6 +3,7 @@ import { Pin, ArrowRight, ArrowLeft, ChevronRight, Mic, SquarePlus, X as CloseIc
 import { useAI } from '@/hooks/useAI'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { addChatMessage, subscribeToChatMessages, markMessageAsRead, createChatTab, hideChatTab, unhideChatTab, renameChatTab, subscribeToChatTabs } from '@/services/firestore'
+import { AI_COMMAND_EXAMPLES, type CommandExample } from '@/constants/aiCommandExamples'
 
 // Component to format and render message text with markdown-like formatting
 const FormattedMessage = ({ text }: { text: string }) => {
@@ -117,6 +118,11 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingTabName, setEditingTabName] = useState('')
   const [tabsLoaded, setTabsLoaded] = useState(false)
+
+  // Autocomplete state
+  const [showAutocomplete, setShowAutocomplete] = useState(false)
+  const [filteredSuggestions, setFilteredSuggestions] = useState<CommandExample[]>([])
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
 
   // Get active tab
   const activeTab = tabs.find(tab => tab.id === activeTabId) || tabs[0]
@@ -297,18 +303,73 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
 
   // Auto-resize textarea based on content
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setCommand(e.target.value)
+    const value = e.target.value
+    setCommand(value)
 
     // Auto-resize textarea
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
       inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
     }
+
+    // Filter autocomplete suggestions
+    if (value.trim().length > 0) {
+      const filtered = AI_COMMAND_EXAMPLES.filter(example =>
+        example.command.toLowerCase().includes(value.toLowerCase())
+      )
+      setFilteredSuggestions(filtered)
+      setShowAutocomplete(filtered.length > 0)
+      setSelectedSuggestionIndex(0)
+    } else {
+      setShowAutocomplete(false)
+      setFilteredSuggestions([])
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter without Shift sends the message
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Handle autocomplete navigation
+    if (showAutocomplete && filteredSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev =>
+          prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+        )
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : 0))
+        return
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault()
+        const selected = filteredSuggestions[selectedSuggestionIndex]
+        if (selected) {
+          setCommand(selected.command)
+          setShowAutocomplete(false)
+          setFilteredSuggestions([])
+          // Reset textarea height
+          if (inputRef.current) {
+            inputRef.current.style.height = 'auto'
+            setTimeout(() => {
+              if (inputRef.current) {
+                inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+              }
+            }, 0)
+          }
+        }
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowAutocomplete(false)
+        setFilteredSuggestions([])
+        return
+      }
+    }
+
+    // Enter without Shift sends the message (only if autocomplete is not showing)
+    if (e.key === 'Enter' && !e.shiftKey && !showAutocomplete) {
       e.preventDefault()
       if (command.trim() && !isProcessing && !isLocked) {
         handleSubmit(e as any)
@@ -317,9 +378,30 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     // Shift+Enter adds a new line (default behavior)
   }
 
+  const handleSuggestionClick = (suggestion: CommandExample) => {
+    setCommand(suggestion.command)
+    setShowAutocomplete(false)
+    setFilteredSuggestions([])
+    // Focus back on input
+    inputRef.current?.focus()
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+        }
+      }, 0)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!command.trim() || isProcessing) return
+
+    // Hide autocomplete on submit
+    setShowAutocomplete(false)
+    setFilteredSuggestions([])
 
     // Add user message to Firestore with user info
     const userMessage: Message = {
@@ -901,6 +983,93 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
             })}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Autocomplete Dropdown */}
+          {showAutocomplete && filteredSuggestions.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              bottom: '80px',
+              left: '12px',
+              right: '12px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                padding: '8px 12px',
+                borderBottom: '1px solid #e5e7eb',
+                fontSize: '11px',
+                fontWeight: '600',
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Command Suggestions
+              </div>
+              {filteredSuggestions.map((suggestion, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  style={{
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    backgroundColor: index === selectedSuggestionIndex ? '#f3f4f6' : 'white',
+                    borderLeft: index === selectedSuggestionIndex ? '3px solid #667eea' : '3px solid transparent',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                >
+                  <div style={{
+                    fontWeight: '500',
+                    color: '#1f2937',
+                    fontSize: '13px',
+                    marginBottom: '2px'
+                  }}>
+                    {suggestion.command}
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#9ca3af',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <span style={{
+                      backgroundColor: suggestion.category === 'creation' ? '#dbeafe' :
+                        suggestion.category === 'manipulation' ? '#fef3c7' :
+                        suggestion.category === 'layout' ? '#d1fae5' :
+                        '#e9d5ff',
+                      color: suggestion.category === 'creation' ? '#1e40af' :
+                        suggestion.category === 'manipulation' ? '#92400e' :
+                        suggestion.category === 'layout' ? '#065f46' :
+                        '#581c87',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: '600',
+                      textTransform: 'capitalize'
+                    }}>
+                      {suggestion.category}
+                    </span>
+                    {suggestion.description}
+                  </div>
+                </div>
+              ))}
+              <div style={{
+                padding: '8px 12px',
+                borderTop: '1px solid #e5e7eb',
+                fontSize: '10px',
+                color: '#9ca3af',
+                textAlign: 'center'
+              }}>
+                ↑↓ Navigate • Enter/Tab Select • Esc Close
+              </div>
+            </div>
+          )}
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="ai-chat-input-form">
