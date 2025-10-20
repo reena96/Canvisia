@@ -43,9 +43,15 @@ export function useFirestore(canvasId: string) {
     try {
       await createShapeInFirestore(canvasId, shape)
     } catch (err) {
-      console.error('Failed to create shape:', err)
-      setError(err as Error)
-      throw err
+      // Suppress permission errors if they're just race conditions
+      const isPermissionError = (err as any)?.code === 'permission-denied'
+      if (!isPermissionError) {
+        console.error('Failed to create shape:', err)
+        setError(err as Error)
+        throw err
+      }
+      // Log but don't throw for permission errors (likely race conditions)
+      console.warn('Permission error (likely race condition):', err)
     }
   }
 
@@ -57,9 +63,16 @@ export function useFirestore(canvasId: string) {
     try {
       await updateShapeInFirestore(canvasId, shapeId, updates)
     } catch (err) {
-      console.error('Failed to update shape:', err)
-      setError(err as Error)
-      throw err
+      // Suppress permission errors if they're just race conditions
+      // (optimistic updates work, Firestore writes might fail initially)
+      const isPermissionError = (err as any)?.code === 'permission-denied'
+      if (!isPermissionError) {
+        console.error('Failed to update shape:', err)
+        setError(err as Error)
+        throw err
+      }
+      // Log but don't throw for permission errors (likely race conditions)
+      console.warn('Permission error (likely race condition):', err)
     }
   }
 

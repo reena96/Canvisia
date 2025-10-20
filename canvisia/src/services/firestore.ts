@@ -24,6 +24,14 @@ export { db }
  * @param shape - Shape data
  */
 export async function createShape(canvasPath: string, shape: Shape): Promise<void> {
+  // Add stack trace logging to identify where creates are coming from
+  const stack = new Error().stack
+  console.log(`[Firestore WRITE] createShape called for shape ${shape.id}`, {
+    shapeType: shape.type,
+    canvasPath,
+    stack: stack?.split('\n').slice(1, 4).join('\n')
+  })
+
   // Support both old format "canvasId" and new format "projects/x/canvases/y"
   const objectsPath = canvasPath.includes('/')
     ? `${canvasPath}/objects`
@@ -62,6 +70,14 @@ export async function updateShape(
   shapeId: string,
   updates: Partial<Shape>
 ): Promise<void> {
+  // Add stack trace logging to identify where updates are coming from
+  const stack = new Error().stack
+  console.log(`[Firestore WRITE] updateShape called for shape ${shapeId}`, {
+    updates,
+    canvasPath,
+    stack: stack?.split('\n').slice(1, 4).join('\n')
+  })
+
   const objectsPath = canvasPath.includes('/')
     ? `${canvasPath}/objects`
     : `canvases/${canvasPath}/objects`
@@ -1020,14 +1036,31 @@ export async function addUserViaLink(
   }
 
   if (project.ownerId === userId) {
-    console.log(`[addUserViaLink] User ${userId} is the owner of project ${projectId}, skipping`)
+    console.log(`[addUserViaLink] User ${userId} is the owner of project ${projectId}`)
+    // Check if owner has permission entry (might be missing for old projects)
+    const existingPermission = await getUserProjectPermission(projectId, userId)
+    if (!existingPermission) {
+      console.log(`[addUserViaLink] Creating missing owner permission for user ${userId}`)
+      const permissionId = `${projectId}_${userId}`
+      const now = Timestamp.now()
+      await setDoc(doc(db, 'permissions', permissionId), {
+        projectId,
+        userId,
+        userEmail,
+        role: 'owner',
+        invitedBy: userId,
+        invitedAt: now,
+        acceptedAt: now,
+      })
+      console.log(`[addUserViaLink] Created owner permission for user ${userId}`)
+    }
     return null
   }
 
   // Check if user already has permission
   const existingPermission = await getUserProjectPermission(projectId, userId)
   if (existingPermission) {
-    console.log(`[addUserViaLink] User ${userId} already has permission for project ${projectId}`)
+    console.log(`[addUserViaLink] User ${userId} already has permission for project ${projectId} with role: ${existingPermission.role}`)
     // Owner shouldn't get added via link, but return null to be safe
     return existingPermission.role === 'owner' ? null : existingPermission.role
   }

@@ -26,6 +26,33 @@ const ProjectsPage: React.FC = () => {
     loadProjects();
   }, [user]);
 
+  // Reload projects when page becomes visible (user navigates back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('[ProjectsPage] Page visible, reloading projects');
+        loadProjects();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also reload when window gains focus
+    const handleFocus = () => {
+      if (user) {
+        console.log('[ProjectsPage] Window focused, reloading projects');
+        loadProjects();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user]);
+
   const loadProjects = async () => {
     if (!user) return;
 
@@ -51,19 +78,30 @@ const ProjectsPage: React.FC = () => {
     try {
       setCreatingProject(true);
       console.log('[ProjectsPage] Creating project for user:', user.uid);
+      const projectName = `Untitled Project ${projects.length + 1}`;
       const newProjectId = await createProject(
         user.uid,
-        `Untitled Project ${projects.length + 1}`,
+        projectName,
         user.email || ''
       );
       console.log('[ProjectsPage] Project created:', newProjectId);
 
-      // Reload projects to show the new one
-      await loadProjects();
+      // Add new project directly to state instead of reloading all projects
+      const now = new Date();
+      const newProject: Project = {
+        id: newProjectId,
+        name: projectName,
+        ownerId: user.uid,
+        thumbnail: null,
+        createdAt: now,
+        lastModified: now,
+        lastAccessed: now,
+      };
+      setProjects([newProject, ...projects]);
 
       // Automatically start renaming the new project
       setEditingProjectId(newProjectId);
-      setEditingName(`Untitled Project ${projects.length + 1}`);
+      setEditingName(projectName);
     } catch (error) {
       console.error('[ProjectsPage] Error creating project:', error);
       alert('Failed to create project. Check console for details.');
@@ -146,9 +184,9 @@ const ProjectsPage: React.FC = () => {
 
     switch (activeTab) {
       case 'recent':
-        // Show ALL projects (owned + shared) sorted by lastAccessed
+        // Show ALL projects (owned + shared) sorted by lastModified
         return [...projects].sort((a, b) =>
-          (b.lastAccessed?.getTime() || b.lastModified.getTime()) - (a.lastAccessed?.getTime() || a.lastModified.getTime())
+          b.lastModified.getTime() - a.lastModified.getTime()
         );
       case 'shared':
         return projects.filter(p =>
