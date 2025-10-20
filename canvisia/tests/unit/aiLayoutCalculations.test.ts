@@ -147,7 +147,7 @@ describe('AI Layout Calculations', () => {
   })
 
   describe('alignShapes', () => {
-    it('should align shapes to left', () => {
+    it('should align shapes to left (maintaining relative positioning)', () => {
       const shapes: Rectangle[] = [
         { id: '1', type: 'rectangle', x: 100, y: 0, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
         { id: '2', type: 'rectangle', x: 200, y: 100, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
@@ -156,10 +156,11 @@ describe('AI Layout Calculations', () => {
 
       const result = alignShapes(shapes, 'left')
 
-      // All should have same x (the leftmost)
+      // Leftmost is already at x=100, so no change
+      // Maintains relative positioning (100px apart)
       expect(result[0].x).toBe(100)
-      expect(result[1].x).toBe(100)
-      expect(result[2].x).toBe(100)
+      expect(result[1].x).toBe(200)
+      expect(result[2].x).toBe(300)
 
       // Y positions should remain unchanged
       expect(result[0].y).toBe(0)
@@ -167,7 +168,7 @@ describe('AI Layout Calculations', () => {
       expect(result[2].y).toBe(200)
     })
 
-    it('should align shapes to right', () => {
+    it('should align shapes to right (maintaining relative positioning)', () => {
       const shapes: Rectangle[] = [
         { id: '1', type: 'rectangle', x: 100, y: 0, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
         { id: '2', type: 'rectangle', x: 200, y: 100, width: 80, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
@@ -175,14 +176,14 @@ describe('AI Layout Calculations', () => {
 
       const result = alignShapes(shapes, 'right')
 
-      // Right edge of shape 1: 100 + 100 = 200
-      // Right edge of shape 2: 200 + 80 = 280
-      // Rightmost is 280, so shape 1 should move to 180
-      expect(result[0].x).toBe(180) // 280 - 100
-      expect(result[1].x).toBe(200) // unchanged
+      // Right edge of shape 2: 200 + 80 = 280 (rightmost)
+      // Shape 2 is at x=200, shape 1 is at x=100 (delta = 100)
+      // Move both shapes by delta=100 to align to rightmost shape
+      expect(result[0].x).toBe(200) // 100 + 100
+      expect(result[1].x).toBe(300) // 200 + 100
     })
 
-    it('should align shapes to top', () => {
+    it('should align shapes to top (maintaining relative positioning)', () => {
       const shapes: Rectangle[] = [
         { id: '1', type: 'rectangle', x: 0, y: 100, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
         { id: '2', type: 'rectangle', x: 150, y: 200, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
@@ -190,11 +191,13 @@ describe('AI Layout Calculations', () => {
 
       const result = alignShapes(shapes, 'top')
 
+      // Topmost is already at y=100, so no change
+      // Maintains relative positioning (100px apart)
       expect(result[0].y).toBe(100)
-      expect(result[1].y).toBe(100)
+      expect(result[1].y).toBe(200)
     })
 
-    it('should align shapes to bottom', () => {
+    it('should align shapes to bottom (maintaining relative positioning)', () => {
       const shapes: Rectangle[] = [
         { id: '1', type: 'rectangle', x: 0, y: 100, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
         { id: '2', type: 'rectangle', x: 150, y: 200, width: 100, height: 80, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
@@ -202,14 +205,14 @@ describe('AI Layout Calculations', () => {
 
       const result = alignShapes(shapes, 'bottom')
 
-      // Bottom of shape 1: 100 + 100 = 200
-      // Bottom of shape 2: 200 + 80 = 280
-      // Bottommost is 280, so shape 1 should move to y=180
-      expect(result[0].y).toBe(180) // 280 - 100
-      expect(result[1].y).toBe(200) // unchanged
+      // Bottom of shape 2: 200 + 80 = 280 (bottommost)
+      // Shape 2 is at y=200, shape 1 is at y=100 (delta = 100)
+      // Move both shapes by delta=100 to align to bottommost shape
+      expect(result[0].y).toBe(200) // 100 + 100
+      expect(result[1].y).toBe(300) // 200 + 100
     })
 
-    it('should align shapes to center horizontally', () => {
+    it('should align shapes to center horizontally (maintaining relative positioning)', () => {
       const shapes: Rectangle[] = [
         { id: '1', type: 'rectangle', x: 100, y: 0, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
         { id: '2', type: 'rectangle', x: 200, y: 100, width: 80, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
@@ -217,15 +220,15 @@ describe('AI Layout Calculations', () => {
 
       const result = alignShapes(shapes, 'center-horizontal')
 
-      // Center of shape 1: 100 + 50 = 150
-      // Center of shape 2: 200 + 40 = 240
-      // Average center: (150 + 240) / 2 = 195
-      const expectedCenter = 195
-      expect(result[0].x).toBe(expectedCenter - 50) // 145
-      expect(result[1].x).toBe(expectedCenter - 40) // 155
+      // Group bounds: minX=100, maxX=280 (200+80)
+      // Group center: (100 + 280) / 2 = 190
+      // Average of individual centers: (150 + 240) / 2 = 195
+      // Delta: 195 - 190 = 5
+      expect(result[0].x).toBe(105) // 100 + 5
+      expect(result[1].x).toBe(205) // 200 + 5
     })
 
-    it('should align shapes to center vertically', () => {
+    it('should align shapes to center vertically (maintaining relative positioning)', () => {
       const shapes: Rectangle[] = [
         { id: '1', type: 'rectangle', x: 0, y: 100, width: 100, height: 100, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
         { id: '2', type: 'rectangle', x: 150, y: 200, width: 100, height: 80, fill: '#000', stroke: '#000', strokeWidth: 2, rotation: 0, createdBy: 'user', updatedAt: '' },
@@ -233,12 +236,12 @@ describe('AI Layout Calculations', () => {
 
       const result = alignShapes(shapes, 'center-vertical')
 
-      // Center of shape 1: 100 + 50 = 150
-      // Center of shape 2: 200 + 40 = 240
-      // Average center: (150 + 240) / 2 = 195
-      const expectedCenter = 195
-      expect(result[0].y).toBe(expectedCenter - 50) // 145
-      expect(result[1].y).toBe(expectedCenter - 40) // 155
+      // Group bounds: minY=100, maxY=280 (200+80)
+      // Group center: (100 + 280) / 2 = 190
+      // Average of individual centers: (150 + 240) / 2 = 195
+      // Delta: 195 - 190 = 5
+      expect(result[0].y).toBe(105) // 100 + 5
+      expect(result[1].y).toBe(205) // 200 + 5
     })
   })
 
