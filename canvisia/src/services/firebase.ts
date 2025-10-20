@@ -31,11 +31,16 @@ export const rtdb = getDatabase(app)
 // Connect to emulators in development
 if (import.meta.env.DEV) {
   try {
-    console.log('[Firebase] Connecting to emulators on alternate ports...')
-    connectAuthEmulator(auth, 'http://localhost:9199', { disableWarnings: true })
+    console.log('[Firebase] Connecting to emulators (Firestore and RTDB only)...')
+
+    // Note: We do NOT connect to Auth emulator because Google OAuth doesn't work with it.
+    // Auth will use production Firebase Auth for Google sign-in to work.
+    // If you need to test with Auth emulator, use email/password or custom tokens instead.
+
     connectFirestoreEmulator(db, 'localhost', 8180)
     connectDatabaseEmulator(rtdb, 'localhost', 9100)
-    console.log('[Firebase] ✅ Connected to emulators (Auth:9199, Firestore:8180, RTDB:9100)')
+    console.log('[Firebase] ✅ Connected to emulators (Firestore:8180, RTDB:9100)')
+    console.log('[Firebase] ℹ️ Using production Auth for Google sign-in')
   } catch (error) {
     // Ignore if already connected (this is expected on hot reload)
     console.log('[Firebase] Emulator connection error (may already be connected):', error)
