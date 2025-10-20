@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { createCanvas, deleteCanvas } from '@/services/firestore';
 import './CanvasSidebar.css';
 
 interface Canvas {
   id: string;
   name: string;
-  thumbnail_url?: string;
-  created_at: string;
+  thumbnail?: string | null;
+  order: number;
+  settings: {
+    backgroundColor: string;
+    gridEnabled: boolean;
+  };
+  createdAt: Date;
+  lastModified: Date;
 }
 
 interface CanvasSidebarProps {
@@ -31,20 +38,9 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
     setIsCreating(true);
     try {
       const canvasNumber = canvases.length + 1;
-      const { data, error } = await supabase
-        .from('canvases')
-        .insert({
-          project_id: projectId,
-          name: `Canvas ${canvasNumber}`,
-          content: { elements: [] }
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
+      const canvasId = await createCanvas(projectId, `Page ${canvasNumber}`);
       onCanvasesChange();
-      navigate(`/projects/${projectId}/canvas/${data.id}`);
+      navigate(`/p/${projectId}/${canvasId}`);
     } catch (error) {
       console.error('Error creating canvas:', error);
       alert('Failed to create canvas');
@@ -59,16 +55,11 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
     }
 
     try {
-      const { error } = await supabase
-        .from('canvases')
-        .delete()
-        .eq('id', canvasId);
-
-      if (error) throw error;
+      await deleteCanvas(projectId, canvasId);
 
       // If we deleted the active canvas, navigate to the project
       if (canvasId === activeCanvasId) {
-        navigate(`/projects/${projectId}`);
+        navigate(`/p/${projectId}`);
       }
 
       onCanvasesChange();
@@ -79,7 +70,7 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
   };
 
   const handleCanvasClick = (canvasId: string) => {
-    navigate(`/projects/${projectId}/canvas/${canvasId}`);
+    navigate(`/p/${projectId}/${canvasId}`);
   };
 
   return (
@@ -114,8 +105,8 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
                 onClick={() => handleCanvasClick(canvas.id)}
               >
                 <div className="canvas-thumbnail">
-                  {canvas.thumbnail_url ? (
-                    <img src={canvas.thumbnail_url} alt={canvas.name} />
+                  {canvas.thumbnail ? (
+                    <img src={canvas.thumbnail} alt={canvas.name} />
                   ) : (
                     <div className="canvas-thumbnail-placeholder">
                       {canvas.name.charAt(0)}

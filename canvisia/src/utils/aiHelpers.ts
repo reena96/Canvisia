@@ -164,10 +164,9 @@ export async function executeCreateMultipleShapes(
   console.log('[AI Helpers] executeCreateMultipleShapes called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     count,
@@ -408,10 +407,9 @@ export async function executeCreateShape(
   console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     shapeType,
@@ -622,10 +620,9 @@ export async function executeCreateText(
   console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     text,
@@ -716,10 +713,9 @@ export async function executeCreateArrow(
   console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     x1: inputX1,

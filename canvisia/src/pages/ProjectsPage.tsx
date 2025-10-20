@@ -9,7 +9,7 @@ type TabType = 'recent' | 'shared' | 'owned';
 
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
-  const user = useAuth();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('recent');
@@ -42,7 +42,7 @@ const ProjectsPage: React.FC = () => {
         user.uid,
         `Untitled Project ${projects.length + 1}`
       );
-      navigate(`/canvas/${newProject.id}`);
+      navigate(`/p/${newProject}`);
     } catch (error) {
       console.error('Error creating project:', error);
     } finally {
@@ -51,7 +51,7 @@ const ProjectsPage: React.FC = () => {
   };
 
   const handleOpenProject = (projectId: string) => {
-    navigate(`/canvas/${projectId}`);
+    navigate(`/p/${projectId}`);
   };
 
   const getFilteredProjects = () => {
