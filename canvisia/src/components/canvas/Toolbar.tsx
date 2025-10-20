@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Hand, Maximize, MousePointer2, Lasso } from 'lucide-react'
+import { Hand, Maximize, MousePointer2, Lasso, Square } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
 
-type Tool = 'select' | 'lasso' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
+type Tool = 'select' | 'boxSelect' | 'lasso' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -64,7 +64,7 @@ export function Toolbar({
       {/* Basic Tools */}
       <button
         onClick={() => onToolSelect('select')}
-        title="Select (Shift + drag)"
+        title="Select"
         style={{
           width: '40px',
           height: '40px',
@@ -92,8 +92,37 @@ export function Toolbar({
         <MousePointer2 size={20} color="#1F2937" />
       </button>
       <button
+        onClick={() => onToolSelect('boxSelect')}
+        title="Box Select"
+        style={{
+          width: '40px',
+          height: '40px',
+          border: selectedTool === 'boxSelect' ? '2px solid #3B82F6' : '2px solid transparent',
+          borderRadius: '6px',
+          backgroundColor: selectedTool === 'boxSelect' ? '#EFF6FF' : 'white',
+          color: '#1F2937',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          if (selectedTool !== 'boxSelect') {
+            e.currentTarget.style.backgroundColor = '#F9FAFB'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (selectedTool !== 'boxSelect') {
+            e.currentTarget.style.backgroundColor = 'white'
+          }
+        }}
+      >
+        <Square size={20} color="#1F2937" strokeDasharray="4 2" />
+      </button>
+      <button
         onClick={() => onToolSelect('lasso')}
-        title="Lasso Select (Free Draw)"
+        title="Lasso Select"
         style={{
           width: '40px',
           height: '40px',

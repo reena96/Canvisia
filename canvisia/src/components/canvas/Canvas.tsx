@@ -1181,27 +1181,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       return
     }
 
-    // Handle drag-to-select box with select tool
-    // Start selection box if: clicking on empty canvas OR holding Cmd/Ctrl/Shift modifier key
-    if (selectedTool === 'select') {
-      const clickedShape = e.target
-      const clickedOnEmpty = clickedShape === clickedShape.getStage() || clickedShape.getType() === 'Layer'
-      const modifierKey = e.evt?.shiftKey || e.evt?.ctrlKey || e.evt?.metaKey // Shift, Ctrl (Windows/Linux) or Cmd (Mac)
-
-      // Start selection box if clicking on empty canvas OR holding any modifier key
-      if (clickedOnEmpty || modifierKey) {
-        const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
-        setIsBoxSelecting(true)
-        setSelectionStart(canvasPos)
-        setSelectionBox({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 })
-      }
+    // Handle box select tool - always start box selection when clicked
+    if (selectedTool === 'boxSelect') {
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      setIsBoxSelecting(true)
+      setSelectionStart(canvasPos)
+      setSelectionBox({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 })
+      return
     }
 
-    // Handle lasso selection with lasso tool
+    // Handle lasso selection with lasso tool - always start lasso when clicked
     if (selectedTool === 'lasso') {
       const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
       setIsLassoSelecting(true)
       setLassoPoints([canvasPos.x, canvasPos.y])
+      return
     }
   }
 
