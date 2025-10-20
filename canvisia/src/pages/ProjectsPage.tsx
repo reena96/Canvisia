@@ -8,14 +8,11 @@ import { ShareDialog } from '@/components/share/ShareDialog';
 import { Header } from '@/components/layout/Header';
 import './ProjectsPage.css';
 
-type TabType = 'recent' | 'shared' | 'owned';
-
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('recent');
   const [creatingProject, setCreatingProject] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -194,23 +191,10 @@ const ProjectsPage: React.FC = () => {
   };
 
   const getFilteredProjects = () => {
-    if (!user) return [];
-
-    switch (activeTab) {
-      case 'recent':
-        // Show ALL projects (owned + shared) sorted by lastModified
-        return [...projects].sort((a, b) =>
-          b.lastModified.getTime() - a.lastModified.getTime()
-        );
-      case 'shared':
-        return projects.filter(p =>
-          p.ownerId !== user.uid
-        );
-      case 'owned':
-        return projects.filter(p => p.ownerId === user.uid);
-      default:
-        return projects;
-    }
+    // Show all owned projects sorted by lastModified
+    return [...projects].sort((a, b) =>
+      b.lastModified.getTime() - a.lastModified.getTime()
+    );
   };
 
   const formatTimestamp = (timestamp: any): string => {
@@ -254,26 +238,6 @@ const ProjectsPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="projects-tabs">
-          <button
-            className={`tab ${activeTab === 'recent' ? 'active' : ''}`}
-            onClick={() => setActiveTab('recent')}
-          >
-            Recently viewed
-          </button>
-          <button
-            className={`tab ${activeTab === 'shared' ? 'active' : ''}`}
-            onClick={() => setActiveTab('shared')}
-          >
-            Shared with me
-          </button>
-          <button
-            className={`tab ${activeTab === 'owned' ? 'active' : ''}`}
-            onClick={() => setActiveTab('owned')}
-          >
-            Owned by me
-          </button>
-        </div>
 
         {filteredProjects.length === 0 ? (
           <div className="empty-state">
