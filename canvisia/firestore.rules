@@ -4,12 +4,14 @@ service cloud.firestore {
 
     // Helper function to check if user has permission
     function hasPermission(projectId, role) {
-      let permDoc = get(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
-      return permDoc != null && permDoc.data.role == role;
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid)) &&
+        get(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid)).data.role == role;
     }
 
     function hasAnyPermission(projectId) {
-      return exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
     }
 
     // Projects: read if has permission, write if owner
