@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { createCanvas, deleteCanvas } from '@/services/firestore';
+import { createCanvas, deleteCanvas, updateCanvas } from '@/services/firestore';
 import './CanvasSidebar.css';
 
 interface Canvas {
@@ -33,12 +33,14 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingCanvasId, setEditingCanvasId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const handleCreateCanvas = async () => {
     setIsCreating(true);
     try {
       const canvasNumber = canvases.length + 1;
-      const canvasId = await createCanvas(projectId, `Page ${canvasNumber}`);
+      const canvasId = await createCanvas(projectId, `Canvas ${canvasNumber}`);
       onCanvasesChange();
       navigate(`/p/${projectId}/${canvasId}`);
     } catch (error) {
@@ -70,7 +72,45 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
   };
 
   const handleCanvasClick = (canvasId: string) => {
-    navigate(`/p/${projectId}/${canvasId}`);
+    if (editingCanvasId !== canvasId) {
+      navigate(`/p/${projectId}/${canvasId}`);
+    }
+  };
+
+  const handleStartRename = (canvasId: string, currentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCanvasId(canvasId);
+    setEditingName(currentName);
+  };
+
+  const handleCancelRename = () => {
+    setEditingCanvasId(null);
+    setEditingName('');
+  };
+
+  const handleSaveRename = async (canvasId: string) => {
+    if (!editingName.trim()) {
+      handleCancelRename();
+      return;
+    }
+
+    try {
+      await updateCanvas(projectId, canvasId, { name: editingName.trim() });
+      onCanvasesChange();
+      setEditingCanvasId(null);
+      setEditingName('');
+    } catch (error) {
+      console.error('Error renaming canvas:', error);
+      alert('Failed to rename canvas');
+    }
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent, canvasId: string) => {
+    if (e.key === 'Enter') {
+      handleSaveRename(canvasId);
+    } else if (e.key === 'Escape') {
+      handleCancelRename();
+    }
   };
 
   return (
@@ -114,7 +154,26 @@ export const CanvasSidebar: React.FC<CanvasSidebarProps> = ({
                   )}
                 </div>
                 <div className="canvas-info">
-                  <div className="canvas-name">{canvas.name}</div>
+                  {editingCanvasId === canvas.id ? (
+                    <input
+                      type="text"
+                      className="canvas-name-input"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={() => handleSaveRename(canvas.id)}
+                      onKeyDown={(e) => handleRenameKeyDown(e, canvas.id)}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div
+                      className="canvas-name"
+                      onDoubleClick={(e) => handleStartRename(canvas.id, canvas.name, e)}
+                      title="Double-click to rename"
+                    >
+                      {canvas.name}
+                    </div>
+                  )}
                 </div>
                 <button
                   className="delete-canvas-button"

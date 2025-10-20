@@ -46,7 +46,7 @@
 .create-canvas-button {
   margin: 16px;
   padding: 8px 12px;
-  background-color: #2563EB;
+  background-color: #8B5CF6;
   color: white;
   border: none;
   border-radius: 6px;
@@ -60,7 +60,7 @@
 }
 
 .create-canvas-button:hover:not(:disabled) {
-  background-color: #1D4ED8;
+  background-color: #7C3AED;
 }
 
 .create-canvas-button:disabled {
@@ -91,11 +91,11 @@
 }
 
 .canvas-item.active {
-  background-color: #DBEAFE;
+  background-color: #EDE9FE;
 }
 
 .canvas-item.active:hover {
-  background-color: #BFDBFE;
+  background-color: #DDD6FE;
 }
 
 .canvas-thumbnail {
@@ -137,6 +137,19 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: text;
+}
+
+.canvas-name-input {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  border: 1px solid #8B5CF6;
+  border-radius: 4px;
+  padding: 4px 6px;
+  outline: none;
+  background-color: white;
 }
 
 .delete-canvas-button {
@@ -149,7 +162,7 @@
   align-items: center;
   justify-content: center;
   color: #EF4444;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
   flex-shrink: 0;
 }
 
@@ -159,6 +172,7 @@
 
 .delete-canvas-button:hover {
   color: #DC2626;
+  transform: scale(1.1);
 }
 
 /* Scrollbar styling */

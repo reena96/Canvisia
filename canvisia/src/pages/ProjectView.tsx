@@ -4,6 +4,7 @@ import { Canvas } from '../components/canvas/Canvas';
 import { CanvasSidebar } from '../components/canvas/CanvasSidebar';
 import { AIChat } from '@/components/ai/AIChat';
 import { Header } from '@/components/layout/Header';
+import { ShareDialog } from '@/components/share/ShareDialog';
 import { getProject, getProjectCanvases } from '@/services/firestore';
 import type { Project } from '@/types/project';
 
@@ -27,6 +28,7 @@ export const ProjectView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isVegaOpen, setIsVegaOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   const loadCanvases = async () => {
     if (!projectId) return;
@@ -82,7 +84,11 @@ export const ProjectView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Header projectName={project?.name} />
+      <Header
+        projectName={project?.name}
+        projectId={projectId}
+        onShareClick={() => setShowShareDialog(true)}
+      />
       <div style={{ display: 'flex', flex: 1, marginTop: '60px' }}>
         <CanvasSidebar
           projectId={projectId!}
@@ -112,6 +118,14 @@ export const ProjectView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {showShareDialog && projectId && project && (
+        <ShareDialog
+          projectId={projectId}
+          projectName={project.name}
+          onClose={() => setShowShareDialog(false)}
+        />
+      )}
     </div>
   );
 };

@@ -1,15 +1,18 @@
-import { Users } from 'lucide-react'
+import { Users, Share2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import type { Presence } from '@/types/user'
+import { Tooltip } from '../ui/Tooltip'
 
 interface HeaderProps {
   activeUsers?: Presence[]
   onSignOut?: () => Promise<void>
   projectName?: string
+  projectId?: string
+  onShareClick?: () => void
 }
 
-export function Header({ activeUsers = [], onSignOut, projectName }: HeaderProps) {
+export function Header({ activeUsers = [], onSignOut, projectName, projectId, onShareClick }: HeaderProps) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
 
@@ -77,18 +80,49 @@ export function Header({ activeUsers = [], onSignOut, projectName }: HeaderProps
               gap: '0.5rem',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#e5e7eb'
+              e.currentTarget.style.backgroundColor = '#EDE9FE'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
-            <span>←</span> Back
+            <span>←</span> Back to projects
           </button>
         )}
-        <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1F2937 !important' }}>
+        <h1 style={{ margin: 0, fontSize: '1.5rem', color: projectName ? '#1F2937' : '#8B5CF6' }}>
           {projectName || 'Canvisia'}
         </h1>
+        {projectId && onShareClick && (
+          <Tooltip content="Share project">
+            <button
+              onClick={onShareClick}
+              style={{
+                padding: '0.5rem',
+                fontSize: '0.875rem',
+                backgroundColor: 'transparent',
+                border: '1px solid #D1D5DB',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                color: '#6B7280',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#F3F4F6'
+                e.currentTarget.style.color = '#8B5CF6'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.color = '#6B7280'
+              }}
+            >
+              <Share2 size={18} />
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -148,7 +182,7 @@ export function Header({ activeUsers = [], onSignOut, projectName }: HeaderProps
           style={{
             padding: '0.5rem 1rem',
             fontSize: '0.9rem',
-            backgroundColor: '#4B5563',
+            backgroundColor: '#8B5CF6',
             border: 'none',
             borderRadius: '6px',
             cursor: 'pointer',
@@ -157,10 +191,10 @@ export function Header({ activeUsers = [], onSignOut, projectName }: HeaderProps
             transition: 'background-color 0.2s',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#374151'
+            e.currentTarget.style.backgroundColor = '#7C3AED'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#4B5563'
+            e.currentTarget.style.backgroundColor = '#8B5CF6'
           }}
         >
           Sign Out

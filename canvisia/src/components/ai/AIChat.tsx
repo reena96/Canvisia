@@ -3,6 +3,7 @@ import { Pin, ArrowRight, ArrowLeft, ChevronRight, Mic, SquarePlus, X as CloseIc
 import { useAI } from '@/hooks/useAI'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { addChatMessage, subscribeToChatMessages, markMessageAsRead, createChatTab, hideChatTab, unhideChatTab, renameChatTab, subscribeToChatTabs } from '@/services/firestore'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 // Component to format and render message text with markdown-like formatting
 const FormattedMessage = ({ text }: { text: string }) => {
@@ -581,76 +582,83 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
           {isLocked && <span className="ai-chat-status"> (Busy with {lockOwner})</span>}
         </div>
         <div className="ai-chat-controls">
-          <button
-            onClick={moveLeft}
-            className="ai-chat-control-btn"
-            title={windowState === 'minimized' ? 'Expand to left' : 'Move left'}
-            disabled={windowState !== 'minimized' && pinPosition === 'left'}
-            style={{
-              opacity: (windowState !== 'minimized' && pinPosition === 'left') ? 0.3 : 1,
-              cursor: (windowState !== 'minimized' && pinPosition === 'left') ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <button
-            onClick={handlePinToggle}
-            className="ai-chat-control-btn"
-            title={pinPosition === 'floating' ? 'Pin to closest side' : 'Unpin'}
-            disabled={windowState === 'minimized'}
-            style={{
-              backgroundColor: pinPosition !== 'floating' ? 'rgba(255, 255, 255, 0.9)' : undefined,
-              color: pinPosition !== 'floating' ? '#667eea' : undefined,
-              boxShadow: pinPosition !== 'floating' ? '0 0 12px rgba(255, 255, 255, 0.6), inset 0 0 0 2px rgba(102, 126, 234, 0.3)' : undefined,
-              transform: pinPosition !== 'floating' ? 'scale(1.05)' : undefined,
-              opacity: windowState === 'minimized' ? 0.3 : 1
-            }}
-          >
-            <Pin size={16} style={{
-              transform: pinPosition !== 'floating' ? 'rotate(-45deg)' : undefined,
-              transition: 'transform 0.2s'
-            }} />
-          </button>
-          <button
-            onClick={moveRight}
-            className="ai-chat-control-btn"
-            title={windowState === 'minimized' ? 'Expand to right' : 'Move right'}
-            disabled={windowState !== 'minimized' && pinPosition === 'right'}
-            style={{
-              opacity: (windowState !== 'minimized' && pinPosition === 'right') ? 0.3 : 1,
-              cursor: (windowState !== 'minimized' && pinPosition === 'right') ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <ArrowRight size={16} />
-          </button>
-          <button
-            onClick={handleNewTab}
-            className="ai-chat-control-btn"
-            title="New Tab"
-          >
-            <SquarePlus size={16} />
-          </button>
-          <button
-            onClick={toggleMinimize}
-            className="ai-chat-control-btn"
-            title="Minimize"
-          >
-            −
-          </button>
-          <button
-            onClick={toggleMaximize}
-            className="ai-chat-control-btn"
-            title={windowState === 'maximized' ? 'Restore' : 'Maximize'}
-          >
-            {windowState === 'maximized' ? '⊡' : '□'}
-          </button>
-          <button
-            onClick={handleClose}
-            className="ai-chat-control-btn"
-            title="Close"
-          >
-            <CloseIcon size={16} />
-          </button>
+          <Tooltip content={windowState === 'minimized' ? 'Expand to left' : 'Move left'}>
+            <button
+              onClick={moveLeft}
+              className="ai-chat-control-btn"
+              disabled={windowState !== 'minimized' && pinPosition === 'left'}
+              style={{
+                opacity: (windowState !== 'minimized' && pinPosition === 'left') ? 0.3 : 1,
+                cursor: (windowState !== 'minimized' && pinPosition === 'left') ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ArrowLeft size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content={pinPosition === 'floating' ? 'Pin to closest side' : 'Unpin'}>
+            <button
+              onClick={handlePinToggle}
+              className="ai-chat-control-btn"
+              disabled={windowState === 'minimized'}
+              style={{
+                backgroundColor: pinPosition !== 'floating' ? 'rgba(255, 255, 255, 0.9)' : undefined,
+                color: pinPosition !== 'floating' ? '#667eea' : undefined,
+                boxShadow: pinPosition !== 'floating' ? '0 0 12px rgba(255, 255, 255, 0.6), inset 0 0 0 2px rgba(102, 126, 234, 0.3)' : undefined,
+                transform: pinPosition !== 'floating' ? 'scale(1.05)' : undefined,
+                opacity: windowState === 'minimized' ? 0.3 : 1
+              }}
+            >
+              <Pin size={16} style={{
+                transform: pinPosition !== 'floating' ? 'rotate(-45deg)' : undefined,
+                transition: 'transform 0.2s'
+              }} />
+            </button>
+          </Tooltip>
+          <Tooltip content={windowState === 'minimized' ? 'Expand to right' : 'Move right'}>
+            <button
+              onClick={moveRight}
+              className="ai-chat-control-btn"
+              disabled={windowState !== 'minimized' && pinPosition === 'right'}
+              style={{
+                opacity: (windowState !== 'minimized' && pinPosition === 'right') ? 0.3 : 1,
+                cursor: (windowState !== 'minimized' && pinPosition === 'right') ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ArrowRight size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content="New Tab">
+            <button
+              onClick={handleNewTab}
+              className="ai-chat-control-btn"
+            >
+              <SquarePlus size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Minimize">
+            <button
+              onClick={toggleMinimize}
+              className="ai-chat-control-btn"
+            >
+              −
+            </button>
+          </Tooltip>
+          <Tooltip content={windowState === 'maximized' ? 'Restore' : 'Maximize'}>
+            <button
+              onClick={toggleMaximize}
+              className="ai-chat-control-btn"
+            >
+              {windowState === 'maximized' ? '⊡' : '□'}
+            </button>
+          </Tooltip>
+          <Tooltip content="Close">
+            <button
+              onClick={handleClose}
+              className="ai-chat-control-btn"
+            >
+              <CloseIcon size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -731,15 +739,16 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
                 />
               ) : (
                 <>
-                  <span
-                    onDoubleClick={(e) => {
-                      e.stopPropagation()
-                      handleStartRename(tab.id, tab.name)
-                    }}
-                    title="Double-click to rename"
-                  >
-                    {tab.name}
-                  </span>
+                  <Tooltip content="Double-click to rename">
+                    <span
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        handleStartRename(tab.id, tab.name)
+                      }}
+                    >
+                      {tab.name}
+                    </span>
+                  </Tooltip>
                   {hasUnread && (
                     <span
                       style={{
@@ -909,14 +918,15 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="ai-chat-input-form">
-            <button
-              type="button"
-              className="ai-chat-voice-btn"
-              title="Voice input (coming soon)"
-              disabled={isProcessing || isLocked}
-            >
-              <Mic size={18} />
-            </button>
+            <Tooltip content="Voice input (coming soon)">
+              <button
+                type="button"
+                className="ai-chat-voice-btn"
+                disabled={isProcessing || isLocked}
+              >
+                <Mic size={18} />
+              </button>
+            </Tooltip>
             <textarea
               ref={inputRef}
               id="ai-chat-input"
