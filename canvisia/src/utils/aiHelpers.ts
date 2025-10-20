@@ -1,4 +1,5 @@
 import { createShape, updateShape, getShapes } from '@/services/firestore'
+import { writeBatchShapePositions, clearShapePositions } from '@/services/rtdb'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
 import { v4 as uuidv4 } from 'uuid'
@@ -1059,11 +1060,12 @@ export function findShape(
 }
 
 /**
- * Execute move_element tool call
+ * Execute move_element tool call with smooth rendering
+ * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeMoveElement(
   canvasId: string,
-  _userId: string,
+  userId: string,
   input: {
     elementId?: string
     description?: string
@@ -1107,18 +1109,62 @@ export async function executeMoveElement(
     throw new Error('Must specify either position or x,y coordinates')
   }
 
-  // Update shape position
   console.log(`[AI Helpers] Moving shape ${shape.id} to (${newX}, ${newY})`)
-  await updateShape(canvasId, shape.id, { x: newX, y: newY })
-  console.log('[AI Helpers] Shape moved successfully')
+
+  // SMOOTH RENDERING PATTERN:
+  // 1. Write to RTDB first (Canvas subscribes and applies changes smoothly)
+  const rtdbUpdates = new Map<string, any>()
+  const positionData: any = {
+    x: newX,
+    y: newY,
+    updatedBy: userId,
+  }
+
+  // For lines/arrows/connectors, also update endpoints
+  if ('x2' in shape && 'y2' in shape) {
+    const dx = newX - shape.x
+    const dy = newY - shape.y
+    positionData.x2 = (shape as any).x2 + dx
+    positionData.y2 = (shape as any).y2 + dy
+
+    // For bent connectors, also move the bend point
+    if ('bendX' in shape && 'bendY' in shape) {
+      positionData.bendX = (shape as any).bendX + dx
+      positionData.bendY = (shape as any).bendY + dy
+    }
+  }
+
+  rtdbUpdates.set(shape.id, positionData)
+  await writeBatchShapePositions(canvasId, rtdbUpdates)
+
+  // 2. Brief delay to allow smooth animation
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // 3. Persist to Firestore for permanent storage
+  const firestoreUpdates: any = { x: newX, y: newY }
+  if (positionData.x2 !== undefined) {
+    firestoreUpdates.x2 = positionData.x2
+    firestoreUpdates.y2 = positionData.y2
+  }
+  if (positionData.bendX !== undefined) {
+    firestoreUpdates.bendX = positionData.bendX
+    firestoreUpdates.bendY = positionData.bendY
+  }
+  await updateShape(canvasId, shape.id, firestoreUpdates)
+
+  // 4. Clear RTDB (Firestore is now source of truth)
+  await clearShapePositions(canvasId, [shape.id])
+
+  console.log('[AI Helpers] Shape moved successfully with smooth rendering')
 }
 
 /**
- * Execute resize_element tool call
+ * Execute resize_element tool call with smooth rendering
+ * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeResizeElement(
   canvasId: string,
-  _userId: string,
+  userId: string,
   input: {
     elementId?: string
     description?: string
@@ -1201,16 +1247,38 @@ export async function executeResizeElement(
   }
 
   console.log(`[AI Helpers] Resizing shape ${shape.id} with updates:`, updates)
+
+  // SMOOTH RENDERING PATTERN:
+  // 1. Write to RTDB first (Canvas subscribes and applies changes smoothly)
+  const rtdbUpdates = new Map<string, any>()
+  const positionData: any = {
+    x: shape.x,
+    y: shape.y,
+    updatedBy: userId,
+    ...updates, // Include all dimension updates
+  }
+  rtdbUpdates.set(shape.id, positionData)
+  await writeBatchShapePositions(canvasId, rtdbUpdates)
+
+  // 2. Brief delay to allow smooth animation
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // 3. Persist to Firestore for permanent storage
   await updateShape(canvasId, shape.id, updates)
-  console.log('[AI Helpers] Shape resized successfully')
+
+  // 4. Clear RTDB (Firestore is now source of truth)
+  await clearShapePositions(canvasId, [shape.id])
+
+  console.log('[AI Helpers] Shape resized successfully with smooth rendering')
 }
 
 /**
- * Execute rotate_element tool call
+ * Execute rotate_element tool call with smooth rendering
+ * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeRotateElement(
   canvasId: string,
-  _userId: string,
+  userId: string,
   input: {
     elementId?: string
     description?: string
@@ -1237,10 +1305,30 @@ export async function executeRotateElement(
     throw new Error('Shape not found matching the description')
   }
 
-  // Update rotation
-  console.log(`[AI Helpers] Rotating shape ${shape.id} by ${input.angle} degrees`)
+  console.log(`[AI Helpers] Rotating shape ${shape.id} to ${input.angle} degrees`)
+
+  // SMOOTH RENDERING PATTERN:
+  // 1. Write to RTDB first (Canvas subscribes and applies changes smoothly)
+  const rtdbUpdates = new Map<string, any>()
+  const positionData: any = {
+    x: shape.x,
+    y: shape.y,
+    rotation: input.angle,
+    updatedBy: userId,
+  }
+  rtdbUpdates.set(shape.id, positionData)
+  await writeBatchShapePositions(canvasId, rtdbUpdates)
+
+  // 2. Brief delay to allow smooth animation
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // 3. Persist to Firestore for permanent storage
   await updateShape(canvasId, shape.id, { rotation: input.angle })
-  console.log('[AI Helpers] Shape rotated successfully')
+
+  // 4. Clear RTDB (Firestore is now source of truth)
+  await clearShapePositions(canvasId, [shape.id])
+
+  console.log('[AI Helpers] Shape rotated successfully with smooth rendering')
 }
 
 /**
@@ -1541,11 +1629,12 @@ function alignShapesToViewport(
 }
 
 /**
- * Execute arrange_elements tool call
+ * Execute arrange_elements tool call with smooth rendering
+ * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeArrangeElements(
   canvasId: string,
-  _userId: string,
+  userId: string,
   input: {
     elementIds: string[]
     pattern: 'grid' | 'row' | 'column' | 'circle'
@@ -1609,7 +1698,22 @@ export async function executeArrangeElements(
       throw new Error(`Unknown arrangement pattern: ${pattern}`)
   }
 
-  // Update all shapes in Firestore (batch update)
+  // SMOOTH RENDERING PATTERN:
+  // 1. Write all positions to RTDB in a single batch (Canvas subscribes and applies smoothly)
+  const rtdbUpdates = new Map<string, any>()
+  for (const shape of arrangedShapes) {
+    rtdbUpdates.set(shape.id, {
+      x: shape.x,
+      y: shape.y,
+      updatedBy: userId,
+    })
+  }
+  await writeBatchShapePositions(canvasId, rtdbUpdates)
+
+  // 2. Brief delay to allow smooth animation
+  await new Promise(resolve => setTimeout(resolve, 150))
+
+  // 3. Persist all to Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const shape of arrangedShapes) {
     await updateShape(canvasId, shape.id, {
@@ -1618,15 +1722,19 @@ export async function executeArrangeElements(
     })
   }
 
-  console.log('[AI Helpers] Arrangement complete')
+  // 4. Clear all RTDB positions (Firestore is now source of truth)
+  await clearShapePositions(canvasId, arrangedShapes.map(s => s.id))
+
+  console.log('[AI Helpers] Arrangement complete with smooth rendering')
 }
 
 /**
- * Execute align_elements tool call
+ * Execute align_elements tool call with smooth rendering
+ * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeAlignElements(
   canvasId: string,
-  _userId: string,
+  userId: string,
   input: {
     elementIds: string[]
     alignment: 'left' | 'right' | 'top' | 'bottom' | 'center-horizontal' | 'center-vertical'
@@ -1676,7 +1784,22 @@ export async function executeAlignElements(
     console.log(`  Shape ${original.id}: (${original.x}, ${original.y}) → (${aligned.x}, ${aligned.y})`)
   }
 
-  // Update all shapes in Firestore (batch update)
+  // SMOOTH RENDERING PATTERN:
+  // 1. Write all positions to RTDB in a single batch (Canvas subscribes and applies smoothly)
+  const rtdbUpdates = new Map<string, any>()
+  for (const alignedShape of alignedShapes) {
+    rtdbUpdates.set(alignedShape.id, {
+      x: alignedShape.x,
+      y: alignedShape.y,
+      updatedBy: userId,
+    })
+  }
+  await writeBatchShapePositions(canvasId, rtdbUpdates)
+
+  // 2. Brief delay to allow smooth animation
+  await new Promise(resolve => setTimeout(resolve, 150))
+
+  // 3. Persist all to Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const alignedShape of alignedShapes) {
     await updateShape(canvasId, alignedShape.id, {
@@ -1685,5 +1808,8 @@ export async function executeAlignElements(
     })
   }
 
-  console.log('[AI Helpers] Alignment complete')
+  // 4. Clear all RTDB positions (Firestore is now source of truth)
+  await clearShapePositions(canvasId, alignedShapes.map(s => s.id))
+
+  console.log('[AI Helpers] Alignment complete with smooth rendering')
 }
