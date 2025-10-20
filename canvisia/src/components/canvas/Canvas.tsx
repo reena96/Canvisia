@@ -1323,6 +1323,25 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       setLassoPoints([canvasPos.x, canvasPos.y])
       return
     }
+
+    // Auto box selection: Allow box selection on empty space drag with select tool
+    // This enables click+drag to select without explicitly choosing the boxSelect tool
+    const creationTools: Tool[] = [
+      'circle', 'ellipse', 'roundedRectangle', 'cylinder',
+      'rectangle', 'triangle', 'pentagon', 'hexagon', 'star',
+      'line', 'arrow', 'bidirectionalArrow', 'bentConnector',
+      'text', 'hand', 'lasso'
+    ]
+    const isCreationTool = creationTools.includes(selectedTool)
+
+    if (clickedOnEmpty && !isCreationTool) {
+      // Start box selection on empty space with pointer/select tool
+      const canvasPos = screenToCanvas(pointerPosition.x, pointerPosition.y, viewport)
+      setIsBoxSelecting(true)
+      setSelectionStart(canvasPos)
+      setSelectionBox({ x: canvasPos.x, y: canvasPos.y, width: 0, height: 0 })
+      return
+    }
   }
 
   // Handle mouse up for panning, text creation, and drag-to-select
