@@ -1,4 +1,4 @@
-import { createShape, updateShape, getShapes } from '@/services/firestore'
+import { createShape, updateShape, getShapes, deleteShape } from '@/services/firestore'
 import { writeBatchShapePositions, clearShapePositions } from '@/services/rtdb'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
@@ -1329,6 +1329,136 @@ export async function executeRotateElement(
   await clearShapePositions(canvasId, [shape.id])
 
   console.log('[AI Helpers] Shape rotated successfully with smooth rendering')
+}
+
+/**
+ * Execute change_color tool call
+ * Changes the color of shapes based on filters or elementIds
+ * Follows object reference priority: explicit reference > selected shapes > all objects
+ */
+export async function executeChangeColor(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementIds?: string[]
+    newColor: string
+    category?: 'shapes' | 'text' | 'arrows'
+    type?: string
+    color?: string
+    textContent?: string
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeChangeColor called with:', input)
+
+  // Get all shapes
+  const shapes = await getShapes(canvasId)
+
+  let targetShapes: Shape[] = []
+
+  // Determine which shapes to change color for
+  if (input.elementIds && input.elementIds.length > 0) {
+    if (input.elementIds[0] === 'all') {
+      // Apply filters to all shapes
+      targetShapes = applyFilters(shapes, {
+        category: input.category,
+        type: input.type,
+        color: input.color,
+        textContent: input.textContent,
+      })
+      console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
+    } else {
+      // Use specific element IDs
+      targetShapes = shapes.filter(s => input.elementIds!.includes(s.id))
+      console.log(`[AI Helpers] Found ${targetShapes.length} shapes by IDs`)
+    }
+  } else {
+    // No elementIds specified - this means use selected shapes from context
+    // (The AI will populate elementIds from context when shapes are selected)
+    throw new Error('No shapes specified for color change')
+  }
+
+  if (targetShapes.length === 0) {
+    throw new Error('No shapes found matching the criteria')
+  }
+
+  console.log(`[AI Helpers] Changing color of ${targetShapes.length} shapes to ${input.newColor}`)
+
+  // Update each shape's color in Firestore
+  // Note: We don't use RTDB for color changes since they don't need smooth animation
+  for (const shape of targetShapes) {
+    // Different shapes have different color properties
+    if (shape.type === 'text') {
+      // Text uses 'fill' for text color
+      await updateShape(canvasId, shape.id, { fill: input.newColor })
+    } else if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
+      // Lines/arrows use 'stroke' for color
+      await updateShape(canvasId, shape.id, { stroke: input.newColor })
+    } else {
+      // Shapes (circle, rectangle, etc.) use 'fill' for fill color
+      await updateShape(canvasId, shape.id, { fill: input.newColor })
+    }
+  }
+
+  console.log('[AI Helpers] Color changed successfully')
+}
+
+/**
+ * Execute delete_elements tool call
+ * Deletes shapes based on filters or elementIds
+ * Follows object reference priority: explicit reference > selected shapes > all objects
+ */
+export async function executeDeleteElements(
+  canvasId: string,
+  _userId: string,
+  input: {
+    elementIds?: string[]
+    category?: 'shapes' | 'text' | 'arrows'
+    type?: string
+    color?: string
+    textContent?: string
+  }
+): Promise<void> {
+  console.log('[AI Helpers] executeDeleteElements called with:', input)
+
+  // Get all shapes
+  const shapes = await getShapes(canvasId)
+
+  let targetShapes: Shape[] = []
+
+  // Determine which shapes to delete
+  if (input.elementIds && input.elementIds.length > 0) {
+    if (input.elementIds[0] === 'all') {
+      // Apply filters to all shapes
+      targetShapes = applyFilters(shapes, {
+        category: input.category,
+        type: input.type,
+        color: input.color,
+        textContent: input.textContent,
+      })
+      console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
+    } else {
+      // Use specific element IDs
+      targetShapes = shapes.filter(s => input.elementIds!.includes(s.id))
+      console.log(`[AI Helpers] Found ${targetShapes.length} shapes by IDs`)
+    }
+  } else {
+    // No elementIds specified - this means use selected shapes from context
+    // (The AI will populate elementIds from context when shapes are selected)
+    throw new Error('No shapes specified for deletion')
+  }
+
+  if (targetShapes.length === 0) {
+    throw new Error('No shapes found matching the criteria')
+  }
+
+  console.log(`[AI Helpers] Deleting ${targetShapes.length} shapes`)
+
+  // Delete each shape from Firestore
+  for (const shape of targetShapes) {
+    await deleteShape(canvasId, shape.id)
+  }
+
+  console.log('[AI Helpers] Shapes deleted successfully')
 }
 
 /**

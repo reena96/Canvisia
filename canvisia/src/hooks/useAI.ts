@@ -69,6 +69,15 @@ function generateToolCallResponse(toolCalls: any[]): string {
         descriptions.push('Rotated element')
         break
 
+      case 'change_color':
+        const newColor = input.newColor || 'new color'
+        descriptions.push(`Changed color to ${newColor}`)
+        break
+
+      case 'delete_elements':
+        descriptions.push('Deleted elements')
+        break
+
       case 'arrange_elements':
         const pattern = input.pattern || 'pattern'
         descriptions.push(`Arranged elements in a ${pattern}`)

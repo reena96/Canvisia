@@ -172,6 +172,40 @@ export const AI_COMMAND_EXAMPLES: CommandExample[] = [
     description: 'Rotate multiple shapes counter-clockwise'
   },
 
+  // Change color
+  {
+    command: 'Change the color of the hexagon to purple',
+    category: 'manipulation',
+    description: 'Change shape color to purple (#800080)'
+  },
+  {
+    command: 'Change all red shapes to blue',
+    category: 'manipulation',
+    description: 'Change color of multiple shapes by filter'
+  },
+  {
+    command: 'Change selected shapes to green',
+    category: 'manipulation',
+    description: 'Change color of selected shapes'
+  },
+
+  // Delete
+  {
+    command: 'Delete the red shapes',
+    category: 'manipulation',
+    description: 'Delete shapes by color filter'
+  },
+  {
+    command: 'Delete all circles',
+    category: 'manipulation',
+    description: 'Delete shapes by type'
+  },
+  {
+    command: 'Delete selected shapes',
+    category: 'manipulation',
+    description: 'Delete currently selected shapes'
+  },
+
   // ========== LAYOUT COMMANDS (arrange_elements, align_elements) ==========
 
   // Arrange patterns

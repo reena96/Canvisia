@@ -8,6 +8,8 @@ import {
   executeMoveElement,
   executeResizeElement,
   executeRotateElement,
+  executeChangeColor,
+  executeDeleteElements,
   executeArrangeElements,
   executeAlignElements,
   executeCreateUIComponent,
@@ -66,6 +68,16 @@ export async function executeToolCalls(
         case 'rotate_element':
           await executeRotateElement(canvasId, userId, toolCall.input as any, viewport)
           console.log('[Executor] rotate_element completed successfully')
+          break
+
+        case 'change_color':
+          await executeChangeColor(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] change_color completed successfully')
+          break
+
+        case 'delete_elements':
+          await executeDeleteElements(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] delete_elements completed successfully')
           break
 
         // PR 16: Layout Commands

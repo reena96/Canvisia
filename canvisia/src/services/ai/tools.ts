@@ -347,6 +347,74 @@ export const AI_TOOLS = [
     }
   },
   {
+    name: 'change_color',
+    description: 'Change the color of shapes. Use ["all"] to target all shapes, or filter by elementIds, type, color, or category. Follows object reference priority: explicit reference > selected shapes > all objects.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        elementIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of element IDs to change color, or ["all"] to change all shapes on the canvas. If not specified and shapes are selected in context, use selected shapes.'
+        },
+        newColor: {
+          type: 'string',
+          description: 'New color as hex code (e.g., "#FF0000" for red, "#0000FF" for blue, "#800080" for purple)'
+        },
+        category: {
+          type: 'string',
+          enum: ['shapes', 'text', 'arrows'],
+          description: 'Optional: Filter by category when using ["all"]. "shapes" = geometric shapes ONLY, excludes text/arrows.'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: Filter by specific type when using ["all"] (e.g., "hexagon", "circle", "rectangle")'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional: Filter by current color when using ["all"] (e.g., "red", "blue", "#FF0000")'
+        },
+        textContent: {
+          type: 'string',
+          description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        }
+      },
+      required: ['newColor']
+    }
+  },
+  {
+    name: 'delete_elements',
+    description: 'Delete shapes from the canvas. Use ["all"] to target all shapes, or filter by elementIds, type, color, or category. Follows object reference priority: explicit reference > selected shapes > all objects.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        elementIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of element IDs to delete, or ["all"] to delete all shapes on the canvas. If not specified and shapes are selected in context, use selected shapes.'
+        },
+        category: {
+          type: 'string',
+          enum: ['shapes', 'text', 'arrows'],
+          description: 'Optional: Filter by category when using ["all"]. "shapes" = geometric shapes ONLY, excludes text/arrows.'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: Filter by specific type when using ["all"] (e.g., "hexagon", "circle", "text")'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional: Filter by color when using ["all"] (e.g., "red", "blue", "#FF0000")'
+        },
+        textContent: {
+          type: 'string',
+          description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        }
+      },
+      required: []
+    }
+  },
+  {
     name: 'arrange_elements',
     description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
     input_schema: {
