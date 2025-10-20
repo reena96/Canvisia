@@ -2166,12 +2166,12 @@ export async function executeCreateUIComponent(
         updatedAt: new Date().toISOString(),
       } as Rectangle)
 
-      // Menu items - evenly spaced
+      // Menu items - evenly spaced and centered
       menuItems.forEach((item, index) => {
         shapes.push({
           id: uuidv4(),
           type: 'text',
-          x: startX + itemSpacing * (index + 1) - 40, // Center each item in its space
+          x: startX + itemSpacing * (index + 1), // Center of each spacing section
           y: startY + 18,
           text: item,
           fontSize: 20,
@@ -2179,7 +2179,7 @@ export async function executeCreateUIComponent(
           fontWeight: 600,
           fontStyle: 'normal',
           textDecoration: 'none',
-          align: 'left',
+          align: 'center', // Center-align text for proper centering
           lineHeight: 1.2,
           fill: '#FFFFFF',
           width: 120,
