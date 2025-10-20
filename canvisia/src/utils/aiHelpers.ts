@@ -2019,6 +2019,7 @@ export async function executeCreateUIComponent(
 
     case 'form': {
       // Login form: 2 input fields (username, password) + button
+      // Create rectangles FIRST, then text labels on top (proper z-order)
       const usernameLabel = uuidv4()
       const usernameInput = uuidv4()
       const passwordLabel = uuidv4()
@@ -2026,7 +2027,55 @@ export async function executeCreateUIComponent(
       const submitButton = uuidv4()
       const buttonText = uuidv4()
 
-      // Username label
+      // Username input rectangle (background layer)
+      shapes.push({
+        id: usernameInput,
+        type: 'rectangle',
+        x: startX,
+        y: startY + 30,
+        width: width,
+        height: 40,
+        fill: '#FFFFFF',
+        stroke: '#D1D5DB',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Password input rectangle (background layer)
+      shapes.push({
+        id: passwordInput,
+        type: 'rectangle',
+        x: startX,
+        y: startY + 100,
+        width: width,
+        height: 40,
+        fill: '#FFFFFF',
+        stroke: '#D1D5DB',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Submit button rectangle (background layer)
+      shapes.push({
+        id: submitButton,
+        type: 'rectangle',
+        x: startX,
+        y: startY + 170,
+        width: width,
+        height: 40,
+        fill: '#3B82F6',
+        stroke: '#2563EB',
+        strokeWidth: 2,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Username label (text layer - on top)
       shapes.push({
         id: usernameLabel,
         type: 'text',
@@ -2040,7 +2089,7 @@ export async function executeCreateUIComponent(
         textDecoration: 'none',
         align: 'left',
         lineHeight: 1.2,
-        fill: '#374151',
+        fill: '#1F2937',
         width: width,
         height: 24,
         rotation: 0,
@@ -2048,28 +2097,12 @@ export async function executeCreateUIComponent(
         updatedAt: new Date().toISOString(),
       } as Text)
 
-      // Username input
-      shapes.push({
-        id: usernameInput,
-        type: 'rectangle',
-        x: startX,
-        y: startY + 28,
-        width: width,
-        height: 40,
-        fill: '#FFFFFF',
-        stroke: '#D1D5DB',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-      } as Rectangle)
-
-      // Password label
+      // Password label (text layer - on top)
       shapes.push({
         id: passwordLabel,
         type: 'text',
         x: startX,
-        y: startY + 84,
+        y: startY + 70,
         text: 'Password',
         fontSize: 18,
         fontFamily: 'Arial',
@@ -2078,7 +2111,7 @@ export async function executeCreateUIComponent(
         textDecoration: 'none',
         align: 'left',
         lineHeight: 1.2,
-        fill: '#374151',
+        fill: '#1F2937',
         width: width,
         height: 24,
         rotation: 0,
@@ -2086,44 +2119,12 @@ export async function executeCreateUIComponent(
         updatedAt: new Date().toISOString(),
       } as Text)
 
-      // Password input
-      shapes.push({
-        id: passwordInput,
-        type: 'rectangle',
-        x: startX,
-        y: startY + 112,
-        width: width,
-        height: 40,
-        fill: '#FFFFFF',
-        stroke: '#D1D5DB',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-      } as Rectangle)
-
-      // Submit button
-      shapes.push({
-        id: submitButton,
-        type: 'rectangle',
-        x: startX,
-        y: startY + 168,
-        width: width,
-        height: 40,
-        fill: '#3B82F6',
-        stroke: '#2563EB',
-        strokeWidth: 2,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-      } as Rectangle)
-
-      // Button text
+      // Button text (text layer - on top)
       shapes.push({
         id: buttonText,
         type: 'text',
         x: startX + width / 2,
-        y: startY + 178,
+        y: startY + 180,
         text: label || 'Login',
         fontSize: 18,
         fontFamily: 'Arial',
