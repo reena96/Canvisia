@@ -2677,6 +2677,7 @@ export async function executeCreateFlowchart(
 
   // Node spacing - increased to prevent arrows from overlapping with shapes
   const verticalSpacing = 180  // Increased from 150 to give more space for arrows
+  const horizontalSpacing = 300  // Spacing for horizontal branches
   const nodeWidth = 180
   const nodeHeight = 80
 
@@ -2685,14 +2686,116 @@ export async function executeCreateFlowchart(
   const createdNodes = new Map<string, { shape: Shape; centerX: number; centerY: number }>()
   const textLabels: Text[] = []
 
+  // Build connection graph for smart positioning
+  const outgoingConnections = new Map<string, Array<{ to: string; label?: string }>>()
+  const incomingConnections = new Map<string, number>()
+
+  // Auto-generate connections if not provided
+  const actualConnections: Array<{ from: string; to: string; label?: string }> = connections.length > 0
+    ? connections
+    : nodes.slice(0, -1).map((node, i) => ({
+        from: node.id,
+        to: nodes[i + 1].id,
+      }))
+
+  // Build graph
+  for (const conn of actualConnections) {
+    if (!outgoingConnections.has(conn.from)) {
+      outgoingConnections.set(conn.from, [])
+    }
+    outgoingConnections.get(conn.from)!.push({ to: conn.to, label: conn.label })
+    incomingConnections.set(conn.to, (incomingConnections.get(conn.to) || 0) + 1)
+  }
+
+  // Calculate node positions using tree layout with branch detection
+  interface NodePosition {
+    nodeId: string
+    centerX: number
+    centerY: number
+    depth: number
+    branchOffset: number
+  }
+
+  const nodePositions = new Map<string, NodePosition>()
+  const visitedNodes = new Set<string>()
+
+  // Find root node (node with no incoming connections)
+  const rootNode = nodes.find(n => !incomingConnections.has(n.id)) || nodes[0]
+
+  // Tree traversal to calculate positions
+  function calculatePositions(
+    nodeId: string,
+    depth: number,
+    branchOffset: number,
+    baseX: number
+  ) {
+    if (visitedNodes.has(nodeId)) return
+    visitedNodes.add(nodeId)
+
+    const centerX = baseX + branchOffset * horizontalSpacing
+    const centerY = finalStartY + (depth * verticalSpacing) + nodeHeight / 2
+
+    nodePositions.set(nodeId, { nodeId, centerX, centerY, depth, branchOffset })
+
+    const outgoing = outgoingConnections.get(nodeId) || []
+
+    if (outgoing.length === 0) {
+      // Leaf node - no children
+      return
+    } else if (outgoing.length === 1) {
+      // Single path - continue straight down
+      calculatePositions(outgoing[0].to, depth + 1, branchOffset, baseX)
+    } else {
+      // Multiple paths - branch horizontally
+      // Primary path (No/False/Continue) goes straight down (branchOffset 0)
+      // Alternate path (Yes/True) goes to the right (branchOffset +1)
+
+      let primaryPath: { to: string; label?: string } | null = null
+      let alternatePaths: Array<{ to: string; label?: string }> = []
+
+      for (const conn of outgoing) {
+        const label = conn.label?.toLowerCase() || ''
+        // Primary path: No, False, Failure, Continue, or unlabeled
+        if (!label || label.includes('no') || label.includes('false') ||
+            label.includes('failure') || label.includes('continue')) {
+          primaryPath = conn
+        } else {
+          // Alternate path: Yes, True, Success
+          alternatePaths.push(conn)
+        }
+      }
+
+      // If no primary path identified, first connection is primary
+      if (!primaryPath && outgoing.length > 0) {
+        primaryPath = outgoing[0]
+        alternatePaths = outgoing.slice(1)
+      }
+
+      // Process primary path (continues at same horizontal offset)
+      if (primaryPath) {
+        calculatePositions(primaryPath.to, depth + 1, branchOffset, baseX)
+      }
+
+      // Process alternate paths (shift horizontally to the right)
+      alternatePaths.forEach((path, index) => {
+        calculatePositions(path.to, depth + 1, branchOffset + 1 + index, baseX)
+      })
+    }
+  }
+
+  // Calculate all node positions starting from root
+  calculatePositions(rootNode.id, 0, 0, finalStartX + nodeWidth / 2)
+
   // Step 1: Create all node shapes first
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     const nodeId = uuidv4()
     const textId = uuidv4()
-    const y = finalStartY + (i * verticalSpacing)
-    const centerX = finalStartX + nodeWidth / 2
-    const centerY = y + nodeHeight / 2
+
+    // Get calculated position or fallback to simple vertical layout
+    const position = nodePositions.get(node.id)
+    const centerX = position?.centerX || (finalStartX + nodeWidth / 2)
+    const centerY = position?.centerY || (finalStartY + (i * verticalSpacing) + nodeHeight / 2)
 
     let nodeShape: Shape
 
@@ -2813,16 +2916,8 @@ export async function executeCreateFlowchart(
     textLabels.push(labelText)
   }
 
-  // Create connections (arrows) with metadata
+  // Step 2: Create connections (arrows) with metadata
   const createdConnections: Array<{ from: string; to: string; arrowId: string }> = []
-
-  // Auto-generate connections if not provided
-  const actualConnections: Array<{ from: string; to: string; label?: string }> = connections.length > 0
-    ? connections
-    : nodes.slice(0, -1).map((node, i) => ({
-        from: node.id,
-        to: nodes[i + 1].id,
-      }))
 
   for (const conn of actualConnections) {
     const fromNode = createdNodes.get(conn.from)

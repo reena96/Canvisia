@@ -515,7 +515,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'create_flowchart',
-    description: 'Create a complete flowchart with connected nodes',
+    description: 'Create a professional flowchart with intelligent branching layout. Node types: start (green ellipse), process (blue rectangle), decision (orange pentagon), end (red ellipse). IMPORTANT: For decision nodes, create TWO connections - label the primary path "No"/"False"/"Continue" (goes down) and alternate path "Yes"/"True"/"Success" (branches right). The layout algorithm automatically detects branches and positions them horizontally. Decision nodes enable complex flowcharts with multiple paths.',
     input_schema: {
       type: 'object',
       properties: {
@@ -524,24 +524,24 @@ export const AI_TOOLS = [
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string' },
-              label: { type: 'string' },
-              type: { type: 'string', enum: ['start', 'process', 'decision', 'end'] }
+              id: { type: 'string', description: 'Unique identifier (e.g., "node1", "node2")' },
+              label: { type: 'string', description: 'Text displayed in the node (e.g., "Start", "Business Idea", "Viable Business?")' },
+              type: { type: 'string', enum: ['start', 'process', 'decision', 'end'], description: 'Node type: start=green ellipse, process=blue rectangle, decision=orange pentagon, end=red ellipse' }
             }
           },
-          description: 'Array of flowchart nodes'
+          description: 'Array of flowchart nodes in top-to-bottom order'
         },
         connections: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              from: { type: 'string' },
-              to: { type: 'string' },
-              label: { type: 'string' }
+              from: { type: 'string', description: 'Source node ID' },
+              to: { type: 'string', description: 'Target node ID' },
+              label: { type: 'string', description: 'Optional label for connection (e.g., "Yes", "No", "Success", "Failure")' }
             }
           },
-          description: 'Array of connections between nodes'
+          description: 'Array of connections between nodes. If omitted, nodes are auto-connected sequentially. CRITICAL: For decision nodes, define TWO connections with proper labels - use "No"/"False"/"Continue" for the primary path (continues down) and "Yes"/"True"/"Success" for the alternate path (branches right). Labels determine branch positioning.'
         },
         startX: {
           type: 'number',
