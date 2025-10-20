@@ -2146,12 +2146,13 @@ export async function executeCreateUIComponent(
 
     case 'navbar': {
       // Nav bar: background + 4 menu items
+      // Create background FIRST (bottom layer), then text on top
       const navBg = uuidv4()
       const menuItems = ['Home', 'About', 'Services', 'Contact']
       const navbarWidth = width * 2.5 // Wider for nav bar
       const itemSpacing = navbarWidth / (menuItems.length + 1) // +1 for better spacing
 
-      // Background
+      // LAYER 1: Background rectangle (bottom)
       shapes.push({
         id: navBg,
         type: 'rectangle',
@@ -2167,17 +2168,17 @@ export async function executeCreateUIComponent(
         updatedAt: new Date().toISOString(),
       } as Rectangle)
 
-      // Menu items - evenly spaced and centered
+      // LAYER 2: Menu text items (on top) - evenly spaced and centered
       menuItems.forEach((item, index) => {
         shapes.push({
           id: uuidv4(),
           type: 'text',
           x: startX + itemSpacing * (index + 1), // Center of each spacing section
-          y: startY + 18,
+          y: startY + 20,
           text: item,
           fontSize: 20,
           fontFamily: 'Arial',
-          fontWeight: 600,
+          fontWeight: 700,
           fontStyle: 'normal',
           textDecoration: 'none',
           align: 'center', // Center-align text for proper centering
