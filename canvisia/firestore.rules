@@ -12,122 +12,78 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
     }
 
-    // Canvas-level permission helpers
-    function hasCanvasPermission(canvasPath, role) {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid)) &&
-        get(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid)).data.role == role;
-    }
-
-    function hasAnyCanvasPermission(canvasPath) {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid));
-    }
-
-    // Check if project is publicly accessible
-    function isProjectPublic(projectId) {
+    // Check if project is shared via link (has publicAccessLevel set)
+    function isProjectShared(projectId) {
       return request.auth != null &&
              exists(/databases/$(database)/documents/projects/$(projectId)) &&
-             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccess', false) == true;
+             get(/databases/$(database)/documents/projects/$(projectId)).data.keys().hasAny(['publicAccessLevel']);
     }
 
-    // Check if canvas is publicly accessible
-    function isCanvasPublic(projectId, canvasId) {
-      return request.auth != null &&
-             exists(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)) &&
-             get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)).data.get('publicAccess', false) == true;
-    }
-
-    // Check if project allows public editing
-    function canPublicEditProject(projectId) {
+    // Check if project allows editing via link
+    function canLinkUsersEdit(projectId) {
       return request.auth != null &&
              exists(/databases/$(database)/documents/projects/$(projectId)) &&
-             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccess', false) == true &&
-             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccessLevel', 'viewer') == 'editor';
+             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccessLevel', null) == 'editor';
     }
 
-    // Check if canvas allows public editing
-    function canPublicEditCanvas(projectId, canvasId) {
-      return request.auth != null &&
-             exists(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)) &&
-             get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)).data.get('publicAccess', false) == true &&
-             get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)).data.get('publicAccessLevel', 'viewer') == 'editor';
+    // Combined check: explicit permission OR link sharing enabled
+    function canAccessProject(projectId) {
+      return hasAnyPermission(projectId) || isProjectShared(projectId);
     }
 
-    // Combined check: project permission OR canvas permission OR public access
-    function canAccessCanvas(projectId, canvasPath) {
-      let pathParts = canvasPath.split('/');
-      let canvasId = pathParts[3];
-      return hasAnyPermission(projectId) ||
-             hasAnyCanvasPermission(canvasPath) ||
-             isProjectPublic(projectId) ||
-             isCanvasPublic(projectId, canvasId);
-    }
-
-    function canEditCanvas(projectId, canvasPath) {
-      let pathParts = canvasPath.split('/');
-      let canvasId = pathParts[3];
+    function canEditProject(projectId) {
       return hasPermission(projectId, 'owner') ||
              hasPermission(projectId, 'editor') ||
-             hasCanvasPermission(canvasPath, 'owner') ||
-             hasCanvasPermission(canvasPath, 'editor') ||
-             canPublicEditProject(projectId) ||
-             canPublicEditCanvas(projectId, canvasId);
+             canLinkUsersEdit(projectId);
     }
 
-    // Projects: read if has permission or public, write if owner
+    // Projects: read if has permission or shared via link, write if owner
     match /projects/{projectId} {
-      allow read: if hasAnyPermission(projectId) || isProjectPublic(projectId);
+      allow read: if canAccessProject(projectId);
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       allow update: if hasPermission(projectId, 'owner');
       allow delete: if hasPermission(projectId, 'owner');
 
-      // Canvases: allow project OR canvas-level permissions
+      // Canvases: inherit project-level permissions
       match /canvases/{canvasId} {
-        function canvasPath() {
-          return 'projects/' + projectId + '/canvases/' + canvasId;
-        }
+        allow get, list: if canAccessProject(projectId);
+        allow write: if canEditProject(projectId);
 
-        allow get, list: if canAccessCanvas(projectId, canvasPath());
-        allow write: if canEditCanvas(projectId, canvasPath());
-
-        // Objects: inherit canvas permissions
+        // Objects: inherit project permissions
         match /objects/{objectId} {
-          allow get, list: if canAccessCanvas(projectId, canvasPath());
-          allow write: if canEditCanvas(projectId, canvasPath());
+          allow get, list: if canAccessProject(projectId);
+          allow write: if canEditProject(projectId);
         }
 
         // Annotations: users with access can read, editors can create, users can delete their own
         match /annotations/{annotationId} {
-          allow get, list: if canAccessCanvas(projectId, canvasPath());
-          allow create: if request.auth != null && canEditCanvas(projectId, canvasPath());
+          allow get, list: if canAccessProject(projectId);
+          allow create: if request.auth != null && canEditProject(projectId);
           allow update, delete: if request.auth != null &&
-                                 (resource.data.userId == request.auth.uid ||
-                                  hasPermission(projectId, 'owner') ||
-                                  hasCanvasPermission(canvasPath(), 'owner'));
+                                 (resource.data.userId == request.auth.uid || hasPermission(projectId, 'owner'));
         }
 
         // Chat messages
         match /chats/{tabId}/messages/{messageId} {
-          allow get, list: if canAccessCanvas(projectId, canvasPath());
-          allow create: if request.auth != null && canAccessCanvas(projectId, canvasPath());
-          allow update: if request.auth != null && canAccessCanvas(projectId, canvasPath())
+          allow get, list: if canAccessProject(projectId);
+          allow create: if request.auth != null && canAccessProject(projectId);
+          allow update: if request.auth != null && canAccessProject(projectId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
           allow delete: if false;
         }
 
         // Chat tabs
         match /chatTabs/{tabId} {
-          allow get, list: if canAccessCanvas(projectId, canvasPath());
-          allow create: if request.auth != null && canAccessCanvas(projectId, canvasPath());
-          allow update: if request.auth != null && canAccessCanvas(projectId, canvasPath());
+          allow get, list: if canAccessProject(projectId);
+          allow create: if request.auth != null && canAccessProject(projectId);
+          allow update: if request.auth != null && canAccessProject(projectId);
           allow delete: if false;
         }
 
         // Presence tracking
         match /presence/{userId} {
-          allow get, list: if canAccessCanvas(projectId, canvasPath());
-          allow write: if request.auth != null && canAccessCanvas(projectId, canvasPath());
+          allow get, list: if canAccessProject(projectId);
+          allow write: if request.auth != null && canAccessProject(projectId);
         }
       }
     }
@@ -150,26 +106,6 @@ service cloud.firestore {
         hasPermission(resource.data.projectId, 'owner');
     }
 
-    // Canvas Permissions: owner can manage, users can read their own
-    match /canvasPermissions/{canvasPermissionId} {
-      allow read: if request.auth != null && canvasPermissionId.matches('.*_' + request.auth.uid);
-      // Allow listing canvas permissions collection (filtered by read rules)
-      allow list: if request.auth != null;
-      // Allow creating canvas permission if:
-      // 1. User is the project owner, OR
-      // 2. User is the canvas owner inviting someone else
-      allow create: if request.auth != null && (
-        hasPermission(request.resource.data.projectId, 'owner')
-        ||
-        hasCanvasPermission(request.resource.data.canvasPath, 'owner')
-      );
-      // Allow update/delete if user is owner of the canvas or project
-      allow update, delete: if request.auth != null && (
-        hasPermission(resource.data.projectId, 'owner')
-        ||
-        hasCanvasPermission(resource.data.canvasPath, 'owner')
-      );
-    }
 
     // Legacy canvases collection (read-only for backward compatibility)
     match /canvases/{canvasId} {
