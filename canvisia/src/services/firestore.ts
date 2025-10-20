@@ -7,6 +7,7 @@ import {
   deleteDoc,
   onSnapshot,
   query,
+  where,
   Timestamp,
   arrayUnion,
   getDoc,
@@ -530,13 +531,11 @@ export function subscribeToChatTabs(
  * Create a new project with default canvas
  * @param userId - Owner user ID
  * @param projectName - Project name
- * @param userEmail - Optional user email
  * @returns Project ID
  */
 export async function createProject(
   userId: string,
-  projectName: string = 'Untitled Project',
-  userEmail: string = ''
+  projectName: string = 'Untitled Project'
 ): Promise<string> {
   const projectId = doc(collection(db, 'projects')).id
   const now = Timestamp.now()
