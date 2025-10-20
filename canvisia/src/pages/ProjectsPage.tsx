@@ -79,8 +79,7 @@ const ProjectsPage: React.FC = () => {
       const projectName = `Untitled Project ${projects.length + 1}`;
       const newProjectId = await createProject(
         user.uid,
-        projectName,
-        user.email || ''
+        projectName
       );
       console.log('[ProjectsPage] Project created:', newProjectId);
 
