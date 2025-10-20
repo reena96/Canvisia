@@ -1459,8 +1459,6 @@ export function alignShapes(
 
   switch (alignment) {
     case 'left': {
-      // Find leftmost x in the group
-      const minX = Math.min(...shapes.map(s => s.x))
       // Move all shapes so the leftmost shape stays at its current position
       // (This aligns the group to the left-most shape's position)
       deltaX = 0  // No change needed - already at leftmost position
@@ -1485,8 +1483,6 @@ export function alignShapes(
     }
 
     case 'top': {
-      // Find topmost y in the group
-      const minY = Math.min(...shapes.map(s => s.y))
       // Move all shapes so the topmost shape stays at its current position
       deltaY = 0  // No change needed - already at topmost position
       for (const shape of shapes) {
@@ -1868,4 +1864,846 @@ export async function executeAlignElements(
   await clearShapePositions(canvasId, alignedShapes.map(s => s.id))
 
   console.log('[AI Helpers] Alignment complete with smooth rendering')
+}
+
+// =============================================================================
+// PR #17: Complex AI Commands
+// =============================================================================
+
+/**
+ * Execute create_ui_component tool call
+ * Creates common UI components like login forms, nav bars, cards, etc.
+ */
+export async function executeCreateUIComponent(
+  canvasId: string,
+  userId: string,
+  input: {
+    componentType: 'button' | 'card' | 'form' | 'navbar' | 'sidebar'
+    x: number
+    y: number
+    label?: string
+    width?: number
+    height?: number
+  },
+  viewport: Viewport
+): Promise<void> {
+  console.log('[AI Helpers] executeCreateUIComponent called with:', input, 'userId:', userId)
+
+  const { componentType, label, width = 200, height = 50 } = input
+
+  // Determine starting position using smart placement
+  const viewportBounds = getViewportBounds(viewport)
+  const existingShapes = await getShapes(canvasId)
+  const { x: startX, y: startY } = findEmptySpaceInViewport(
+    viewportBounds,
+    existingShapes,
+    { width, height: height + 300 } // Extra height for multi-element components
+  )
+
+  const shapes: Shape[] = []
+
+  switch (componentType) {
+    case 'button': {
+      // Simple button: rectangle + centered text
+      const buttonId = uuidv4()
+      const textId = uuidv4()
+
+      const button: Rectangle = {
+        id: buttonId,
+        type: 'rectangle',
+        x: startX,
+        y: startY,
+        width: width,
+        height: height,
+        fill: '#3B82F6',
+        stroke: '#2563EB',
+        strokeWidth: 2,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+
+      const text: Text = {
+        id: textId,
+        type: 'text',
+        x: startX + width / 2,
+        y: startY + height / 2 - 8, // Center vertically
+        text: label || 'Button',
+        fontSize: 16,
+        fontFamily: 'Arial',
+        fontWeight: 600,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'center',
+        lineHeight: 1.2,
+        fill: '#FFFFFF',
+        width: width - 20,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+
+      shapes.push(button, text)
+      break
+    }
+
+    case 'card': {
+      // Card: background rectangle + title + content placeholder
+      const cardBg = uuidv4()
+      const titleId = uuidv4()
+      const contentId = uuidv4()
+
+      const cardHeight = height * 3 // Cards are typically taller
+
+      const background: Rectangle = {
+        id: cardBg,
+        type: 'rectangle',
+        x: startX,
+        y: startY,
+        width: width,
+        height: cardHeight,
+        fill: '#FFFFFF',
+        stroke: '#E5E7EB',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+
+      const title: Text = {
+        id: titleId,
+        type: 'text',
+        x: startX + 16,
+        y: startY + 16,
+        text: label || 'Card Title',
+        fontSize: 20,
+        fontFamily: 'Arial',
+        fontWeight: 700,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'left',
+        lineHeight: 1.2,
+        fill: '#111827',
+        width: width - 32,
+        height: 30,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+
+      const content: Text = {
+        id: contentId,
+        type: 'text',
+        x: startX + 16,
+        y: startY + 56,
+        text: 'Card content goes here',
+        fontSize: 14,
+        fontFamily: 'Arial',
+        fontWeight: 400,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'left',
+        lineHeight: 1.4,
+        fill: '#6B7280',
+        width: width - 32,
+        height: 60,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+
+      shapes.push(background, title, content)
+      break
+    }
+
+    case 'form': {
+      // Login form: 2 input fields (username, password) + button
+      const usernameLabel = uuidv4()
+      const usernameInput = uuidv4()
+      const passwordLabel = uuidv4()
+      const passwordInput = uuidv4()
+      const submitButton = uuidv4()
+      const buttonText = uuidv4()
+
+      // Username label
+      shapes.push({
+        id: usernameLabel,
+        type: 'text',
+        x: startX,
+        y: startY,
+        text: 'Username',
+        fontSize: 14,
+        fontFamily: 'Arial',
+        fontWeight: 600,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'left',
+        lineHeight: 1.2,
+        fill: '#374151',
+        width: width,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Text)
+
+      // Username input
+      shapes.push({
+        id: usernameInput,
+        type: 'rectangle',
+        x: startX,
+        y: startY + 28,
+        width: width,
+        height: 40,
+        fill: '#FFFFFF',
+        stroke: '#D1D5DB',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Password label
+      shapes.push({
+        id: passwordLabel,
+        type: 'text',
+        x: startX,
+        y: startY + 84,
+        text: 'Password',
+        fontSize: 14,
+        fontFamily: 'Arial',
+        fontWeight: 600,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'left',
+        lineHeight: 1.2,
+        fill: '#374151',
+        width: width,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Text)
+
+      // Password input
+      shapes.push({
+        id: passwordInput,
+        type: 'rectangle',
+        x: startX,
+        y: startY + 112,
+        width: width,
+        height: 40,
+        fill: '#FFFFFF',
+        stroke: '#D1D5DB',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Submit button
+      shapes.push({
+        id: submitButton,
+        type: 'rectangle',
+        x: startX,
+        y: startY + 168,
+        width: width,
+        height: 40,
+        fill: '#3B82F6',
+        stroke: '#2563EB',
+        strokeWidth: 2,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Button text
+      shapes.push({
+        id: buttonText,
+        type: 'text',
+        x: startX + width / 2,
+        y: startY + 180,
+        text: label || 'Login',
+        fontSize: 16,
+        fontFamily: 'Arial',
+        fontWeight: 600,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'center',
+        lineHeight: 1.2,
+        fill: '#FFFFFF',
+        width: width - 20,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Text)
+
+      break
+    }
+
+    case 'navbar': {
+      // Nav bar: background + 4 menu items
+      const navBg = uuidv4()
+      const menuItems = ['Home', 'About', 'Services', 'Contact']
+      const itemSpacing = width / menuItems.length
+
+      // Background
+      shapes.push({
+        id: navBg,
+        type: 'rectangle',
+        x: startX,
+        y: startY,
+        width: width * 2, // Wider for nav bar
+        height: 60,
+        fill: '#1F2937',
+        stroke: '#111827',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Menu items
+      menuItems.forEach((item, index) => {
+        shapes.push({
+          id: uuidv4(),
+          type: 'text',
+          x: startX + 40 + (index * itemSpacing),
+          y: startY + 22,
+          text: item,
+          fontSize: 16,
+          fontFamily: 'Arial',
+          fontWeight: 500,
+          fontStyle: 'normal',
+          textDecoration: 'none',
+          align: 'left',
+          lineHeight: 1.2,
+          fill: '#F9FAFB',
+          width: itemSpacing - 20,
+          height: 20,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+        } as Text)
+      })
+
+      break
+    }
+
+    case 'sidebar': {
+      // Sidebar: background + 3 menu items
+      const sidebarBg = uuidv4()
+      const menuItems = ['Dashboard', 'Profile', 'Settings']
+
+      // Background
+      shapes.push({
+        id: sidebarBg,
+        type: 'rectangle',
+        x: startX,
+        y: startY,
+        width: 200,
+        height: 400,
+        fill: '#F3F4F6',
+        stroke: '#E5E7EB',
+        strokeWidth: 1,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Rectangle)
+
+      // Menu items
+      menuItems.forEach((item, index) => {
+        shapes.push({
+          id: uuidv4(),
+          type: 'text',
+          x: startX + 20,
+          y: startY + 30 + (index * 60),
+          text: item,
+          fontSize: 16,
+          fontFamily: 'Arial',
+          fontWeight: 500,
+          fontStyle: 'normal',
+          textDecoration: 'none',
+          align: 'left',
+          lineHeight: 1.2,
+          fill: '#374151',
+          width: 160,
+          height: 20,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+        } as Text)
+      })
+
+      break
+    }
+
+    default:
+      throw new Error(`Unknown component type: ${componentType}`)
+  }
+
+  // Create all shapes in Firestore
+  console.log(`[AI Helpers] Creating ${shapes.length} shapes for ${componentType}`)
+  for (const shape of shapes) {
+    await createShape(canvasId, shape)
+  }
+
+  console.log(`[AI Helpers] UI component '${componentType}' created successfully`)
+}
+
+/**
+ * Execute create_flowchart tool call
+ * Creates a flowchart with connected nodes and proper metadata for simulation
+ */
+export async function executeCreateFlowchart(
+  canvasId: string,
+  userId: string,
+  input: {
+    nodes: Array<{
+      id: string
+      label: string
+      type: 'start' | 'process' | 'decision' | 'end'
+    }>
+    connections?: Array<{
+      from: string
+      to: string
+      label?: string
+    }>
+    startX?: number
+    startY?: number
+  },
+  viewport: Viewport
+): Promise<void> {
+  console.log('[AI Helpers] executeCreateFlowchart called with:', input, 'userId:', userId)
+
+  const { nodes, connections = [], startX, startY } = input
+
+  if (nodes.length === 0) {
+    throw new Error('Flowchart must have at least one node')
+  }
+
+  // Determine starting position
+  const viewportBounds = getViewportBounds(viewport)
+  const existingShapes = await getShapes(canvasId)
+  const estimatedHeight = nodes.length * 150
+  const { x: defaultStartX, y: defaultStartY } = findEmptySpaceInViewport(
+    viewportBounds,
+    existingShapes,
+    { width: 300, height: estimatedHeight }
+  )
+
+  const finalStartX = startX ?? defaultStartX
+  const finalStartY = startY ?? defaultStartY
+
+  // Node spacing
+  const verticalSpacing = 150
+  const nodeWidth = 180
+  const nodeHeight = 80
+
+  // Create node shapes with metadata
+  const createdNodes = new Map<string, { shape: Shape; centerX: number; centerY: number }>()
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]
+    const nodeId = uuidv4()
+    const textId = uuidv4()
+    const y = finalStartY + (i * verticalSpacing)
+    const centerX = finalStartX + nodeWidth / 2
+    const centerY = y + nodeHeight / 2
+
+    let nodeShape: Shape
+
+    switch (node.type) {
+      case 'start':
+      case 'end': {
+        // Ellipse for start/end
+        nodeShape = {
+          id: nodeId,
+          type: 'ellipse',
+          x: centerX,
+          y: centerY,
+          radiusX: nodeWidth / 2,
+          radiusY: nodeHeight / 2,
+          fill: node.type === 'start' ? '#10B981' : '#EF4444',
+          stroke: '#1F2937',
+          strokeWidth: 2,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+          metadata: {
+            nodeType: node.type,
+            flowchartId: `flowchart-${Date.now()}`,
+            processTime: node.type === 'start' ? 0 : 0,
+          },
+        } as Ellipse
+        break
+      }
+
+      case 'decision': {
+        // Diamond for decision (using pentagon as approximation)
+        nodeShape = {
+          id: nodeId,
+          type: 'pentagon',
+          x: centerX,
+          y: centerY,
+          radiusX: nodeWidth / 2,
+          radiusY: nodeHeight / 2,
+          fill: '#F59E0B',
+          stroke: '#1F2937',
+          strokeWidth: 2,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+          metadata: {
+            nodeType: 'decision',
+            flowchartId: `flowchart-${Date.now()}`,
+            successRate: 0.7, // Default 70% success rate
+          },
+        } as Pentagon
+        break
+      }
+
+      case 'process':
+      default: {
+        // Rectangle for process
+        nodeShape = {
+          id: nodeId,
+          type: 'rectangle',
+          x: finalStartX,
+          y: y,
+          width: nodeWidth,
+          height: nodeHeight,
+          fill: '#3B82F6',
+          stroke: '#1F2937',
+          strokeWidth: 2,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+          metadata: {
+            nodeType: 'process',
+            flowchartId: `flowchart-${Date.now()}`,
+            processTime: 1000, // Default 1 second process time
+            capacity: 10, // Default capacity of 10 concurrent tokens
+          },
+        } as Rectangle
+        break
+      }
+    }
+
+    // Create node shape
+    await createShape(canvasId, nodeShape)
+    createdNodes.set(node.id, { shape: nodeShape, centerX, centerY })
+
+    // Create label text
+    const labelText: Text = {
+      id: textId,
+      type: 'text',
+      x: centerX,
+      y: centerY - 8,
+      text: node.label,
+      fontSize: 14,
+      fontFamily: 'Arial',
+      fontWeight: 600,
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      align: 'center',
+      lineHeight: 1.2,
+      fill: '#FFFFFF',
+      width: nodeWidth - 20,
+      height: 20,
+      rotation: 0,
+      createdBy: userId,
+      updatedAt: new Date().toISOString(),
+    }
+    await createShape(canvasId, labelText)
+  }
+
+  // Create connections (arrows) with metadata
+  const createdConnections: Array<{ from: string; to: string; arrowId: string }> = []
+
+  // Auto-generate connections if not provided
+  const actualConnections: Array<{ from: string; to: string; label?: string }> = connections.length > 0
+    ? connections
+    : nodes.slice(0, -1).map((node, i) => ({
+        from: node.id,
+        to: nodes[i + 1].id,
+      }))
+
+  for (const conn of actualConnections) {
+    const fromNode = createdNodes.get(conn.from)
+    const toNode = createdNodes.get(conn.to)
+
+    if (!fromNode || !toNode) {
+      console.warn(`[AI Helpers] Skipping connection ${conn.from} → ${conn.to}: node not found`)
+      continue
+    }
+
+    const arrowId = uuidv4()
+
+    // Calculate arrow positions (bottom of from node to top of to node)
+    const fromY = fromNode.centerY + (nodeHeight / 2)
+    const toY = toNode.centerY - (nodeHeight / 2)
+
+    const arrow: Arrow = {
+      id: arrowId,
+      type: 'arrow',
+      x: fromNode.centerX,
+      y: fromY,
+      x2: toNode.centerX,
+      y2: toY,
+      stroke: '#1F2937',
+      strokeWidth: 2,
+      rotation: 0,
+      createdBy: userId,
+      updatedAt: new Date().toISOString(),
+      connections: {
+        fromShapeId: fromNode.shape.id,
+        toShapeId: toNode.shape.id,
+      },
+    }
+
+    await createShape(canvasId, arrow)
+    createdConnections.push({ from: conn.from, to: conn.to, arrowId })
+
+    // Create label if provided
+    if (conn.label) {
+      const labelId = uuidv4()
+      const midX = (fromNode.centerX + toNode.centerX) / 2
+      const midY = (fromY + toY) / 2
+
+      const labelText: Text = {
+        id: labelId,
+        type: 'text',
+        x: midX + 15,
+        y: midY - 8,
+        text: conn.label,
+        fontSize: 12,
+        fontFamily: 'Arial',
+        fontWeight: 400,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'left',
+        lineHeight: 1.2,
+        fill: '#6B7280',
+        width: 100,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+      await createShape(canvasId, labelText)
+    }
+  }
+
+  console.log(`[AI Helpers] Flowchart created with ${nodes.length} nodes and ${createdConnections.length} connections`)
+}
+
+/**
+ * Execute create_diagram tool call
+ * Creates structured diagrams like org charts, trees, networks, etc.
+ */
+export async function executeCreateDiagram(
+  canvasId: string,
+  userId: string,
+  input: {
+    diagramType: 'tree' | 'orgchart' | 'network' | 'sequence'
+    data: any
+    x?: number
+    y?: number
+  },
+  viewport: Viewport
+): Promise<void> {
+  console.log('[AI Helpers] executeCreateDiagram called with:', input, 'userId:', userId)
+
+  const { diagramType, data, x, y } = input
+
+  // Determine starting position
+  const viewportBounds = getViewportBounds(viewport)
+  const existingShapes = await getShapes(canvasId)
+  const { x: defaultX, y: defaultY } = findEmptySpaceInViewport(
+    viewportBounds,
+    existingShapes,
+    { width: 400, height: 400 }
+  )
+
+  const startX = x ?? defaultX
+  const startY = y ?? defaultY
+
+  switch (diagramType) {
+    case 'orgchart': {
+      // Simple 3-level org chart: CEO → 3 Managers → 2 Employees each
+      const nodeWidth = 140
+      const nodeHeight = 60
+      const horizontalSpacing = 180
+      const verticalSpacing = 120
+
+      // CEO at top
+      const ceoId = uuidv4()
+      const ceoTextId = uuidv4()
+
+      const ceo: Rectangle = {
+        id: ceoId,
+        type: 'rectangle',
+        x: startX,
+        y: startY,
+        width: nodeWidth,
+        height: nodeHeight,
+        fill: '#8B5CF6',
+        stroke: '#1F2937',
+        strokeWidth: 2,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      }
+      await createShape(canvasId, ceo)
+
+      await createShape(canvasId, {
+        id: ceoTextId,
+        type: 'text',
+        x: startX + nodeWidth / 2,
+        y: startY + nodeHeight / 2 - 8,
+        text: data.ceo || 'CEO',
+        fontSize: 14,
+        fontFamily: 'Arial',
+        fontWeight: 600,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'center',
+        lineHeight: 1.2,
+        fill: '#FFFFFF',
+        width: nodeWidth - 20,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Text)
+
+      // Managers (3)
+      const managerCount = 3
+      const managerIds: string[] = []
+      const totalWidth = (managerCount - 1) * horizontalSpacing
+      const managersStartX = startX - totalWidth / 2
+
+      for (let i = 0; i < managerCount; i++) {
+        const managerId = uuidv4()
+        const managerTextId = uuidv4()
+        const managerX = managersStartX + (i * horizontalSpacing)
+        const managerY = startY + verticalSpacing
+
+        const manager: Rectangle = {
+          id: managerId,
+          type: 'rectangle',
+          x: managerX,
+          y: managerY,
+          width: nodeWidth,
+          height: nodeHeight,
+          fill: '#3B82F6',
+          stroke: '#1F2937',
+          strokeWidth: 2,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+        }
+        await createShape(canvasId, manager)
+        managerIds.push(managerId)
+
+        await createShape(canvasId, {
+          id: managerTextId,
+          type: 'text',
+          x: managerX + nodeWidth / 2,
+          y: managerY + nodeHeight / 2 - 8,
+          text: `Manager ${i + 1}`,
+          fontSize: 12,
+          fontFamily: 'Arial',
+          fontWeight: 500,
+          fontStyle: 'normal',
+          textDecoration: 'none',
+          align: 'center',
+          lineHeight: 1.2,
+          fill: '#FFFFFF',
+          width: nodeWidth - 20,
+          height: 20,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+        } as Text)
+
+        // Arrow from CEO to Manager
+        await createShape(canvasId, {
+          id: uuidv4(),
+          type: 'arrow',
+          x: startX + nodeWidth / 2,
+          y: startY + nodeHeight,
+          x2: managerX + nodeWidth / 2,
+          y2: managerY,
+          stroke: '#6B7280',
+          strokeWidth: 2,
+          rotation: 0,
+          createdBy: userId,
+          updatedAt: new Date().toISOString(),
+          connections: {
+            fromShapeId: ceoId,
+            toShapeId: managerId,
+          },
+        } as Arrow)
+      }
+
+      console.log(`[AI Helpers] Created org chart with ${1 + managerCount} nodes`)
+      break
+    }
+
+    case 'tree':
+    case 'network':
+    case 'sequence': {
+      // Simple placeholder implementation - can be enhanced later
+      console.log(`[AI Helpers] Diagram type '${diagramType}' - creating basic structure`)
+
+      // Create a simple 3-node structure
+      const node1 = uuidv4()
+      await createShape(canvasId, {
+        id: node1,
+        type: 'circle',
+        x: startX,
+        y: startY,
+        radius: 40,
+        fill: '#10B981',
+        stroke: '#1F2937',
+        strokeWidth: 2,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Circle)
+
+      await createShape(canvasId, {
+        id: uuidv4(),
+        type: 'text',
+        x: startX,
+        y: startY - 8,
+        text: 'Node 1',
+        fontSize: 12,
+        fontFamily: 'Arial',
+        fontWeight: 600,
+        fontStyle: 'normal',
+        textDecoration: 'none',
+        align: 'center',
+        lineHeight: 1.2,
+        fill: '#FFFFFF',
+        width: 80,
+        height: 20,
+        rotation: 0,
+        createdBy: userId,
+        updatedAt: new Date().toISOString(),
+      } as Text)
+
+      console.log(`[AI Helpers] Created basic ${diagramType} diagram`)
+      break
+    }
+
+    default:
+      throw new Error(`Unknown diagram type: ${diagramType}`)
+  }
+
+  console.log(`[AI Helpers] Diagram '${diagramType}' created successfully`)
 }

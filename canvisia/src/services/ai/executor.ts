@@ -10,6 +10,9 @@ import {
   executeRotateElement,
   executeArrangeElements,
   executeAlignElements,
+  executeCreateUIComponent,
+  executeCreateFlowchart,
+  executeCreateDiagram,
 } from '@/utils/aiHelpers'
 
 /**
@@ -76,11 +79,20 @@ export async function executeToolCalls(
           console.log('[Executor] align_elements completed successfully')
           break
 
-        // TODO: Implement in PR 17 (Complex Commands)
+        // PR 17: Complex Commands
         case 'create_flowchart':
+          await executeCreateFlowchart(canvasId, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_flowchart completed successfully')
+          break
+
         case 'create_ui_component':
+          await executeCreateUIComponent(canvasId, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_ui_component completed successfully')
+          break
+
         case 'create_diagram':
-          console.log(`Tool '${toolCall.name}' will be implemented in PR 17`)
+          await executeCreateDiagram(canvasId, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_diagram completed successfully')
           break
 
         default:
