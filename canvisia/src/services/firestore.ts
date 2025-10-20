@@ -876,3 +876,242 @@ export async function removeProjectCollaborator(
   const permissionId = `${projectId}_${userId}`
   await deleteDoc(doc(db, 'permissions', permissionId))
 }
+
+// ============================================================================
+// Annotation Services
+// ============================================================================
+
+/**
+ * Add an annotation to a shape
+ * @param canvasPath - Full canvas path (e.g., "projects/abc/canvases/xyz" or "canvasId")
+ * @param annotation - Annotation data
+ */
+export async function addAnnotation(
+  canvasPath: string,
+  annotation: {
+    id: string
+    shapeId: string
+    userId: string
+    userName: string
+    userColor: string
+    comment: string
+    createdAt: number
+    updatedAt: number
+    offsetX?: number
+    offsetY?: number
+    resolved?: boolean
+  }
+): Promise<void> {
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const annotationsPath = canvasPath.includes('/')
+    ? `${canvasPath}/annotations`
+    : `canvases/${canvasPath}/annotations`
+
+  const annotationRef = doc(db, annotationsPath, annotation.id)
+
+  const annotationData = {
+    ...annotation,
+    createdAt: Timestamp.fromMillis(annotation.createdAt),
+    updatedAt: Timestamp.fromMillis(annotation.updatedAt),
+    resolved: annotation.resolved || false
+  }
+
+  await setDoc(annotationRef, annotationData)
+
+  // Update project lastModified if this is a new project format
+  if (canvasPath.includes('projects/')) {
+    const projectId = canvasPath.split('/')[1]
+    const canvasId = canvasPath.split('/')[3]
+    if (projectId && canvasId) {
+      await updateCanvas(projectId, canvasId, {})
+    }
+  }
+}
+
+/**
+ * Subscribe to all annotations on a canvas
+ * @param canvasPath - Full canvas path
+ * @param callback - Callback function with annotations array
+ * @returns Unsubscribe function
+ */
+export function subscribeToAnnotations(
+  canvasPath: string,
+  callback: (annotations: any[]) => void
+): () => void {
+  const annotationsPath = canvasPath.includes('/')
+    ? `${canvasPath}/annotations`
+    : `canvases/${canvasPath}/annotations`
+
+  const annotationsRef = collection(db, annotationsPath)
+  const q = query(annotationsRef)
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const annotationsList: any[] = []
+
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        annotationsList.push({
+          id: data.id,
+          shapeId: data.shapeId,
+          userId: data.userId,
+          userName: data.userName,
+          userColor: data.userColor,
+          comment: data.comment,
+          createdAt: data.createdAt?.toMillis?.() || data.createdAt,
+          updatedAt: data.updatedAt?.toMillis?.() || data.updatedAt,
+          offsetX: data.offsetX,
+          offsetY: data.offsetY,
+          resolved: data.resolved || false
+        })
+      })
+
+      // Sort by creation time (newest first for panel, but we can sort in component)
+      annotationsList.sort((a, b) => a.createdAt - b.createdAt)
+
+      callback(annotationsList)
+    },
+    (error) => {
+      console.error('Annotations subscription error:', error)
+    }
+  )
+
+  return unsubscribe
+}
+
+/**
+ * Subscribe to annotations for a specific shape
+ * @param canvasPath - Full canvas path
+ * @param shapeId - Shape ID to filter annotations
+ * @param callback - Callback function with annotations array
+ * @returns Unsubscribe function
+ */
+export function subscribeToShapeAnnotations(
+  canvasPath: string,
+  shapeId: string,
+  callback: (annotations: any[]) => void
+): () => void {
+  const annotationsPath = canvasPath.includes('/')
+    ? `${canvasPath}/annotations`
+    : `canvases/${canvasPath}/annotations`
+
+  const annotationsRef = collection(db, annotationsPath)
+  const q = query(annotationsRef)
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const annotationsList: any[] = []
+
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        // Filter by shapeId
+        if (data.shapeId === shapeId) {
+          annotationsList.push({
+            id: data.id,
+            shapeId: data.shapeId,
+            userId: data.userId,
+            userName: data.userName,
+            userColor: data.userColor,
+            comment: data.comment,
+            createdAt: data.createdAt?.toMillis?.() || data.createdAt,
+            updatedAt: data.updatedAt?.toMillis?.() || data.updatedAt,
+            offsetX: data.offsetX,
+            offsetY: data.offsetY,
+            resolved: data.resolved || false
+          })
+        }
+      })
+
+      // Sort by creation time
+      annotationsList.sort((a, b) => a.createdAt - b.createdAt)
+
+      callback(annotationsList)
+    },
+    (error) => {
+      console.error('Shape annotations subscription error:', error)
+    }
+  )
+
+  return unsubscribe
+}
+
+/**
+ * Update an annotation
+ * @param canvasPath - Full canvas path
+ * @param annotationId - Annotation ID
+ * @param updates - Partial annotation data to update
+ */
+export async function updateAnnotation(
+  canvasPath: string,
+  annotationId: string,
+  updates: Partial<{
+    comment: string
+    offsetX: number
+    offsetY: number
+    resolved: boolean
+  }>
+): Promise<void> {
+  const annotationsPath = canvasPath.includes('/')
+    ? `${canvasPath}/annotations`
+    : `canvases/${canvasPath}/annotations`
+
+  const annotationRef = doc(db, annotationsPath, annotationId)
+
+  const updateData = {
+    ...updates,
+    updatedAt: Timestamp.now()
+  }
+
+  await updateDoc(annotationRef, updateData)
+
+  // Update project lastModified if this is a new project format
+  if (canvasPath.includes('projects/')) {
+    const projectId = canvasPath.split('/')[1]
+    const canvasId = canvasPath.split('/')[3]
+    if (projectId && canvasId) {
+      await updateCanvas(projectId, canvasId, {})
+    }
+  }
+}
+
+/**
+ * Delete an annotation
+ * @param canvasPath - Full canvas path
+ * @param annotationId - Annotation ID
+ */
+export async function deleteAnnotation(
+  canvasPath: string,
+  annotationId: string
+): Promise<void> {
+  const annotationsPath = canvasPath.includes('/')
+    ? `${canvasPath}/annotations`
+    : `canvases/${canvasPath}/annotations`
+
+  const annotationRef = doc(db, annotationsPath, annotationId)
+  await deleteDoc(annotationRef)
+
+  // Update project lastModified if this is a new project format
+  if (canvasPath.includes('projects/')) {
+    const projectId = canvasPath.split('/')[1]
+    const canvasId = canvasPath.split('/')[3]
+    if (projectId && canvasId) {
+      await updateCanvas(projectId, canvasId, {})
+    }
+  }
+}
+
+/**
+ * Toggle annotation resolved status
+ * @param canvasPath - Full canvas path
+ * @param annotationId - Annotation ID
+ * @param resolved - New resolved status
+ */
+export async function toggleAnnotationResolved(
+  canvasPath: string,
+  annotationId: string,
+  resolved: boolean
+): Promise<void> {
+  await updateAnnotation(canvasPath, annotationId, { resolved })
+}

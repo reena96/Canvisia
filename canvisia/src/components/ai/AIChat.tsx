@@ -4,6 +4,7 @@ import { useAI } from '@/hooks/useAI'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { addChatMessage, subscribeToChatMessages, markMessageAsRead, createChatTab, hideChatTab, unhideChatTab, renameChatTab, subscribeToChatTabs } from '@/services/firestore'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { AI_COMMAND_EXAMPLES, type CommandExample } from '@/constants/aiCommandExamples'
 
 // Component to format and render message text with markdown-like formatting
 const FormattedMessage = ({ text }: { text: string }) => {
@@ -106,11 +107,6 @@ type WindowState = 'minimized' | 'normal' | 'maximized'
 type PinPosition = 'floating' | 'right' | 'left'
 
 export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
-  // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
-    ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
-
   const [command, setCommand] = useState('')
   const [tabs, setTabs] = useState<ChatTab[]>([])
   const [activeTabId, setActiveTabId] = useState('1')
@@ -143,10 +139,10 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
       timestamp: Date.now(),
       userName: 'Vega'
     }
-    await addChatMessage(canvasId, activeTabId, aiMessage)
+    await addChatMessage(canvasPath, activeTabId, aiMessage)
   }
 
-  const { sendCommand, isProcessing, isLocked, lockOwner } = useAI(canvasId, handleAIResponse)
+  const { sendCommand, isProcessing, isLocked, lockOwner } = useAI(canvasPath, handleAIResponse)
 
   // Reset to right-pinned when opened from toolbar
   useEffect(() => {
@@ -160,10 +156,10 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
   useEffect(() => {
     if (!isOpen || !user?.email) return
 
-    const unsubscribe = subscribeToChatTabs(canvasId, async (firestoreTabs) => {
+    const unsubscribe = subscribeToChatTabs(canvasPath, async (firestoreTabs) => {
       // If no tabs exist, create the default tab
       if (firestoreTabs.length === 0) {
-        await createChatTab(canvasId, '1', 'Chat 1')
+        await createChatTab(canvasPath, '1', 'Chat 1')
         return
       }
 
@@ -189,7 +185,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
     })
 
     return () => unsubscribe()
-  }, [canvasId, isOpen, user?.email])
+  }, [canvasPath, isOpen, user?.email])
 
   // Subscribe to messages for ALL tabs (to detect messages on hidden tabs)
   useEffect(() => {
@@ -198,14 +194,14 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
     const unsubscribes: (() => void)[] = []
 
     // Get all tabs including hidden ones from Firestore
-    subscribeToChatTabs(canvasId, (allTabs) => {
+    subscribeToChatTabs(canvasPath, (allTabs) => {
       // Clean up previous subscriptions
       unsubscribes.forEach(unsub => unsub())
       unsubscribes.length = 0
 
       // Subscribe to each tab's messages
       allTabs.forEach(tab => {
-        const unsubscribe = subscribeToChatMessages(canvasId, tab.id, async (firestoreMessages) => {
+        const unsubscribe = subscribeToChatMessages(canvasPath, tab.id, async (firestoreMessages) => {
           // If new messages arrive on a hidden tab from another user, unhide it
           if (firestoreMessages.length > 0 && user?.email) {
             const lastMessage = firestoreMessages[firestoreMessages.length - 1]
@@ -213,7 +209,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
 
             // If tab is hidden and message is from someone else, unhide it
             if (hiddenBy.includes(user.email) && lastMessage.userEmail !== user.email) {
-              await unhideChatTab(canvasId, tab.id, user.email)
+              await unhideChatTab(canvasPath, tab.id, user.email)
             }
           }
 
@@ -232,7 +228,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
     return () => {
       unsubscribes.forEach(unsub => unsub())
     }
-  }, [canvasId, isOpen, tabsLoaded, user?.email])
+  }, [canvasPath, isOpen, tabsLoaded, user?.email])
 
   // Mark messages as read when viewing them
   useEffect(() => {
@@ -248,12 +244,12 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
 
       // Mark as read
       try {
-        await markMessageAsRead(canvasId, activeTabId, msg.id, user.email)
+        await markMessageAsRead(canvasPath, activeTabId, msg.id, user.email)
       } catch (error) {
         console.error('Failed to mark message as read:', error)
       }
     })
-  }, [messages, canvasId, activeTabId, user?.email, isOpen])
+  }, [messages, canvasPath, activeTabId, user?.email, isOpen])
 
   // Load saved state from localStorage
   useEffect(() => {
@@ -338,7 +334,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
     }
 
     // Save to Firestore (will be synced to all users)
-    await addChatMessage(canvasId, activeTabId, userMessage)
+    await addChatMessage(canvasPath, activeTabId, userMessage)
 
     const userCommand = command
     setCommand('')
@@ -464,7 +460,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
     // Create a new tab in Firestore
     const newTabId = Date.now().toString()
     const newTabName = `Chat ${tabs.length + 1}`
-    await createChatTab(canvasId, newTabId, newTabName)
+    await createChatTab(canvasPath, newTabId, newTabName)
     setActiveTabId(newTabId)
   }
 
@@ -488,7 +484,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
     }
 
     // Hide tab for current user (not delete)
-    await hideChatTab(canvasId, tabId, user.email)
+    await hideChatTab(canvasPath, tabId, user.email)
   }
 
   const handleStartRename = (tabId: string, currentName: string) => {
@@ -498,7 +494,7 @@ export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
 
   const handleFinishRename = async () => {
     if (editingTabId && editingTabName.trim()) {
-      await renameChatTab(canvasId, editingTabId, editingTabName.trim())
+      await renameChatTab(canvasPath, editingTabId, editingTabName.trim())
     }
     setEditingTabId(null)
     setEditingTabName('')

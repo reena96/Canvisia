@@ -14,6 +14,9 @@ import { TextEditOverlay } from './TextEditOverlay'
 import { FloatingTextToolbar } from './FloatingTextToolbar'
 import { ResizeHandles } from './ResizeHandles'
 import { MultiSelectResizeHandles } from './MultiSelectResizeHandles'
+import { Annotation } from './Annotation'
+import { CommentsPanel } from './CommentsPanel'
+import { CommentInput } from './CommentInput'
 import {
   createDefaultRectangle,
   createDefaultCircle,
@@ -32,7 +35,8 @@ import {
 } from '@/utils/shapeDefaults'
 import { useFirestore } from '@/hooks/useFirestore'
 import { getUserColor } from '@/config/userColors'
-import type { Shape, Text } from '@/types/shapes'
+import type { Shape, Text, Annotation as AnnotationType } from '@/types/shapes'
+import { subscribeToAnnotations, addAnnotation } from '@/services/firestore'
 import { usePerformanceMonitor } from '@/hooks/usePerformanceMonitor'
 import { calculateRectangleResize, calculateCircleResize, calculateEllipseResize } from '@/utils/resizeCalculations'
 import { calculateRotationDelta, snapAngle, normalizeAngle } from '@/utils/rotationCalculations'
@@ -145,6 +149,15 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
   // Error handling state
   const [error, setError] = useState<string | null>(null)
 
+  // Annotations state
+  const [annotations, setAnnotations] = useState<AnnotationType[]>([])
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false)
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
+
+  // Comment input state
+  const [commentInputPosition, setCommentInputPosition] = useState<{ x: number; y: number } | null>(null)
+  const [commentTargetShapeId, setCommentTargetShapeId] = useState<string | null>(null)
+
   // Setup canvas and user tracking
   // Extract canvasId from path for RTDB (projects/x/canvases/y -> y)
   const canvasId = canvasPath.includes('/')
@@ -184,6 +197,17 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
 
   // Setup Firestore sync for shapes
   const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasPath)
+
+  // Subscribe to annotations
+  useEffect(() => {
+    if (!canvasPath) return
+
+    const unsubscribe = subscribeToAnnotations(canvasPath, (firestoreAnnotations) => {
+      setAnnotations(firestoreAnnotations)
+    })
+
+    return unsubscribe
+  }, [canvasPath])
 
   // Undo/Redo handlers (defined early to avoid circular dependencies)
   const saveToHistory = useCallback((shapesSnapshot: Shape[]) => {
@@ -1646,6 +1670,43 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
   const handleShapeSelect = (shapeId: string, modifierKey: boolean = false) => {
     const shape = shapes.find(s => s.id === shapeId)
 
+    // If comment tool is active, show comment input instead of selecting
+    if (selectedTool === 'comment') {
+      if (!shape) return
+
+      // Calculate position for comment input (near the shape)
+      const stage = stageRef.current
+      if (!stage) return
+
+      // Get shape center in screen coordinates
+      let shapeX = shape.x
+      let shapeY = shape.y
+
+      // Adjust for shape center based on type
+      if (shape.type === 'rectangle' || shape.type === 'roundedRectangle') {
+        shapeX += shape.width / 2
+        shapeY += shape.height / 2
+      } else if (shape.type === 'circle') {
+        shapeX += shape.radius
+        shapeY += shape.radius
+      } else if (shape.type === 'ellipse') {
+        shapeX += shape.radiusX
+        shapeY += shape.radiusY
+      }
+
+      // Convert canvas coordinates to screen coordinates
+      const screenX = shapeX * viewport.zoom + viewport.x
+      const screenY = shapeY * viewport.zoom + viewport.y
+
+      // Position input to the right of the shape
+      setCommentInputPosition({
+        x: Math.min(screenX + 60, window.innerWidth - 360),
+        y: Math.max(screenY - 50, CANVAS_CONFIG.HEADER_HEIGHT + 20)
+      })
+      setCommentTargetShapeId(shapeId)
+      return
+    }
+
     if (modifierKey) {
       // Shift-click or Ctrl/Cmd-click: toggle selection
       if (selectedIds.includes(shapeId)) {
@@ -1670,6 +1731,47 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
         setSelectedTextId(null)
       }
     }
+    setSelectedTool('select')
+  }
+
+  // Handle comment submission
+  const handleCommentSubmit = async (comment: string) => {
+    if (!commentTargetShapeId || !user) return
+
+    try {
+      const annotationId = `annotation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+      await addAnnotation(canvasPath, {
+        id: annotationId,
+        shapeId: commentTargetShapeId,
+        userId: user.uid,
+        userName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+        userColor: userColor,
+        comment: comment,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        resolved: false
+      })
+
+      // Close comment input
+      setCommentInputPosition(null)
+      setCommentTargetShapeId(null)
+
+      // Switch back to select tool
+      setSelectedTool('select')
+
+      // Optionally open the comments panel to show the new comment
+      setIsCommentsOpen(true)
+      setSelectedAnnotationId(annotationId)
+    } catch (err) {
+      console.error('Failed to create annotation:', err)
+      setError('Failed to create comment. Please try again.')
+    }
+  }
+
+  const handleCommentCancel = () => {
+    setCommentInputPosition(null)
+    setCommentTargetShapeId(null)
     setSelectedTool('select')
   }
 
@@ -3264,6 +3366,9 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
         onResetView={handleResetView}
         onAskVega={onAskVega}
         isVegaOpen={isVegaOpen}
+        onToggleComments={() => setIsCommentsOpen(!isCommentsOpen)}
+        isCommentsOpen={isCommentsOpen}
+        unreadCommentsCount={annotations.filter(a => !a.resolved).length}
       />
 
       {/* Loading indicator */}
@@ -3337,6 +3442,43 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
               }}
             />
           ))}
+
+          {/* Render annotations */}
+          {annotations.map((annotation) => {
+            const shape = shapes.find(s => s.id === annotation.shapeId)
+            if (!shape) return null
+
+            // Calculate shape center position for annotation anchor
+            let shapeX = shape.x
+            let shapeY = shape.y
+
+            // Adjust for shape center based on type
+            if (shape.type === 'rectangle' || shape.type === 'roundedRectangle') {
+              shapeX += shape.width / 2
+              shapeY += shape.height / 2
+            } else if (shape.type === 'circle') {
+              shapeX += shape.radius
+              shapeY += shape.radius
+            } else if (shape.type === 'ellipse') {
+              shapeX += shape.radiusX
+              shapeY += shape.radiusY
+            }
+
+            return (
+              <Annotation
+                key={annotation.id}
+                annotation={annotation}
+                shapeX={shapeX}
+                shapeY={shapeY}
+                viewport={viewport}
+                isSelected={annotation.id === selectedAnnotationId}
+                onClick={() => {
+                  setSelectedAnnotationId(annotation.id)
+                  setIsCommentsOpen(true)
+                }}
+              />
+            )
+          })}
 
           {/* Drag-to-select box */}
           {isBoxSelecting && selectionBox && (
@@ -3561,6 +3703,28 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
             ×
           </button>
         </div>
+      )}
+
+      {/* Comments Panel */}
+      <CommentsPanel
+        canvasPath={canvasPath}
+        shapes={shapes}
+        isOpen={isCommentsOpen}
+        onClose={() => setIsCommentsOpen(false)}
+        selectedAnnotationId={selectedAnnotationId || undefined}
+        onAnnotationClick={(annotation, _shape) => {
+          setSelectedAnnotationId(annotation.id)
+          // Optionally: pan to the shape or highlight it
+        }}
+      />
+
+      {/* Comment Input Overlay */}
+      {commentInputPosition && (
+        <CommentInput
+          position={commentInputPosition}
+          onSubmit={handleCommentSubmit}
+          onCancel={handleCommentCancel}
+        />
       )}
     </div>
   )

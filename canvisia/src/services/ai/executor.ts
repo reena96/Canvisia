@@ -9,14 +9,14 @@ import {
   executeMoveElement,
   executeResizeElement,
   executeRotateElement,
-  executeChangeColor,
-  executeDeleteElements,
+  // executeChangeColor, // TODO: Implement
+  // executeDeleteElements, // TODO: Implement
   executeArrangeElements,
   executeAlignElements,
-  executeCreateUIComponent,
-  executeCreateFlowchart,
-  executeCreateDiagram,
-  executeUndo,
+  // executeCreateUIComponent, // TODO: Implement
+  // executeCreateFlowchart, // TODO: Implement
+  // executeCreateDiagram, // TODO: Implement
+  // executeUndo, // TODO: Implement
 } from '@/utils/aiHelpers'
 // TODO: Implement undo tracking in execution functions
 // import { saveUndoAction } from './undo'
@@ -28,6 +28,7 @@ import {
  */
 export interface ExecutionResult {
   success: boolean
+  error?: string
   partialMatch?: {
     expected?: number | string
     actual: number | string
@@ -104,45 +105,51 @@ export async function executeToolCalls(
           break
 
         case 'change_color':
-          result = await executeChangeColor(canvasId, userId, toolCall.input as any)
-          console.log('[Executor] change_color completed successfully', result)
+          // TODO: Implement executeChangeColor
+          console.warn('[Executor] change_color not yet implemented')
+          result = { success: false, error: 'Not implemented' }
           break
 
         case 'delete_elements':
-          result = await executeDeleteElements(canvasId, userId, toolCall.input as any)
-          console.log('[Executor] delete_elements completed successfully', result)
+          // TODO: Implement executeDeleteElements
+          console.warn('[Executor] delete_elements not yet implemented')
+          result = { success: false, error: 'Not implemented' }
           break
 
         // PR 16: Layout Commands
         case 'arrange_elements':
-          result = await executeArrangeElements(canvasId, userId, toolCall.input as any)
-          console.log('[Executor] arrange_elements completed successfully', result)
+          await executeArrangeElements(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] arrange_elements completed successfully')
           break
 
         case 'align_elements':
-          result = await executeAlignElements(canvasId, userId, toolCall.input as any, viewport)
-          console.log('[Executor] align_elements completed successfully', result)
+          await executeAlignElements(canvasId, userId, toolCall.input as any, viewport)
+          console.log('[Executor] align_elements completed successfully')
           break
 
         // PR 17: Complex Commands
         case 'create_flowchart':
-          await executeCreateFlowchart(canvasId, userId, toolCall.input as any, viewport)
-          console.log('[Executor] create_flowchart completed successfully')
+          // TODO: Implement executeCreateFlowchart
+          console.warn('[Executor] create_flowchart not yet implemented')
+          result = { success: false, error: 'Not implemented' }
           break
 
         case 'create_ui_component':
-          await executeCreateUIComponent(canvasId, userId, toolCall.input as any, viewport)
-          console.log('[Executor] create_ui_component completed successfully')
+          // TODO: Implement executeCreateUIComponent
+          console.warn('[Executor] create_ui_component not yet implemented')
+          result = { success: false, error: 'Not implemented' }
           break
 
         case 'create_diagram':
-          await executeCreateDiagram(canvasId, userId, toolCall.input as any, viewport)
-          console.log('[Executor] create_diagram completed successfully')
+          // TODO: Implement executeCreateDiagram
+          console.warn('[Executor] create_diagram not yet implemented')
+          result = { success: false, error: 'Not implemented' }
           break
 
         case 'undo':
-          result = await executeUndo(canvasId, userId)
-          console.log('[Executor] undo completed successfully', result)
+          // TODO: Implement executeUndo
+          console.warn('[Executor] undo not yet implemented')
+          result = { success: false, error: 'Not implemented' }
           break
 
         default:

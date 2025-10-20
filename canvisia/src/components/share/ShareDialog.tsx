@@ -7,7 +7,7 @@ import {
   updatePermissionRole,
   removeProjectCollaborator,
 } from '@/services/firestore';
-import type { Permission, PermissionRole } from '@/types/project';
+import type { Permission } from '@/types/project';
 import './ShareDialog.css';
 
 interface ShareDialogProps {
