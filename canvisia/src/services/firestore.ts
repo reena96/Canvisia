@@ -920,6 +920,120 @@ export async function removeProjectCollaborator(
 }
 
 // ============================================================================
+// Canvas Permission Services
+// ============================================================================
+
+export interface CanvasPermission {
+  canvasPath: string
+  projectId: string
+  userId: string
+  userEmail: string
+  role: 'owner' | 'editor' | 'viewer'
+  invitedBy: string
+  invitedAt: Date
+  acceptedAt: Date | null
+}
+
+/**
+ * Invite a user to a specific canvas
+ * @param canvasPath - Full canvas path (e.g., "projects/abc/canvases/xyz")
+ * @param userEmail - User's email
+ * @param userId - User's ID
+ * @param role - Permission role (owner, editor, viewer)
+ * @param invitedBy - User ID of the person inviting
+ */
+export async function inviteUserToCanvas(
+  canvasPath: string,
+  projectId: string,
+  userEmail: string,
+  userId: string,
+  role: 'owner' | 'editor' | 'viewer',
+  invitedBy: string
+): Promise<void> {
+  const permissionId = `${canvasPath}_${userId}`
+  const now = Timestamp.now()
+
+  const permissionData: Omit<CanvasPermission, 'invitedAt' | 'acceptedAt'> & {
+    invitedAt: Timestamp
+    acceptedAt: Timestamp | null
+  } = {
+    canvasPath,
+    projectId,
+    userId,
+    userEmail,
+    role,
+    invitedBy,
+    invitedAt: now,
+    acceptedAt: null, // Pending acceptance
+  }
+
+  await setDoc(doc(db, 'canvasPermissions', permissionId), permissionData)
+}
+
+/**
+ * Get all collaborators for a specific canvas
+ * @param canvasPath - Full canvas path
+ * @returns Array of canvas permissions with user info
+ */
+export async function getCanvasCollaborators(
+  canvasPath: string
+): Promise<(CanvasPermission & { userName?: string })[]> {
+  const permissionsRef = collection(db, 'canvasPermissions')
+  const snapshot = await getDocs(permissionsRef)
+
+  const collaborators: (CanvasPermission & { userName?: string })[] = []
+
+  snapshot.forEach((doc) => {
+    const data = doc.data()
+    if (data.canvasPath === canvasPath) {
+      collaborators.push({
+        canvasPath: data.canvasPath,
+        projectId: data.projectId,
+        userId: data.userId,
+        userEmail: data.userEmail,
+        role: data.role,
+        invitedBy: data.invitedBy,
+        invitedAt: data.invitedAt?.toDate?.() || data.invitedAt,
+        acceptedAt: data.acceptedAt?.toDate?.() || data.acceptedAt,
+        userName: data.userName || data.userEmail,
+      })
+    }
+  })
+
+  return collaborators
+}
+
+/**
+ * Update a user's permission role for a specific canvas
+ * @param canvasPath - Full canvas path
+ * @param userId - User ID
+ * @param newRole - New permission role
+ */
+export async function updateCanvasPermissionRole(
+  canvasPath: string,
+  userId: string,
+  newRole: 'editor' | 'viewer'
+): Promise<void> {
+  const permissionId = `${canvasPath}_${userId}`
+  await updateDoc(doc(db, 'canvasPermissions', permissionId), {
+    role: newRole,
+  })
+}
+
+/**
+ * Remove a collaborator from a specific canvas
+ * @param canvasPath - Full canvas path
+ * @param userId - User ID to remove
+ */
+export async function removeCanvasCollaborator(
+  canvasPath: string,
+  userId: string
+): Promise<void> {
+  const permissionId = `${canvasPath}_${userId}`
+  await deleteDoc(doc(db, 'canvasPermissions', permissionId))
+}
+
+// ============================================================================
 // Annotation Services
 // ============================================================================
 

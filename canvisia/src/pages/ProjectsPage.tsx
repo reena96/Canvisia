@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Share2, Trash2 } from 'lucide-react';
+import { Share2, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { getUserProjects, createProject, updateProject, deleteProject } from '@/services/firestore';
 import type { Project } from '@/types/project';
@@ -273,21 +273,21 @@ const ProjectsPage: React.FC = () => {
                           onClick={(e) => handleShare(project.id, e)}
                           title="Share project"
                         >
-                          <Share2 size={14} />
+                          <Share2 size={16} />
                         </button>
                         <button
                           className="rename-project-btn"
                           onClick={(e) => handleStartRename(project.id, project.name, e)}
                           title="Rename project"
                         >
-                          ✏️
+                          <Pencil size={16} />
                         </button>
                         <button
                           className="delete-project-btn"
                           onClick={(e) => handleDelete(project.id, project.name, e)}
                           title="Delete project"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>

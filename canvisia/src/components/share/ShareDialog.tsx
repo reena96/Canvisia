@@ -6,6 +6,11 @@ import {
   inviteUserByEmail,
   updatePermissionRole,
   removeProjectCollaborator,
+  getCanvasCollaborators,
+  inviteUserToCanvas,
+  updateCanvasPermissionRole,
+  removeCanvasCollaborator,
+  type CanvasPermission,
 } from '@/services/firestore';
 import type { Permission } from '@/types/project';
 import './ShareDialog.css';
@@ -13,12 +18,16 @@ import './ShareDialog.css';
 interface ShareDialogProps {
   projectId: string;
   projectName: string;
+  canvasId?: string; // Optional: if provided, share canvas instead of project
+  canvasName?: string; // Optional: canvas name for display
   onClose: () => void;
 }
 
 export const ShareDialog: React.FC<ShareDialogProps> = ({
   projectId,
   projectName,
+  canvasId,
+  canvasName,
   onClose,
 }) => {
   const { user } = useAuth();
@@ -26,19 +35,27 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [inviting, setInviting] = useState(false);
-  const [collaborators, setCollaborators] = useState<(Permission & { userName?: string })[]>([]);
+  const [collaborators, setCollaborators] = useState<(Permission & { userName?: string })[] | (CanvasPermission & { userName?: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const projectUrl = `${window.location.origin}/p/${projectId}`;
+  // Determine if we're sharing a canvas or a project
+  const isCanvasShare = !!canvasId;
+  const canvasPath = canvasId ? `projects/${projectId}/canvases/${canvasId}` : '';
+  const shareUrl = isCanvasShare
+    ? `${window.location.origin}/p/${projectId}/${canvasId}`
+    : `${window.location.origin}/p/${projectId}`;
+  const shareName = isCanvasShare ? canvasName || 'Canvas' : projectName;
 
   useEffect(() => {
     loadCollaborators();
-  }, [projectId]);
+  }, [projectId, canvasId]);
 
   const loadCollaborators = async () => {
     try {
       setLoading(true);
-      const collab = await getProjectCollaborators(projectId);
+      const collab = isCanvasShare
+        ? await getCanvasCollaborators(canvasPath)
+        : await getProjectCollaborators(projectId);
       setCollaborators(collab);
     } catch (error) {
       console.error('Error loading collaborators:', error);
@@ -49,7 +66,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(projectUrl);
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -67,7 +84,13 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       // NOTE: In production, you would look up the userId by email
       // For now, we'll use a placeholder. This requires backend support.
       const tempUserId = `pending_${inviteEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      await inviteUserByEmail(projectId, inviteEmail, tempUserId, inviteRole, user.uid);
+
+      if (isCanvasShare) {
+        await inviteUserToCanvas(canvasPath, projectId, inviteEmail, tempUserId, inviteRole as 'editor' | 'viewer', user.uid);
+      } else {
+        await inviteUserByEmail(projectId, inviteEmail, tempUserId, inviteRole, user.uid);
+      }
+
       setInviteEmail('');
       await loadCollaborators();
     } catch (error) {
@@ -80,7 +103,11 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
 
   const handleRoleChange = async (userId: string, newRole: 'editor' | 'viewer') => {
     try {
-      await updatePermissionRole(projectId, userId, newRole);
+      if (isCanvasShare) {
+        await updateCanvasPermissionRole(canvasPath, userId, newRole);
+      } else {
+        await updatePermissionRole(projectId, userId, newRole);
+      }
       await loadCollaborators();
     } catch (error) {
       console.error('Error updating role:', error);
@@ -89,10 +116,18 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   const handleRemoveCollaborator = async (userId: string) => {
-    if (!confirm('Remove this collaborator from the project?')) return;
+    const confirmMessage = isCanvasShare
+      ? 'Remove this collaborator from the canvas?'
+      : 'Remove this collaborator from the project?';
+
+    if (!confirm(confirmMessage)) return;
 
     try {
-      await removeProjectCollaborator(projectId, userId);
+      if (isCanvasShare) {
+        await removeCanvasCollaborator(canvasPath, userId);
+      } else {
+        await removeProjectCollaborator(projectId, userId);
+      }
       await loadCollaborators();
     } catch (error) {
       console.error('Error removing collaborator:', error);
@@ -110,7 +145,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
     <div className="share-dialog-backdrop" onClick={handleBackdropClick}>
       <div className="share-dialog">
         <div className="share-dialog-header">
-          <h2>Share "{projectName}"</h2>
+          <h2>Share "{shareName}"</h2>
           <button className="close-button" onClick={onClose}>
             <X size={20} />
           </button>
@@ -123,12 +158,12 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
               Copy link
             </h3>
             <p className="copy-link-description">
-              Anyone with this link can view this project
+              Anyone with this link can view this {isCanvasShare ? 'canvas' : 'project'}
             </p>
             <div className="copy-link-input-group">
               <input
                 type="text"
-                value={projectUrl}
+                value={shareUrl}
                 readOnly
                 className="link-input"
                 onClick={(e) => e.currentTarget.select()}
