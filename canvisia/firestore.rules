@@ -2,52 +2,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user has permission
-    function hasPermission(projectId, role) {
-      let permDoc = get(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
-      return permDoc != null && permDoc.data.role == role;
+    // Check if user is the project owner (UI-only, for delete/update operations)
+    function isOwner(projectId) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/projects/$(projectId)) &&
+             get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
     }
 
-    function hasAnyPermission(projectId) {
-      return exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
-    }
-
-    // Projects: read if has permission, write if owner
+    // Projects: anyone authenticated can read, only owner can update/delete
     match /projects/{projectId} {
-      allow read: if hasAnyPermission(projectId);
+      allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if hasPermission(projectId, 'owner');
+      allow update, delete: if isOwner(projectId);
 
-      // Canvases: inherit project permissions
+      // Canvases: anyone authenticated can read and write
       match /canvases/{canvasId} {
-        allow read: if hasAnyPermission(projectId);
-        allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
+        allow read, write: if request.auth != null;
 
-        // Objects: inherit canvas permissions
+        // Objects: anyone authenticated can read and write
         match /objects/{objectId} {
-          allow read: if hasAnyPermission(projectId);
-          allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
+          allow read, write: if request.auth != null;
+        }
+
+        // Annotations: anyone authenticated can read and write
+        match /annotations/{annotationId} {
+          allow read, write: if request.auth != null;
+        }
+
+        // Chat messages: anyone authenticated can read and create
+        match /chats/{tabId}/messages/{messageId} {
+          allow read, create: if request.auth != null;
+          allow update: if request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+          allow delete: if false;
+        }
+
+        // Chat tabs: anyone authenticated can read and write
+        match /chatTabs/{tabId} {
+          allow read, write: if request.auth != null;
+        }
+
+        // Presence tracking: anyone authenticated can read and write
+        match /presence/{userId} {
+          allow read, write: if request.auth != null;
+        }
+
+        // Undo history: anyone authenticated can read and write
+        match /undoHistory/{undoId} {
+          allow read, write: if request.auth != null;
         }
       }
     }
 
-    // Permissions: owner can manage, users can read their own
-    match /permissions/{permissionId} {
-      allow read: if request.auth != null && permissionId.matches('.*_' + request.auth.uid);
-      // Allow listing permissions collection (filtered by read rules)
-      allow list: if request.auth != null;
-      // Allow creating permission if:
-      // 1. User is setting themselves as owner, OR
-      // 2. User is the project owner inviting someone else
-      allow create: if request.auth != null && (
-        (request.resource.data.userId == request.auth.uid && request.resource.data.role == 'owner')
-        ||
-        hasPermission(request.resource.data.projectId, 'owner')
-      );
-      // Allow update/delete if user is owner of the project
-      allow update, delete: if request.auth != null &&
-        hasPermission(resource.data.projectId, 'owner');
-    }
 
     // Legacy canvases collection (read-only for backward compatibility)
     match /canvases/{canvasId} {
@@ -57,6 +62,13 @@ service cloud.firestore {
       match /objects/{objectId} {
         allow read: if request.auth != null;
         allow write: if false;
+      }
+
+      // Annotations (legacy path - for backward compatibility)
+      match /annotations/{annotationId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       }
 
       // Chat messages (keep for backward compatibility)

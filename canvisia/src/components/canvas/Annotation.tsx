@@ -6,13 +6,15 @@ interface AnnotationProps {
   shapeX: number
   shapeY: number
   viewport: { zoom: number }
+  isSelected?: boolean
+  onClick?: () => void
 }
 
 /**
  * Annotation component - displays a comment bubble attached to a shape
  * Shows user avatar, name, timestamp, and comment text
  */
-export function Annotation({ annotation, shapeX, shapeY, viewport }: AnnotationProps) {
+export function Annotation({ annotation, shapeX, shapeY, viewport, isSelected = false, onClick }: AnnotationProps) {
   // Position annotation above and to the right of the shape
   const offsetX = annotation.offsetX || 50
   const offsetY = annotation.offsetY || -80
@@ -70,14 +72,18 @@ export function Annotation({ annotation, shapeX, shapeY, viewport }: AnnotationP
         y={annotationY}
         width={maxWidth}
         height={totalHeight}
-        fill="white"
+        fill={isSelected ? '#F0FDF4' : 'white'}
         cornerRadius={8 / viewport.zoom}
         shadowColor="rgba(0, 0, 0, 0.15)"
         shadowBlur={12 / viewport.zoom}
         shadowOffset={{ x: 0, y: 4 / viewport.zoom }}
         shadowOpacity={1}
-        stroke="#E5E7EB"
-        strokeWidth={1 / viewport.zoom}
+        stroke={isSelected ? '#86EFAC' : '#E5E7EB'}
+        strokeWidth={isSelected ? 2 / viewport.zoom : 1 / viewport.zoom}
+        onClick={onClick}
+        onTap={onClick}
+        listening={!!onClick}
+        cursor={onClick ? 'pointer' : 'default'}
       />
 
       {/* User avatar circle */}

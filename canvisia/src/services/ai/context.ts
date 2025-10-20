@@ -1,7 +1,7 @@
 import type { Shape } from '@/types/shapes'
 import { getLastUndoAction } from './undo'
 
-export async function buildContext(shapes: Shape[], selectedShapeIds: string[] = [], canvasId?: string): Promise<string> {
+export async function buildContext(shapes: Shape[], selectedShapeIds: string[] = [], canvasPath?: string): Promise<string> {
   if (shapes.length === 0) {
     return 'Canvas is empty. No shapes present.'
   }
@@ -31,9 +31,9 @@ export async function buildContext(shapes: Shape[], selectedShapeIds: string[] =
 
   // Check if undo is available
   let undoAvailable = null
-  if (canvasId) {
+  if (canvasPath) {
     try {
-      const lastAction = await getLastUndoAction(canvasId)
+      const lastAction = await getLastUndoAction(canvasPath)
       if (lastAction) {
         undoAvailable = {
           command: lastAction.command,

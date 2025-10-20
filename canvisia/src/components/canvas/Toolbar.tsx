@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Hand, Maximize, MousePointer2, Lasso, Square } from 'lucide-react'
+import { Hand, Maximize, MousePointer2, Lasso, Square, MessageCircle, MessageSquarePlus } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 import { shapeIcons, toolIcons } from '@/utils/generateShapeIcons'
 
-type Tool = 'select' | 'boxSelect' | 'lasso' | 'hand' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
+type Tool = 'select' | 'boxSelect' | 'lasso' | 'hand' | 'comment' | 'rectangle' | 'circle' | 'ellipse' | 'roundedRectangle' | 'cylinder' | 'line' | 'text' | 'triangle' | 'pentagon' | 'hexagon' | 'star' | 'arrow' | 'bidirectionalArrow' | 'bentConnector'
 
 interface ToolbarProps {
   selectedTool: Tool
@@ -17,6 +17,9 @@ interface ToolbarProps {
   onResetView?: () => void
   onAskVega?: () => void
   isVegaOpen?: boolean
+  onToggleComments?: () => void
+  isCommentsOpen?: boolean
+  unreadCommentsCount?: number
 }
 
 export function Toolbar({
@@ -30,7 +33,10 @@ export function Toolbar({
   onResetZoom,
   onResetView,
   onAskVega,
-  isVegaOpen = false
+  isVegaOpen = false,
+  onToggleComments,
+  isCommentsOpen = false,
+  unreadCommentsCount = 0
 }: ToolbarProps) {
   const [circlesExpanded, setCirclesExpanded] = useState(false)
   const [polygonsExpanded, setPolygonsExpanded] = useState(false)
@@ -524,6 +530,90 @@ export function Toolbar({
 
           <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
         </>
+      )}
+
+      {/* Comment Tool */}
+      <button
+        onClick={() => onToolSelect('comment')}
+        title="Add Comment"
+        style={{
+          width: '40px',
+          height: '40px',
+          border: selectedTool === 'comment' ? '2px solid #8B5CF6' : '2px solid transparent',
+          borderRadius: '6px',
+          backgroundColor: selectedTool === 'comment' ? '#EDE9FE' : 'white',
+          color: '#1F2937',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          if (selectedTool !== 'comment') {
+            e.currentTarget.style.backgroundColor = '#F9FAFB'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (selectedTool !== 'comment') {
+            e.currentTarget.style.backgroundColor = 'white'
+          }
+        }}
+      >
+        <MessageSquarePlus size={20} color="#1F2937" />
+      </button>
+
+      {/* Comments Panel Toggle */}
+      {onToggleComments && (
+        <button
+          onClick={onToggleComments}
+          title="Comments"
+          style={{
+            position: 'relative',
+            width: '40px',
+            height: '40px',
+            border: isCommentsOpen ? '2px solid #8B5CF6' : '2px solid transparent',
+            borderRadius: '6px',
+            backgroundColor: isCommentsOpen ? '#EDE9FE' : 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            if (!isCommentsOpen) {
+              e.currentTarget.style.backgroundColor = '#F9FAFB'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isCommentsOpen) {
+              e.currentTarget.style.backgroundColor = 'white'
+            }
+          }}
+        >
+          <MessageCircle size={20} color={isCommentsOpen ? '#8B5CF6' : '#1F2937'} />
+          {unreadCommentsCount > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '4px',
+              right: '4px',
+              minWidth: '16px',
+              height: '16px',
+              borderRadius: '8px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              fontSize: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              padding: '0 4px'
+            }}>
+              {unreadCommentsCount > 99 ? '99+' : unreadCommentsCount}
+            </div>
+          )}
+        </button>
       )}
 
       {/* Ask Vega Button */}

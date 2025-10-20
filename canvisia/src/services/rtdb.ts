@@ -92,49 +92,63 @@ export async function removeCursor(
 
 /**
  * Add a connection for a user using Firebase's recommended presence pattern
- * Path: connections/{canvasId}/{userId}/{connectionId} (tracks individual connections)
- * Path: presence/{canvasId}/{userId} (aggregated presence status)
+ * Path: connections/{projectId}/{userId}/{connectionId} (tracks individual connections)
+ * Path: presence/{projectId}/{userId} (aggregated presence status)
  *
  * Strategy: Use Firebase Database triggers (via onValue at the hook level)
  * to monitor connections and update presence. Each tab creates a connection
  * entry that auto-removes on disconnect. A SINGLE global listener per user
  * monitors all their connections.
  *
- * @param canvasId - ID of the canvas
+ * @param projectId - ID of the project
  * @param userId - ID of the user
  * @param userName - User's display name
  * @param color - User's color
  * @returns Cleanup function to call on unmount
  */
 export async function addUserConnection(
-  canvasId: string,
+  projectId: string,
   userId: string,
   userName: string,
   color: string
 ): Promise<{ cleanup: () => Promise<void>; connectionId: string }> {
-  console.log('🟢 addUserConnection called:', { canvasId, userId, userName })
+  console.log('🟢 [addUserConnection] Called:', { projectId, userId, userName })
 
   // Generate a unique connection ID for this tab/window
   const connectionId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  console.log('[addUserConnection] Generated connectionId:', connectionId)
 
   // Separate paths for connections and presence
-  const connectionRef = ref(rtdb, `connections/${canvasId}/${userId}/${connectionId}`)
-  const presenceRef = ref(rtdb, `presence/${canvasId}/${userId}`)
+  const connectionRef = ref(rtdb, `connections/${projectId}/${userId}/${connectionId}`)
+  const presenceRef = ref(rtdb, `presence/${projectId}/${userId}`)
+
+  // Monitor Firebase connection state for this connection
+  const connectedRef = ref(rtdb, '.info/connected')
+  const connectionMonitor = onValue(connectedRef, (snapshot) => {
+    const isConnected = snapshot.val() === true
+    console.log(`🔌 [Firebase Connection] ${isConnected ? 'CONNECTED' : 'DISCONNECTED'} (connection ${connectionId})`)
+    if (!isConnected) {
+      console.log(`⚠️ [Firebase Connection] Connection lost - onDisconnect handlers should trigger soon for ${connectionId}`)
+    }
+  })
 
   try {
-    // Set this connection as active
+    console.log('[addUserConnection] Setting up onDisconnect handler FIRST')
+    // CRITICAL: Set up onDisconnect BEFORE writing the connection data
+    // This ensures the handler is in place before the connection exists
+    await onDisconnect(connectionRef).remove()
+    console.log(`✅ [addUserConnection] onDisconnect handler set for connection ${connectionId}`)
+
+    console.log('[addUserConnection] Setting connection data')
+    // Now set this connection as active
     await set(connectionRef, {
       connectedAt: serverTimestamp(),
       userName,
       color,
     })
+    console.log(`✅ [addUserConnection] Connection data written for ${connectionId}`)
 
-    // Setup automatic removal of this connection on disconnect
-    // This works in production Firebase, but not reliably in emulator
-    await onDisconnect(connectionRef).remove()
-
-    console.log(`✅ Set up onDisconnect for connection ${connectionId}`)
-
+    console.log('[addUserConnection] Updating presence to active')
     // Update the aggregated presence status to active
     // NOTE: Setting isActive to false is handled by the monitorUserConnections function
     await update(presenceRef, {
@@ -145,23 +159,33 @@ export async function addUserConnection(
       lastSeen: serverTimestamp(),
     } as any)
 
-    console.log('✅ Connection added successfully, connectionId:', connectionId)
+    console.log('✅ [addUserConnection] Connection added successfully, connectionId:', connectionId)
 
     // Return cleanup function
     const cleanup = async () => {
-      console.log('🧹 Cleaning up connection:', connectionId)
+      console.log('🧹 [addUserConnection cleanup] Removing connection:', connectionId)
+
+      // Unsubscribe from connection monitor
+      connectionMonitor()
+      console.log(`✅ [addUserConnection cleanup] Connection monitor unsubscribed for ${connectionId}`)
+
       try {
         await remove(connectionRef)
-        console.log(`✅ Connection ${connectionId} removed`)
+        console.log(`✅ [addUserConnection cleanup] Connection ${connectionId} removed from RTDB`)
       } catch (error) {
-        console.error(`❌ Failed to remove connection ${connectionId}:`, error)
+        // If permission denied, user likely signed out - onDisconnect will handle it
+        if (error instanceof Error && error.message.includes('PERMISSION_DENIED')) {
+          console.log(`⚠️ [addUserConnection cleanup] Permission denied (user signed out) - relying on onDisconnect for connection ${connectionId}`)
+        } else {
+          console.error(`❌ [addUserConnection cleanup] Failed to remove connection ${connectionId}:`, error)
+        }
       }
       // The monitorUserConnections listener will handle setting isActive to false if needed
     }
 
     return { cleanup, connectionId }
   } catch (error) {
-    console.error('❌ Failed to add user connection:', error)
+    console.error('❌ [addUserConnection] Failed to add user connection:', error)
     throw error
   }
 }
@@ -173,89 +197,106 @@ const connectionMonitors = new Map<string, { unsubscribe: () => void; refCount: 
  * Monitor all connections for a specific user and update their presence status
  * Uses a singleton pattern to ensure only ONE monitor per user across ALL tabs
  *
- * @param canvasId - ID of the canvas
+ * @param projectId - ID of the project
  * @param userId - ID of the user
  * @returns Unsubscribe function
  */
 export function monitorUserConnections(
-  canvasId: string,
+  projectId: string,
   userId: string
 ): () => void {
-  const monitorKey = `${canvasId}:${userId}`
+  const monitorKey = `${projectId}:${userId}`
+  console.log(`📊 [monitorUserConnections] Called for ${monitorKey}`)
 
   // If monitor already exists, increment ref count and return existing unsubscribe
   if (connectionMonitors.has(monitorKey)) {
     const monitor = connectionMonitors.get(monitorKey)!
     monitor.refCount++
-    console.log(`📊 Reusing existing connection monitor for ${userId}, refCount: ${monitor.refCount}`)
+    console.log(`📊 [monitorUserConnections] Reusing existing monitor for ${userId}, refCount: ${monitor.refCount}`)
 
     // Return a wrapper that decrements ref count
     return () => {
       monitor.refCount--
-      console.log(`📊 Decrementing monitor refCount for ${userId}, refCount: ${monitor.refCount}`)
+      console.log(`📊 [monitorUserConnections unsubscribe] Decrementing refCount for ${userId}, refCount: ${monitor.refCount}`)
       if (monitor.refCount <= 0) {
+        console.log(`📊 [monitorUserConnections unsubscribe] RefCount is 0, removing monitor for ${userId}`)
         monitor.unsubscribe()
         connectionMonitors.delete(monitorKey)
-        console.log(`📊 Removed connection monitor for ${userId}`)
+        console.log(`📊 [monitorUserConnections unsubscribe] Monitor removed for ${userId}`)
       }
     }
   }
 
   // Create new monitor
-  console.log(`📊 Creating new connection monitor for ${userId}`)
-  const userConnectionsRef = ref(rtdb, `connections/${canvasId}/${userId}`)
-  const presenceRef = ref(rtdb, `presence/${canvasId}/${userId}`)
+  console.log(`📊 [monitorUserConnections] Creating NEW monitor for ${userId}`)
+  const userConnectionsRef = ref(rtdb, `connections/${projectId}/${userId}`)
+  const presenceRef = ref(rtdb, `presence/${projectId}/${userId}`)
 
   const unsubscribe = onValue(userConnectionsRef, async (snapshot) => {
     const connections = snapshot.val()
     const hasConnections = connections && Object.keys(connections).length > 0
+    const connectionCount = connections ? Object.keys(connections).length : 0
 
-    console.log(`📊 Connection count for ${userId}:`, connections ? Object.keys(connections).length : 0)
+    console.log(`📊 [monitorUserConnections onValue] Connection update for ${userId}:`, {
+      connectionCount,
+      hasConnections,
+      connectionIds: connections ? Object.keys(connections) : []
+    })
 
     // Update presence based on whether connections exist
-    await update(presenceRef, {
-      isActive: hasConnections,
-      lastSeen: serverTimestamp(),
-    } as any)
+    console.log(`📊 [monitorUserConnections onValue] Updating presence to isActive=${hasConnections}`)
+    try {
+      await update(presenceRef, {
+        isActive: hasConnections,
+        lastSeen: serverTimestamp(),
+      } as any)
+      console.log(`✅ [monitorUserConnections onValue] Presence updated successfully for ${userId}`)
+    } catch (error) {
+      console.error(`❌ [monitorUserConnections onValue] Failed to update presence for ${userId}:`, error)
+    }
   })
 
   // Store monitor with ref count
   connectionMonitors.set(monitorKey, { unsubscribe, refCount: 1 })
+  console.log(`📊 [monitorUserConnections] Monitor stored with refCount=1 for ${userId}`)
 
   // Return wrapper that manages ref count
   return () => {
     const monitor = connectionMonitors.get(monitorKey)
     if (monitor) {
       monitor.refCount--
-      console.log(`📊 Decrementing monitor refCount for ${userId}, refCount: ${monitor.refCount}`)
+      console.log(`📊 [monitorUserConnections unsubscribe] Decrementing refCount for ${userId}, refCount: ${monitor.refCount}`)
       if (monitor.refCount <= 0) {
+        console.log(`📊 [monitorUserConnections unsubscribe] RefCount is 0, removing monitor for ${userId}`)
         monitor.unsubscribe()
         connectionMonitors.delete(monitorKey)
-        console.log(`📊 Removed connection monitor for ${userId}`)
+        console.log(`📊 [monitorUserConnections unsubscribe] Monitor removed for ${userId}`)
       }
+    } else {
+      console.log(`⚠️ [monitorUserConnections unsubscribe] No monitor found for ${monitorKey}`)
     }
   }
 }
 
 /**
  * Set user presence in Firebase RTDB (legacy - prefer addUserConnection)
- * Path: presence/{canvasId}/{userId}
+ * Path: presence/{projectId}/{userId}
  *
- * @param canvasId - ID of the canvas
+ * @param projectId - ID of the project
  * @param userId - ID of the user
  * @param userName - User's display name
  * @param color - User's color
  * @param isActive - Whether user is active
  */
 export async function setUserPresence(
-  canvasId: string,
+  projectId: string,
   userId: string,
   userName: string,
   color: string,
   isActive: boolean
 ): Promise<void> {
-  console.log('🟢 setUserPresence called:', { canvasId, userId, userName, isActive })
-  const presenceRef = ref(rtdb, `presence/${canvasId}/${userId}`)
+  console.log('🟢 setUserPresence called:', { projectId, userId, userName, isActive })
+  const presenceRef = ref(rtdb, `presence/${projectId}/${userId}`)
   const presenceData: Presence = {
     userId,
     userName,
@@ -296,22 +337,24 @@ export async function setupPresenceCleanup(
 }
 
 /**
- * Subscribe to presence updates on a canvas
- * Path: presence/{canvasId}
+ * Subscribe to presence updates on a project
+ * Path: presence/{projectId}
  *
- * @param canvasId - ID of the canvas
+ * @param projectId - ID of the project
  * @param callback - Called when presence updates
  * @returns Unsubscribe function
  */
 export function subscribeToPresence(
-  canvasId: string,
+  projectId: string,
   callback: (presence: Presence[]) => void
 ): () => void {
-  const presenceRef = ref(rtdb, `presence/${canvasId}`)
+  console.log(`👥 [subscribeToPresence] Subscribing to presence for project ${projectId}`)
+  const presenceRef = ref(rtdb, `presence/${projectId}`)
 
   const handleValue = (snapshot: DataSnapshot) => {
     const userPresence = snapshot.val() || {}
-    console.log('👥 Presence snapshot received:', userPresence)
+    console.log('👥 [subscribeToPresence onValue] Presence snapshot received:', userPresence)
+
     // Convert object to array of Presence entries and filter for active users only
     const presenceList: Presence[] = Object.values(userPresence)
       .map((data: any) => ({
@@ -322,16 +365,27 @@ export function subscribeToPresence(
         lastSeen: data.lastSeen,
       }))
       .filter((p) => p.isActive) // Only show active users
-    console.log('👥 Active presence list:', presenceList)
+
+    console.log('👥 [subscribeToPresence onValue] Active presence list:', {
+      totalUsers: Object.keys(userPresence).length,
+      activeUsers: presenceList.length,
+      activeUserIds: presenceList.map(p => p.userId)
+    })
+
     callback(presenceList)
   }
 
   const handleError = (error: Error) => {
-    console.error('Presence subscription error:', error)
+    console.error('❌ [subscribeToPresence] Presence subscription error:', error)
   }
 
   const unsubscribe = onValue(presenceRef, handleValue, handleError)
-  return unsubscribe
+  console.log(`👥 [subscribeToPresence] Subscription established for project ${projectId}`)
+
+  return () => {
+    console.log(`👥 [subscribeToPresence unsubscribe] Unsubscribing from presence for project ${projectId}`)
+    unsubscribe()
+  }
 }
 
 /**

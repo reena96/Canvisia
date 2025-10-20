@@ -1,30 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Share2 } from 'lucide-react';
+import { Share2, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { getUserProjects, createProject, updateProject } from '@/services/firestore';
+import { getUserProjects, createProject, updateProject, deleteProject } from '@/services/firestore';
 import type { Project } from '@/types/project';
 import { ShareDialog } from '@/components/share/ShareDialog';
 import { Header } from '@/components/layout/Header';
 import './ProjectsPage.css';
-
-type TabType = 'recent' | 'shared' | 'owned';
 
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('recent');
   const [creatingProject, setCreatingProject] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [sharingProjectId, setSharingProjectId] = useState<string | null>(null);
-  const [copyLinkFeedback, setCopyLinkFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[ProjectsPage] User changed:', user);
     loadProjects();
+  }, [user]);
+
+  // Reload projects when page becomes visible (user navigates back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('[ProjectsPage] Page visible, reloading projects');
+        loadProjects();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also reload when window gains focus
+    const handleFocus = () => {
+      if (user) {
+        console.log('[ProjectsPage] Window focused, reloading projects');
+        loadProjects();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [user]);
 
   const loadProjects = async () => {
@@ -52,18 +75,29 @@ const ProjectsPage: React.FC = () => {
     try {
       setCreatingProject(true);
       console.log('[ProjectsPage] Creating project for user:', user.uid);
+      const projectName = `Untitled Project ${projects.length + 1}`;
       const newProjectId = await createProject(
         user.uid,
-        `Untitled Project ${projects.length + 1}`
+        projectName
       );
       console.log('[ProjectsPage] Project created:', newProjectId);
 
-      // Reload projects to show the new one
-      await loadProjects();
+      // Add new project directly to state instead of reloading all projects
+      const now = new Date();
+      const newProject: Project = {
+        id: newProjectId,
+        name: projectName,
+        ownerId: user.uid,
+        thumbnail: null,
+        createdAt: now,
+        lastModified: now,
+        lastAccessed: now,
+      };
+      setProjects([newProject, ...projects]);
 
       // Automatically start renaming the new project
       setEditingProjectId(newProjectId);
-      setEditingName(`Untitled Project ${projects.length + 1}`);
+      setEditingName(projectName);
     } catch (error) {
       console.error('[ProjectsPage] Error creating project:', error);
       alert('Failed to create project. Check console for details.');
@@ -125,36 +159,27 @@ const ProjectsPage: React.FC = () => {
     setSharingProjectId(projectId);
   };
 
-  const handleCopyLink = async (projectId: string, e: React.MouseEvent) => {
+  const handleDelete = async (projectId: string, projectName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/p/${projectId}`;
+
+    if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(url);
-      setCopyLinkFeedback(projectId);
-      setTimeout(() => setCopyLinkFeedback(null), 2000);
+      await deleteProject(projectId);
+      await loadProjects();
     } catch (error) {
-      console.error('Failed to copy link:', error);
-      alert('Failed to copy link');
+      console.error('[ProjectsPage] Error deleting project:', error);
+      alert('Failed to delete project');
     }
   };
 
   const getFilteredProjects = () => {
-    if (!user) return [];
-
-    switch (activeTab) {
-      case 'recent':
-        return [...projects].sort((a, b) =>
-          b.lastModified.getTime() - a.lastModified.getTime()
-        );
-      case 'shared':
-        return projects.filter(p =>
-          p.ownerId !== user.uid
-        );
-      case 'owned':
-        return projects.filter(p => p.ownerId === user.uid);
-      default:
-        return projects;
-    }
+    // Show all owned projects sorted by lastModified
+    return [...projects].sort((a, b) =>
+      b.lastModified.getTime() - a.lastModified.getTime()
+    );
   };
 
   const formatTimestamp = (timestamp: any): string => {
@@ -198,26 +223,6 @@ const ProjectsPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="projects-tabs">
-          <button
-            className={`tab ${activeTab === 'recent' ? 'active' : ''}`}
-            onClick={() => setActiveTab('recent')}
-          >
-            Recently viewed
-          </button>
-          <button
-            className={`tab ${activeTab === 'shared' ? 'active' : ''}`}
-            onClick={() => setActiveTab('shared')}
-          >
-            Shared with me
-          </button>
-          <button
-            className={`tab ${activeTab === 'owned' ? 'active' : ''}`}
-            onClick={() => setActiveTab('owned')}
-          >
-            Owned by me
-          </button>
-        </div>
 
         {filteredProjects.length === 0 ? (
           <div className="empty-state">
@@ -268,16 +273,23 @@ const ProjectsPage: React.FC = () => {
                         <button
                           className="share-project-btn"
                           onClick={(e) => handleShare(project.id, e)}
-                          title={copyLinkFeedback === project.id ? "Link copied!" : "Share project"}
+                          title="Share project"
                         >
-                          <Share2 size={14} />
+                          <Share2 size={16} />
                         </button>
                         <button
                           className="rename-project-btn"
                           onClick={(e) => handleStartRename(project.id, project.name, e)}
                           title="Rename project"
                         >
-                          ✏️
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          className="delete-project-btn"
+                          onClick={(e) => handleDelete(project.id, project.name, e)}
+                          title="Delete project"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
