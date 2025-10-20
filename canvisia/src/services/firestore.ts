@@ -20,11 +20,16 @@ export { db }
 
 /**
  * Create a new shape in Firestore
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path (e.g., "projects/abc/canvases/xyz" or "default-canvas")
  * @param shape - Shape data
  */
-export async function createShape(canvasId: string, shape: Shape): Promise<void> {
-  const shapeRef = doc(db, 'canvases', canvasId, 'objects', shape.id)
+export async function createShape(canvasPath: string, shape: Shape): Promise<void> {
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const shapeRef = doc(db, objectsPath, shape.id)
 
   // Convert Date to Firestore Timestamp
   const shapeData = {
@@ -39,16 +44,20 @@ export async function createShape(canvasId: string, shape: Shape): Promise<void>
 
 /**
  * Update an existing shape in Firestore
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path
  * @param shapeId - Shape ID
  * @param updates - Partial shape data to update
  */
 export async function updateShape(
-  canvasId: string,
+  canvasPath: string,
   shapeId: string,
   updates: Partial<Shape>
 ): Promise<void> {
-  const shapeRef = doc(db, 'canvases', canvasId, 'objects', shapeId)
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const shapeRef = doc(db, objectsPath, shapeId)
 
   // Add updatedAt timestamp
   const updateData = {
@@ -61,21 +70,29 @@ export async function updateShape(
 
 /**
  * Delete a shape from Firestore
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path
  * @param shapeId - Shape ID
  */
-export async function deleteShape(canvasId: string, shapeId: string): Promise<void> {
-  const shapeRef = doc(db, 'canvases', canvasId, 'objects', shapeId)
+export async function deleteShape(canvasPath: string, shapeId: string): Promise<void> {
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const shapeRef = doc(db, objectsPath, shapeId)
   await deleteDoc(shapeRef)
 }
 
 /**
  * Get all shapes from a canvas (one-time fetch)
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path
  * @returns Promise with array of shapes
  */
-export async function getShapes(canvasId: string): Promise<Shape[]> {
-  const objectsRef = collection(db, 'canvases', canvasId, 'objects')
+export async function getShapes(canvasPath: string): Promise<Shape[]> {
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const objectsRef = collection(db, objectsPath)
   const q = query(objectsRef)
 
   const snapshot = await getDocs(q)
@@ -98,15 +115,19 @@ export async function getShapes(canvasId: string): Promise<Shape[]> {
 
 /**
  * Subscribe to shapes collection with real-time updates
- * @param canvasId - Canvas ID
- * @param callback - Callback function with shapes array
+ * @param canvasPath - Full canvas path
+ * @param callback - Callback function called with shapes array when data changes
  * @returns Unsubscribe function
  */
 export function subscribeToShapes(
-  canvasId: string,
+  canvasPath: string,
   callback: (shapes: Shape[]) => void
 ): () => void {
-  const objectsRef = collection(db, 'canvases', canvasId, 'objects')
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const objectsRef = collection(db, objectsPath)
   const q = query(objectsRef)
 
   const unsubscribe = onSnapshot(
