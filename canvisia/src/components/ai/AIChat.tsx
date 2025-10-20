@@ -5,7 +5,6 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { addChatMessage, subscribeToChatMessages, markMessageAsRead, createChatTab, hideChatTab, unhideChatTab, renameChatTab, subscribeToChatTabs } from '@/services/firestore'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { AI_COMMAND_EXAMPLES, type CommandExample } from '@/constants/aiCommandExamples'
-import { Tooltip } from '@/components/ui/Tooltip'
 
 // Component to format and render message text with markdown-like formatting
 const FormattedMessage = ({ text }: { text: string }) => {

@@ -1,7 +1,9 @@
-import { createShape, updateShape, getShapes } from '@/services/firestore'
+import { createShape, updateShape, getShapes, deleteShape } from '@/services/firestore'
 import { writeBatchShapePositions, clearShapePositions } from '@/services/rtdb'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
+import type { ExecutionResult } from '@/services/ai/executor'
+import { getLastUndoAction, deleteUndoAction } from '@/services/ai/undo'
 import { v4 as uuidv4 } from 'uuid'
 import {
   getViewportBounds,
@@ -1405,7 +1407,6 @@ export async function executeChangeColor(
         type: input.type,
         color: input.color,
         textContent: input.textContent,
-        groupName: input.groupName,
       })
       console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
     } else {
@@ -1492,7 +1493,6 @@ export async function executeDeleteElements(
         type: input.type,
         color: input.color,
         textContent: input.textContent,
-        groupName: input.groupName,
       })
       console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
     } else {
@@ -1908,15 +1908,10 @@ export async function executeArrangeElements(
 ): Promise<void> {
   console.log('[AI Helpers] executeArrangeElements called with:', input)
 
-  // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
-    ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
-
-  const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
-
   // Extract canvasId for RTDB operations
   const canvasId = canvasPath.split('/').pop() || ''
+
+  const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
 
   // Get all shapes
   const allShapes = await getShapes(canvasPath)
@@ -2018,14 +2013,10 @@ export async function executeAlignElements(
   console.log('[AI Helpers] executeAlignElements called with:', input)
 
   // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
-    ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
-
-  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
-
   // Extract canvasId for RTDB operations
   const canvasId = canvasPath.split('/').pop() || ''
+
+  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
 
   // Get all shapes
   const allShapes = await getShapes(canvasPath)
@@ -2100,8 +2091,6 @@ export async function executeAlignElements(
       clarification: `I aligned ${shapesToAlign.length} ${shapeType}${shapesToAlign.length === 1 ? '' : 's'} to ${alignment}. Did you expect to align more ${shapeType}s?`
     }
   }
-
-  return result
 }
 
 // =============================================================================
