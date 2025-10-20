@@ -40,15 +40,22 @@ function getCursor(handle: ResizeHandle): string {
 export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStart, viewport }: MultiSelectResizeHandlesProps) {
   if (shapes.length === 0) return null
 
-  console.log('[MultiSelectResizeHandles] Rendering with shapes:', shapes.map(s => ({
-    id: s.id,
-    type: s.type,
-    x: s.x,
-    y: s.y,
-    width: (s as any).width,
-    height: (s as any).height,
-    rotation: s.rotation
-  })))
+  // DETAILED LOGGING: Show actual dimensions to debug selection box issue
+  const shapeDetails = shapes.map(s => {
+    const details: any = {
+      id: s.id.substring(0, 8),
+      type: s.type,
+      x: Math.round(s.x),
+      y: Math.round(s.y),
+    }
+    if ('width' in s) details.w = Math.round((s as any).width)
+    if ('height' in s) details.h = Math.round((s as any).height)
+    if ('radius' in s) details.r = Math.round((s as any).radius)
+    if ('radiusX' in s) details.rx = Math.round((s as any).radiusX)
+    if ('radiusY' in s) details.ry = Math.round((s as any).radiusY)
+    return details
+  })
+  console.log('[MultiSelectResizeHandles] Rendering with shapes:', shapeDetails)
 
   // Calculate bounding box of all selected shapes
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity

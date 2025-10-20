@@ -436,14 +436,35 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       }
 
       // Has local update - merge and create new object
-      console.log('[shapes useMemo] Merging shape with local update:', {
-        shapeId: shape.id,
-        firestoreData: { x: shape.x, y: shape.y, width: (shape as any).width, height: (shape as any).height },
-        localUpdate
-      })
       const mergedShape = {
         ...shape,
         ...localUpdate,
+      }
+
+      // DETAILED LOGGING: Track dimension merging
+      if ('width' in localUpdate || 'height' in localUpdate) {
+        console.log('[shapes useMemo] DIMENSION MERGE:', {
+          id: shape.id.substring(0, 8),
+          type: shape.type,
+          firestore: {
+            w: (shape as any).width,
+            h: (shape as any).height,
+            x: Math.round(shape.x),
+            y: Math.round(shape.y)
+          },
+          localUpdate: {
+            w: (localUpdate as any).width,
+            h: (localUpdate as any).height,
+            x: localUpdate.x ? Math.round(localUpdate.x) : undefined,
+            y: localUpdate.y ? Math.round(localUpdate.y) : undefined
+          },
+          merged: {
+            w: (mergedShape as any).width,
+            h: (mergedShape as any).height,
+            x: Math.round(mergedShape.x),
+            y: Math.round(mergedShape.y)
+          }
+        })
       }
 
       // Check if this matches previous merged version
@@ -2460,7 +2481,14 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       updateShapesLocalBatch(allUpdates)
 
       // PERFORMANCE: Single batch RTDB write for all shapes
-      writeBatchShapePositions(canvasId, allUpdates).catch(() => {})
+      // Convert to LivePosition format (add updatedBy field)
+      const rtdbUpdates = new Map(
+        Array.from(allUpdates.entries()).map(([id, updates]) => [
+          id,
+          { ...updates, updatedBy: userId || 'unknown' } as Omit<import('@/services/rtdb').LivePosition, 'updatedAt'>
+        ])
+      )
+      writeBatchShapePositions(canvasId, rtdbUpdates).catch(() => {})
     }
     // Single shape rotation
     else if (selectedShapeId) {
@@ -2821,6 +2849,24 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           {selectedIds.length > 1 && !isDraggingShape && !isResizing && !isRotating && (() => {
             const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
             if (selectedShapes.length === 0) return null
+
+            // CRITICAL LOGGING: What dimensions do shapes have when passed to MultiSelectResizeHandles?
+            const localUpdatesForSelected = Object.fromEntries(
+              selectedShapes
+                .filter(s => localShapeUpdates[s.id])
+                .map(s => [s.id.substring(0, 8), localShapeUpdates[s.id]])
+            )
+            console.log('[Canvas] Passing shapes to MultiSelectResizeHandles:', {
+              shapes: selectedShapes.map(s => ({
+                id: s.id.substring(0, 8),
+                w: (s as any).width,
+                h: (s as any).height,
+                x: Math.round(s.x),
+                y: Math.round(s.y)
+              })),
+              hasLocalUpdates: Object.keys(localUpdatesForSelected).length > 0,
+              localUpdates: localUpdatesForSelected
+            })
 
             return (
               <MultiSelectResizeHandles
