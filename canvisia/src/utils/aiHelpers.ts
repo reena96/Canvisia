@@ -2470,7 +2470,7 @@ export async function executeCreateFlowchart(
     await createShape(canvasId, arrow)
     createdConnections.push({ from: conn.from, to: conn.to, arrowId })
 
-    // Create label if provided
+    // Create label if provided (positioned BESIDE arrow, not overlapping)
     if (conn.label) {
       const labelId = uuidv4()
       const midX = (fromNode.centerX + toNode.centerX) / 2
@@ -2479,8 +2479,8 @@ export async function executeCreateFlowchart(
       const labelText: Text = {
         id: labelId,
         type: 'text',
-        x: midX + 15,
-        y: midY - 9,
+        x: midX + 25, // Position clearly to the right of arrow (not overlapping)
+        y: midY - 11, // Position clearly above arrow midpoint
         text: conn.label,
         fontSize: 14,
         fontFamily: 'Arial',
@@ -2679,11 +2679,12 @@ export async function executeCreateDiagram(
         updatedAt: new Date().toISOString(),
       } as Circle)
 
+      // Node label text - centered INSIDE the circle (not half-overlapping)
       await createShape(canvasId, {
         id: uuidv4(),
         type: 'text',
         x: startX,
-        y: startY - 6,
+        y: startY - 11, // Center text vertically inside circle (subtract half of text height)
         text: 'Node 1',
         fontSize: 14,
         fontFamily: 'Arial',
