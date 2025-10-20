@@ -530,11 +530,13 @@ export function subscribeToChatTabs(
  * Create a new project with default canvas
  * @param userId - Owner user ID
  * @param projectName - Project name
+ * @param userEmail - Optional user email
  * @returns Project ID
  */
 export async function createProject(
   userId: string,
-  projectName: string = 'Untitled Project'
+  projectName: string = 'Untitled Project',
+  userEmail: string = ''
 ): Promise<string> {
   const projectId = doc(collection(db, 'projects')).id
   const now = Timestamp.now()
@@ -564,7 +566,7 @@ export async function createProject(
   } = {
     projectId,
     userId,
-    userEmail: '', // Will be filled by caller if available
+    userEmail: userEmail,
     role: 'owner',
     invitedBy: userId,
     invitedAt: now,
