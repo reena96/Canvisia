@@ -283,7 +283,12 @@ export async function addChatMessage(
     userEmail?: string
   }
 ): Promise<void> {
-  const messageRef = doc(db, 'canvases', canvasId, 'chats', tabId, 'messages', message.id)
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const messageRef = doc(db, basePath, 'chats', tabId, 'messages', message.id)
 
   const messageData = {
     ...message,
@@ -306,7 +311,12 @@ export function subscribeToChatMessages(
   tabId: string,
   callback: (messages: any[]) => void
 ): () => void {
-  const messagesRef = collection(db, 'canvases', canvasId, 'chats', tabId, 'messages')
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const messagesRef = collection(db, basePath, 'chats', tabId, 'messages')
   const q = query(messagesRef)
 
   const unsubscribe = onSnapshot(
@@ -353,7 +363,12 @@ export async function markMessageAsRead(
   messageId: string,
   userEmail: string
 ): Promise<void> {
-  const messageRef = doc(db, 'canvases', canvasId, 'chats', tabId, 'messages', messageId)
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const messageRef = doc(db, basePath, 'chats', tabId, 'messages', messageId)
 
   await updateDoc(messageRef, {
     readBy: arrayUnion(userEmail)
@@ -371,7 +386,12 @@ export async function createChatTab(
   tabId: string,
   tabName: string
 ): Promise<void> {
-  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const tabRef = doc(db, basePath, 'chatTabs', tabId)
 
   await setDoc(tabRef, {
     id: tabId,
@@ -392,7 +412,12 @@ export async function renameChatTab(
   tabId: string,
   newName: string
 ): Promise<void> {
-  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const tabRef = doc(db, basePath, 'chatTabs', tabId)
 
   await updateDoc(tabRef, {
     name: newName
@@ -410,7 +435,12 @@ export async function hideChatTab(
   tabId: string,
   userEmail: string
 ): Promise<void> {
-  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const tabRef = doc(db, basePath, 'chatTabs', tabId)
   await updateDoc(tabRef, {
     hiddenBy: arrayUnion(userEmail)
   })
@@ -427,7 +457,12 @@ export async function unhideChatTab(
   tabId: string,
   userEmail: string
 ): Promise<void> {
-  const tabRef = doc(db, 'canvases', canvasId, 'chatTabs', tabId)
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const tabRef = doc(db, basePath, 'chatTabs', tabId)
 
   // Get current hiddenBy array
   const tabDoc = await getDoc(tabRef)
@@ -451,7 +486,12 @@ export function subscribeToChatTabs(
   canvasId: string,
   callback: (tabs: any[]) => void
 ): () => void {
-  const tabsRef = collection(db, 'canvases', canvasId, 'chatTabs')
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const basePath = canvasId.includes('/')
+    ? canvasId
+    : `canvases/${canvasId}`
+
+  const tabsRef = collection(db, basePath, 'chatTabs')
   const q = query(tabsRef)
 
   const unsubscribe = onSnapshot(
