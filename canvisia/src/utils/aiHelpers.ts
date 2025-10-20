@@ -144,7 +144,7 @@ function resolveColor(color?: string): string {
  * Creates N shapes and arranges them in a grid pattern by default
  */
 export async function executeCreateMultipleShapes(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     count: number
@@ -162,6 +162,11 @@ export async function executeCreateMultipleShapes(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateMultipleShapes called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
 
   const {
     count,
@@ -185,7 +190,7 @@ export async function executeCreateMultipleShapes(
 
   // Smart placement starting position
   const viewportBounds = getViewportBounds(viewport)
-  const existingShapes = await getShapes(canvasId)
+  const existingShapes = await getShapes(canvasPath)
 
   // Determine shape size for initial placement
   let shapeWidth = width
@@ -373,7 +378,7 @@ export async function executeCreateMultipleShapes(
   console.log(`[AI Helpers] Creating ${arrangedShapes.length} shapes in Firestore`)
 
   for (const shape of arrangedShapes) {
-    await createShape(canvasId, shape)
+    await createShape(canvasPath, shape)
   }
 
   console.log('[AI Helpers] Multiple shapes created successfully')
@@ -383,7 +388,7 @@ export async function executeCreateMultipleShapes(
  * Execute create_shape tool call
  */
 export async function executeCreateShape(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     shapeType: string
@@ -400,6 +405,11 @@ export async function executeCreateShape(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
 
   const {
     shapeType,
@@ -426,7 +436,7 @@ export async function executeCreateShape(
   } else {
     // Smart placement in viewport
     const viewportBounds = getViewportBounds(viewport)
-    const existingShapes = await getShapes(canvasId)
+    const existingShapes = await getShapes(canvasPath)
 
     // Determine shape size for collision detection
     let shapeWidth = width
@@ -587,7 +597,7 @@ export async function executeCreateShape(
   }
 
   console.log('[AI Helpers] Creating shape in Firestore:', shape)
-  await createShape(canvasId, shape)
+  await createShape(canvasPath, shape)
   console.log('[AI Helpers] Shape created successfully:', shape.id)
 }
 
@@ -595,7 +605,7 @@ export async function executeCreateShape(
  * Execute create_text tool call
  */
 export async function executeCreateText(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     text: string
@@ -608,6 +618,11 @@ export async function executeCreateText(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
 
   const {
     text,
@@ -632,7 +647,7 @@ export async function executeCreateText(
   } else {
     // Smart placement in viewport
     const viewportBounds = getViewportBounds(viewport)
-    const existingShapes = await getShapes(canvasId)
+    const existingShapes = await getShapes(canvasPath)
 
     const placement = findEmptySpaceInViewport(
       viewportBounds,
@@ -675,7 +690,7 @@ export async function executeCreateText(
   }
 
   console.log('[AI Helpers] Creating text in Firestore:', textShape)
-  await createShape(canvasId, textShape)
+  await createShape(canvasPath, textShape)
   console.log('[AI Helpers] Text created successfully:', textShape.id)
 }
 
@@ -683,7 +698,7 @@ export async function executeCreateText(
  * Execute create_arrow tool call
  */
 export async function executeCreateArrow(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     x1?: number
@@ -696,6 +711,11 @@ export async function executeCreateArrow(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
 
   const {
     x1: inputX1,
@@ -723,7 +743,7 @@ export async function executeCreateArrow(
   } else {
     // Smart placement in viewport
     const viewportBounds = getViewportBounds(viewport)
-    const existingShapes = await getShapes(canvasId)
+    const existingShapes = await getShapes(canvasPath)
 
     const placement = findEmptySpaceInViewport(
       viewportBounds,
@@ -776,7 +796,7 @@ export async function executeCreateArrow(
   }
 
   console.log('[AI Helpers] Creating arrow in Firestore:', arrow)
-  await createShape(canvasId, arrow)
+  await createShape(canvasPath, arrow)
   console.log('[AI Helpers] Arrow created successfully:', arrow.id)
 }
 
@@ -1064,7 +1084,7 @@ export function findShape(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeMoveElement(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementId?: string
@@ -1079,8 +1099,13 @@ export async function executeMoveElement(
 ): Promise<void> {
   console.log('[AI Helpers] executeMoveElement called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   // Get all shapes
-  const shapes = await getShapes(canvasId)
+  const shapes = await getShapes(canvasPath)
 
   // Find the target shape
   const shape = findShape(shapes, {
@@ -1150,7 +1175,7 @@ export async function executeMoveElement(
     firestoreUpdates.bendX = positionData.bendX
     firestoreUpdates.bendY = positionData.bendY
   }
-  await updateShape(canvasId, shape.id, firestoreUpdates)
+  await updateShape(canvasPath, shape.id, firestoreUpdates)
 
   // 4. Clear RTDB (Firestore is now source of truth)
   await clearShapePositions(canvasId, [shape.id])
@@ -1163,7 +1188,7 @@ export async function executeMoveElement(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeResizeElement(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementId?: string
@@ -1181,8 +1206,13 @@ export async function executeResizeElement(
 ): Promise<void> {
   console.log('[AI Helpers] executeResizeElement called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   // Get all shapes
-  const shapes = await getShapes(canvasId)
+  const shapes = await getShapes(canvasPath)
 
   // Find the target shape
   const shape = findShape(shapes, {
@@ -1264,7 +1294,7 @@ export async function executeResizeElement(
   await new Promise(resolve => setTimeout(resolve, 100))
 
   // 3. Persist to Firestore for permanent storage
-  await updateShape(canvasId, shape.id, updates)
+  await updateShape(canvasPath, shape.id, updates)
 
   // 4. Clear RTDB (Firestore is now source of truth)
   await clearShapePositions(canvasId, [shape.id])
@@ -1277,7 +1307,7 @@ export async function executeResizeElement(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeRotateElement(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementId?: string
@@ -1290,8 +1320,13 @@ export async function executeRotateElement(
 ): Promise<void> {
   console.log('[AI Helpers] executeRotateElement called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   // Get all shapes
-  const shapes = await getShapes(canvasId)
+  const shapes = await getShapes(canvasPath)
 
   // Find the target shape
   const shape = findShape(shapes, {
@@ -1323,7 +1358,7 @@ export async function executeRotateElement(
   await new Promise(resolve => setTimeout(resolve, 100))
 
   // 3. Persist to Firestore for permanent storage
-  await updateShape(canvasId, shape.id, { rotation: input.angle })
+  await updateShape(canvasPath, shape.id, { rotation: input.angle })
 
   // 4. Clear RTDB (Firestore is now source of truth)
   await clearShapePositions(canvasId, [shape.id])
@@ -1696,7 +1731,7 @@ function alignShapesToViewport(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeArrangeElements(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementIds: string[]
@@ -1710,10 +1745,15 @@ export async function executeArrangeElements(
 ): Promise<void> {
   console.log('[AI Helpers] executeArrangeElements called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
 
   // Get all shapes
-  const allShapes = await getShapes(canvasId)
+  const allShapes = await getShapes(canvasPath)
 
   // Handle "all" keyword - arrange all shapes on canvas
   const shouldArrangeAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
@@ -1779,7 +1819,7 @@ export async function executeArrangeElements(
   // 3. Persist all to Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const shape of arrangedShapes) {
-    await updateShape(canvasId, shape.id, {
+    await updateShape(canvasPath, shape.id, {
       x: shape.x,
       y: shape.y,
     })
@@ -1796,7 +1836,7 @@ export async function executeArrangeElements(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeAlignElements(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementIds: string[]
@@ -1811,10 +1851,15 @@ export async function executeAlignElements(
 ): Promise<void> {
   console.log('[AI Helpers] executeAlignElements called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
 
   // Get all shapes
-  const allShapes = await getShapes(canvasId)
+  const allShapes = await getShapes(canvasPath)
 
   // Handle "all" keyword - align all shapes on canvas
   const shouldAlignAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
@@ -1865,7 +1910,7 @@ export async function executeAlignElements(
   // 3. Persist all to Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const alignedShape of alignedShapes) {
-    await updateShape(canvasId, alignedShape.id, {
+    await updateShape(canvasPath, alignedShape.id, {
       x: alignedShape.x,
       y: alignedShape.y,
     })
