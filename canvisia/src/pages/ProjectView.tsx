@@ -5,14 +5,20 @@ import { Canvas } from '../components/canvas/Canvas';
 import { CanvasSidebar } from '../components/canvas/CanvasSidebar';
 import { AIChat } from '@/components/ai/AIChat';
 import { Header } from '@/components/layout/Header';
-import { getProject } from '@/services/firestore';
+import { getProject, getProjectCanvases } from '@/services/firestore';
 import type { Project } from '@/types/project';
 
 interface CanvasData {
   id: string;
   name: string;
-  thumbnail_url?: string;
-  created_at: string;
+  thumbnail?: string | null;
+  order: number;
+  settings: {
+    backgroundColor: string;
+    gridEnabled: boolean;
+  };
+  createdAt: Date;
+  lastModified: Date;
 }
 
 export const ProjectView: React.FC = () => {
@@ -27,19 +33,12 @@ export const ProjectView: React.FC = () => {
     if (!projectId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('canvases')
-        .select('id, name, thumbnail_url, created_at')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      setCanvases(data || []);
+      const canvasesData = await getProjectCanvases(projectId);
+      setCanvases(canvasesData);
 
       // If no canvas is specified but we have canvases, navigate to the first one
-      if (!canvasId && data && data.length > 0) {
-        navigate(`/projects/${projectId}/canvas/${data[0].id}`, { replace: true });
+      if (!canvasId && canvasesData && canvasesData.length > 0) {
+        navigate(`/p/${projectId}/${canvasesData[0].id}`, { replace: true });
       }
     } catch (error) {
       console.error('Error loading canvases:', error);
@@ -52,10 +51,8 @@ export const ProjectView: React.FC = () => {
     if (!projectId) return;
 
     try {
-      await supabase
-        .from('projects')
-        .update({ last_accessed_at: new Date().toISOString() })
-        .eq('id', projectId);
+      // This can be implemented later if needed
+      // For now, we're using Firestore timestamps which update automatically
     } catch (error) {
       console.error('Error updating last accessed:', error);
     }

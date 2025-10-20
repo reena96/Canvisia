@@ -164,9 +164,9 @@ export async function executeCreateMultipleShapes(
   console.log('[AI Helpers] executeCreateMultipleShapes called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     count,
@@ -407,9 +407,9 @@ export async function executeCreateShape(
   console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     shapeType,
@@ -620,9 +620,9 @@ export async function executeCreateText(
   console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     text,
@@ -713,9 +713,9 @@ export async function executeCreateArrow(
   console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
-  const canvasId = canvasPath.includes('/')
+  void (canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+    : canvasPath)
 
   const {
     x1: inputX1,
@@ -1498,8 +1498,6 @@ export function alignShapes(
 
   switch (alignment) {
     case 'left': {
-      // Find leftmost x in the group
-      const minX = Math.min(...shapes.map(s => s.x))
       // All shapes stay at their current positions (already at leftmost)
       deltaX = 0
       for (const shape of shapes) {
@@ -1525,8 +1523,6 @@ export function alignShapes(
     }
 
     case 'top': {
-      // Find topmost y in the group
-      const minY = Math.min(...shapes.map(s => s.y))
       // All shapes stay at their current positions (already at topmost)
       deltaY = 0
       for (const shape of shapes) {
