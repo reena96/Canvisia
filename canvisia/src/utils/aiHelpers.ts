@@ -2,6 +2,7 @@ import { createShape, updateShape, getShapes, deleteShape } from '@/services/fir
 import { writeBatchShapePositions, clearShapePositions } from '@/services/rtdb'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
+import type { ExecutionResult } from '@/services/ai/executor'
 import { v4 as uuidv4 } from 'uuid'
 import {
   getViewportBounds,
@@ -1458,18 +1459,20 @@ export async function executeChangeColor(
     color?: string
     textContent?: string
   }
-): Promise<void> {
+): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeChangeColor called with:', input)
 
   // Get all shapes
   const shapes = await getShapes(canvasId)
 
   let targetShapes: Shape[] = []
+  let usedFilters = false
 
   // Determine which shapes to change color for
   if (input.elementIds && input.elementIds.length > 0) {
     if (input.elementIds[0] === 'all') {
       // Apply filters to all shapes
+      usedFilters = true
       targetShapes = applyFilters(shapes, {
         category: input.category,
         type: input.type,
@@ -1511,6 +1514,19 @@ export async function executeChangeColor(
   }
 
   console.log('[AI Helpers] Color changed successfully')
+
+  // Generate clarification if using filters and found few shapes
+  const result: ExecutionResult = { success: true }
+  if (usedFilters && targetShapes.length <= 2) {
+    const shapeType = input.type || (input.category || 'shape')
+    result.partialMatch = {
+      actual: targetShapes.length,
+      type: shapeType,
+      clarification: `I changed the color of ${targetShapes.length} ${shapeType}${targetShapes.length === 1 ? '' : 's'}. Did you expect more ${shapeType}s? Would you like me to create additional ${shapeType}s with the new color?`
+    }
+  }
+
+  return result
 }
 
 /**
@@ -1528,18 +1544,20 @@ export async function executeDeleteElements(
     color?: string
     textContent?: string
   }
-): Promise<void> {
+): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeDeleteElements called with:', input)
 
   // Get all shapes
   const shapes = await getShapes(canvasId)
 
   let targetShapes: Shape[] = []
+  let usedFilters = false
 
   // Determine which shapes to delete
   if (input.elementIds && input.elementIds.length > 0) {
     if (input.elementIds[0] === 'all') {
       // Apply filters to all shapes
+      usedFilters = true
       targetShapes = applyFilters(shapes, {
         category: input.category,
         type: input.type,
@@ -1570,6 +1588,19 @@ export async function executeDeleteElements(
   }
 
   console.log('[AI Helpers] Shapes deleted successfully')
+
+  // Generate clarification if using filters and deleted few shapes
+  const result: ExecutionResult = { success: true }
+  if (usedFilters && targetShapes.length <= 2) {
+    const shapeType = input.type || (input.category || 'shape')
+    result.partialMatch = {
+      actual: targetShapes.length,
+      type: shapeType,
+      clarification: `I deleted ${targetShapes.length} ${shapeType}${targetShapes.length === 1 ? '' : 's'}. Did you expect to delete more ${shapeType}s?`
+    }
+  }
+
+  return result
 }
 
 /**
@@ -1937,7 +1968,7 @@ export async function executeArrangeElements(
     color?: string
     textContent?: string
   }
-): Promise<void> {
+): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeArrangeElements called with:', input)
 
   const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
@@ -2019,6 +2050,19 @@ export async function executeArrangeElements(
   await clearShapePositions(canvasId, arrangedShapes.map(s => s.id))
 
   console.log('[AI Helpers] Arrangement complete with smooth rendering')
+
+  // Generate clarification if using filters and arranged few shapes
+  const result: ExecutionResult = { success: true }
+  if (shouldArrangeAll && shapesToArrange.length <= 2) {
+    const shapeType = type || (category || 'shape')
+    result.partialMatch = {
+      actual: shapesToArrange.length,
+      type: shapeType,
+      clarification: `I arranged ${shapesToArrange.length} ${shapeType}${shapesToArrange.length === 1 ? '' : 's'} in a ${pattern}. Did you expect to arrange more ${shapeType}s?`
+    }
+  }
+
+  return result
 }
 
 /**
@@ -2038,7 +2082,7 @@ export async function executeAlignElements(
     textContent?: string
   },
   viewport: Viewport
-): Promise<void> {
+): Promise<ExecutionResult> {
   console.log('[AI Helpers] executeAlignElements called with:', input)
 
   const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
@@ -2105,6 +2149,19 @@ export async function executeAlignElements(
   await clearShapePositions(canvasId, alignedShapes.map(s => s.id))
 
   console.log('[AI Helpers] Alignment complete with smooth rendering')
+
+  // Generate clarification if using filters and aligned few shapes
+  const result: ExecutionResult = { success: true }
+  if (shouldAlignAll && shapesToAlign.length <= 2) {
+    const shapeType = type || (category || 'shape')
+    result.partialMatch = {
+      actual: shapesToAlign.length,
+      type: shapeType,
+      clarification: `I aligned ${shapesToAlign.length} ${shapeType}${shapesToAlign.length === 1 ? '' : 's'} to ${alignment}. Did you expect to align more ${shapeType}s?`
+    }
+  }
+
+  return result
 }
 
 // =============================================================================

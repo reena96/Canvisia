@@ -18,20 +18,37 @@ import {
 } from '@/utils/aiHelpers'
 
 /**
+ * Execution result with metadata for partial match detection
+ */
+export interface ExecutionResult {
+  success: boolean
+  partialMatch?: {
+    expected?: number | string
+    actual: number | string
+    type: string
+    clarification: string
+  }
+}
+
+/**
  * Execute AI tool calls sequentially
- * This is the main entry point for all AI command execution
+ * Returns execution results with metadata for generating helpful responses
  */
 export async function executeToolCalls(
   toolCalls: AIToolCall[],
   canvasId: string,
   userId: string,
   viewport: Viewport
-): Promise<void> {
+): Promise<ExecutionResult[]> {
   console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId, 'userId:', userId, 'viewport:', viewport)
+
+  const results: ExecutionResult[] = []
 
   for (const toolCall of toolCalls) {
     try {
       console.log(`[Executor] Executing tool: ${toolCall.name}`)
+
+      let result: ExecutionResult = { success: true }
 
       switch (toolCall.name) {
         case 'create_shape':
@@ -71,24 +88,24 @@ export async function executeToolCalls(
           break
 
         case 'change_color':
-          await executeChangeColor(canvasId, userId, toolCall.input as any)
-          console.log('[Executor] change_color completed successfully')
+          result = await executeChangeColor(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] change_color completed successfully', result)
           break
 
         case 'delete_elements':
-          await executeDeleteElements(canvasId, userId, toolCall.input as any)
-          console.log('[Executor] delete_elements completed successfully')
+          result = await executeDeleteElements(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] delete_elements completed successfully', result)
           break
 
         // PR 16: Layout Commands
         case 'arrange_elements':
-          await executeArrangeElements(canvasId, userId, toolCall.input as any)
-          console.log('[Executor] arrange_elements completed successfully')
+          result = await executeArrangeElements(canvasId, userId, toolCall.input as any)
+          console.log('[Executor] arrange_elements completed successfully', result)
           break
 
         case 'align_elements':
-          await executeAlignElements(canvasId, userId, toolCall.input as any, viewport)
-          console.log('[Executor] align_elements completed successfully')
+          result = await executeAlignElements(canvasId, userId, toolCall.input as any, viewport)
+          console.log('[Executor] align_elements completed successfully', result)
           break
 
         // PR 17: Complex Commands
@@ -110,9 +127,13 @@ export async function executeToolCalls(
         default:
           console.warn(`Unknown tool: ${toolCall.name}`)
       }
+
+      results.push(result)
     } catch (error) {
       console.error(`Error executing tool '${toolCall.name}':`, error)
       throw error
     }
   }
+
+  return results
 }

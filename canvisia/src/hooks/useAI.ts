@@ -159,8 +159,18 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
       // Execute tool calls
       if (response.tool_calls && response.tool_calls.length > 0) {
-        await executeToolCalls(response.tool_calls, canvasId, user.uid, viewport)
-        const aiResponse = generateToolCallResponse(response.tool_calls)
+        const executionResults = await executeToolCalls(response.tool_calls, canvasId, user.uid, viewport)
+        let aiResponse = generateToolCallResponse(response.tool_calls)
+
+        // Check for partial matches and add clarifications
+        const clarifications = executionResults
+          .filter(result => result.partialMatch)
+          .map(result => result.partialMatch!.clarification)
+
+        if (clarifications.length > 0) {
+          aiResponse += '\n\n' + clarifications.join('\n\n')
+        }
+
         onMessage?.(command, aiResponse)
       } else {
         const aiResponse = response.content || 'No actions taken'
