@@ -2171,18 +2171,18 @@ export async function executeCreateUIComponent(
           id: uuidv4(),
           type: 'text',
           x: startX + 40 + (index * itemSpacing),
-          y: startY + 22,
+          y: startY + 20,
           text: item,
-          fontSize: 16,
+          fontSize: 18,
           fontFamily: 'Arial',
           fontWeight: 500,
           fontStyle: 'normal',
           textDecoration: 'none',
           align: 'left',
           lineHeight: 1.2,
-          fill: '#F9FAFB',
+          fill: '#FFFFFF',
           width: itemSpacing - 20,
-          height: 20,
+          height: 24,
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
@@ -2563,9 +2563,9 @@ export async function executeCreateDiagram(
         id: ceoTextId,
         type: 'text',
         x: startX + nodeWidth / 2,
-        y: startY + nodeHeight / 2 - 8,
+        y: startY + nodeHeight / 2 - 10,
         text: data.ceo || 'CEO',
-        fontSize: 14,
+        fontSize: 18,
         fontFamily: 'Arial',
         fontWeight: 600,
         fontStyle: 'normal',
@@ -2574,7 +2574,7 @@ export async function executeCreateDiagram(
         lineHeight: 1.2,
         fill: '#FFFFFF',
         width: nodeWidth - 20,
-        height: 20,
+        height: 24,
         rotation: 0,
         createdBy: userId,
         updatedAt: new Date().toISOString(),
@@ -2613,9 +2613,9 @@ export async function executeCreateDiagram(
           id: managerTextId,
           type: 'text',
           x: managerX + nodeWidth / 2,
-          y: managerY + nodeHeight / 2 - 8,
+          y: managerY + nodeHeight / 2 - 9,
           text: `Manager ${i + 1}`,
-          fontSize: 12,
+          fontSize: 16,
           fontFamily: 'Arial',
           fontWeight: 500,
           fontStyle: 'normal',
@@ -2624,23 +2624,20 @@ export async function executeCreateDiagram(
           lineHeight: 1.2,
           fill: '#FFFFFF',
           width: nodeWidth - 20,
-          height: 20,
+          height: 22,
           rotation: 0,
           createdBy: userId,
           updatedAt: new Date().toISOString(),
         } as Text)
 
-        // Arrow from CEO to Manager - spread out to avoid overlap
-        // Calculate arrow start position along CEO bottom edge
-        const arrowStartX = startX + (nodeWidth * (i + 1) / (managerCount + 1))
-
+        // Arrow from CEO to Manager - connect from CEO bottom center to manager top center
         await createShape(canvasId, {
           id: uuidv4(),
           type: 'arrow',
-          x: arrowStartX,
-          y: startY + nodeHeight,
-          x2: managerX + nodeWidth / 2,
-          y2: managerY,
+          x: startX + nodeWidth / 2,  // CEO bottom center X
+          y: startY + nodeHeight,      // CEO bottom Y
+          x2: managerX + nodeWidth / 2, // Manager top center X
+          y2: managerY,                  // Manager top Y
           stroke: '#6B7280',
           strokeWidth: 2,
           rotation: 0,
