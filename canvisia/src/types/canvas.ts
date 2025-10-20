@@ -7,6 +7,12 @@ export interface Canvas {
   createdAt: Date | string;
   ownerId: string;
   lastModified: Date | string;
+  order: number;
+  thumbnail: string | null;
+  settings: {
+    backgroundColor: string;
+    gridEnabled: boolean;
+  };
 }
 
 export interface Viewport {
