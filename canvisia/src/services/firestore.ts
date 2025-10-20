@@ -24,14 +24,6 @@ export { db }
  * @param shape - Shape data
  */
 export async function createShape(canvasPath: string, shape: Shape): Promise<void> {
-  // Add stack trace logging to identify where creates are coming from
-  const stack = new Error().stack
-  console.log(`[Firestore WRITE] createShape called for shape ${shape.id}`, {
-    shapeType: shape.type,
-    canvasPath,
-    stack: stack?.split('\n').slice(1, 4).join('\n')
-  })
-
   // Support both old format "canvasId" and new format "projects/x/canvases/y"
   const objectsPath = canvasPath.includes('/')
     ? `${canvasPath}/objects`
@@ -70,14 +62,6 @@ export async function updateShape(
   shapeId: string,
   updates: Partial<Shape>
 ): Promise<void> {
-  // Add stack trace logging to identify where updates are coming from
-  const stack = new Error().stack
-  console.log(`[Firestore WRITE] updateShape called for shape ${shapeId}`, {
-    updates,
-    canvasPath,
-    stack: stack?.split('\n').slice(1, 4).join('\n')
-  })
-
   const objectsPath = canvasPath.includes('/')
     ? `${canvasPath}/objects`
     : `canvases/${canvasPath}/objects`
@@ -886,14 +870,14 @@ export async function getUserProjectPermission(
  * @param projectId - Project ID
  * @param userEmail - Email of user to invite
  * @param userId - User ID (required for now; in production this would be looked up)
- * @param role - Permission role (editor or viewer)
+ * @param role - Permission role (editor only)
  * @param invitedBy - User ID of inviter
  */
 export async function inviteUserByEmail(
   projectId: string,
   userEmail: string,
   userId: string,
-  role: 'editor' | 'viewer',
+  role: 'editor',
   invitedBy: string
 ): Promise<void> {
   const permissionId = `${projectId}_${userId}`
@@ -956,7 +940,7 @@ export async function getProjectCollaborators(
 export async function updatePermissionRole(
   projectId: string,
   userId: string,
-  newRole: 'editor' | 'viewer'
+  newRole: 'editor'
 ): Promise<void> {
   const permissionId = `${projectId}_${userId}`
   await updateDoc(doc(db, 'permissions', permissionId), {
@@ -984,11 +968,11 @@ export async function removeProjectCollaborator(
 /**
  * Set link sharing access level for a project
  * @param projectId - Project ID
- * @param accessLevel - 'viewer' (read-only) or 'editor' (can edit), or null to disable
+ * @param accessLevel - 'editor' (can edit), or null to disable
  */
 export async function setProjectAccessLevel(
   projectId: string,
-  accessLevel: 'viewer' | 'editor' | null
+  accessLevel: 'editor' | null
 ): Promise<void> {
   if (accessLevel === null) {
     // Remove publicAccessLevel to disable link sharing
@@ -1005,9 +989,9 @@ export async function setProjectAccessLevel(
 /**
  * Get project's link sharing access level
  * @param projectId - Project ID
- * @returns 'viewer', 'editor', or null if link sharing is disabled
+ * @returns 'editor', or null if link sharing is disabled
  */
-export async function getProjectAccessLevel(projectId: string): Promise<'viewer' | 'editor' | null> {
+export async function getProjectAccessLevel(projectId: string): Promise<'editor' | null> {
   const projectDoc = await getDoc(doc(db, 'projects', projectId))
   if (!projectDoc.exists()) {
     return null
@@ -1021,13 +1005,13 @@ export async function getProjectAccessLevel(projectId: string): Promise<'viewer'
  * @param projectId - Project ID
  * @param userId - User ID
  * @param userEmail - User email
- * @returns The role granted ('viewer' or 'editor'), or null if link sharing is disabled
+ * @returns The role granted ('editor'), or null if link sharing is disabled
  */
 export async function addUserViaLink(
   projectId: string,
   userId: string,
   userEmail: string
-): Promise<'viewer' | 'editor' | null> {
+): Promise<'editor' | null> {
   // Don't add the project owner to their own project
   const project = await getProject(projectId)
   if (!project) {
@@ -1104,7 +1088,7 @@ export interface CanvasPermission {
   projectId: string
   userId: string
   userEmail: string
-  role: 'owner' | 'editor' | 'viewer'
+  role: 'owner' | 'editor'
   invitedBy: string
   invitedAt: Date
   acceptedAt: Date | null
@@ -1115,7 +1099,7 @@ export interface CanvasPermission {
  * @param canvasPath - Full canvas path (e.g., "projects/abc/canvases/xyz")
  * @param userEmail - User's email
  * @param userId - User's ID
- * @param role - Permission role (owner, editor, viewer)
+ * @param role - Permission role (owner or editor)
  * @param invitedBy - User ID of the person inviting
  */
 export async function inviteUserToCanvas(
@@ -1123,7 +1107,7 @@ export async function inviteUserToCanvas(
   projectId: string,
   userEmail: string,
   userId: string,
-  role: 'owner' | 'editor' | 'viewer',
+  role: 'owner' | 'editor',
   invitedBy: string
 ): Promise<void> {
   const permissionId = `${canvasPath}_${userId}`
@@ -1188,7 +1172,7 @@ export async function getCanvasCollaborators(
 export async function updateCanvasPermissionRole(
   canvasPath: string,
   userId: string,
-  newRole: 'editor' | 'viewer'
+  newRole: 'editor'
 ): Promise<void> {
   const permissionId = `${canvasPath}_${userId}`
   await updateDoc(doc(db, 'canvasPermissions', permissionId), {
