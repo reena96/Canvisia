@@ -6,7 +6,7 @@ import { AIChat } from '@/components/ai/AIChat';
 import { Header } from '@/components/layout/Header';
 import { ShareDialog } from '@/components/share/ShareDialog';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { getProject, subscribeToProjectCanvases, addUserViaLink, updateProject } from '@/services/firestore';
+import { getProject, subscribeToProjectCanvases, addUserViaLink } from '@/services/firestore';
 import type { Project } from '@/types/project';
 import type { Presence } from '@/types/user';
 
@@ -40,38 +40,38 @@ export const ProjectView: React.FC = () => {
     // The actual real-time subscription is set up in useEffect
   };
 
-  const updateLastAccessed = async () => {
-    if (!projectId || !user) return;
-
-    try {
-      // Update the project's lastAccessed timestamp
-      await updateProject(projectId, {
-        lastAccessed: new Date()
-      });
-    } catch (error) {
-      console.error('Error updating last accessed:', error);
-    }
-  };
-
   useEffect(() => {
-    if (!projectId || !user) return;
+    if (!projectId || !user) {
+      console.log('[ProjectView] Missing projectId or user', { projectId, user: user?.uid });
+      return;
+    }
 
-    updateLastAccessed();
+    console.log('[ProjectView] Initializing project view', { projectId, userId: user.uid, userEmail: user.email });
 
     // Load project data
     getProject(projectId).then(projectData => {
       if (projectData) {
+        console.log('[ProjectView] Project loaded:', projectData.name, 'Owner:', projectData.ownerId);
         setProject(projectData);
       }
     }).catch(error => {
-      console.error('Error loading project:', error);
+      console.error('[ProjectView] Error loading project:', error);
     });
 
     // Add user to project if accessing via shared link
     if (user.uid && user.email) {
-      addUserViaLink(projectId, user.uid, user.email).catch(error => {
-        console.error('Error adding user via link:', error);
-      });
+      console.log('[ProjectView] Calling addUserViaLink for user:', user.uid);
+      addUserViaLink(projectId, user.uid, user.email)
+        .then(role => {
+          if (role) {
+            console.log(`✅ [ProjectView] User added to project with role: ${role}`);
+          } else {
+            console.log(`ℹ️ [ProjectView] User already has access or link sharing disabled`);
+          }
+        })
+        .catch(error => {
+          console.error('❌ [ProjectView] Error adding user via link:', error);
+        });
     }
 
     // Set up real-time subscription to canvases

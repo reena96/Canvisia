@@ -62,7 +62,7 @@ export function Header({ activeUsers = [], onSignOut, projectName, projectId, on
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {projectName && (
+        {projectId && (
           <button
             onClick={handleBackToProjects}
             style={{

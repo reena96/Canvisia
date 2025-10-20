@@ -32,9 +32,16 @@ service cloud.firestore {
     }
 
     function canEditProject(projectId) {
-      return hasPermission(projectId, 'owner') ||
-             hasPermission(projectId, 'editor') ||
-             canLinkUsersEdit(projectId);
+      // Allow editing if user has explicit permission OR project allows link editing
+      let permissionPath = /databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid);
+      return request.auth != null && (
+        // Has explicit owner/editor permission
+        (exists(permissionPath) &&
+         (get(permissionPath).data.role == 'owner' || get(permissionPath).data.role == 'editor'))
+        ||
+        // OR project allows editing via public link
+        canLinkUsersEdit(projectId)
+      );
     }
 
     // Projects: read if has permission or shared via link, write if owner
@@ -101,11 +108,16 @@ service cloud.firestore {
       allow list: if request.auth != null;
       // Allow creating permission if:
       // 1. User is setting themselves as owner, OR
-      // 2. User is the project owner inviting someone else
+      // 2. User is the project owner inviting someone else, OR
+      // 3. User is creating permission for themselves via public link
       allow create: if request.auth != null && (
         (request.resource.data.userId == request.auth.uid && request.resource.data.role == 'owner')
         ||
         hasPermission(request.resource.data.projectId, 'owner')
+        ||
+        (request.resource.data.userId == request.auth.uid &&
+         isProjectShared(request.resource.data.projectId) &&
+         (request.resource.data.role == 'viewer' || request.resource.data.role == 'editor'))
       );
       // Allow update/delete if user is owner of the project
       allow update, delete: if request.auth != null &&
