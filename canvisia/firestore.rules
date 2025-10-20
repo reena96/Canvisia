@@ -2,104 +2,76 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user has permission
-    function hasPermission(projectId, role) {
+    // Check if user has owner or editor permission (only two roles now)
+    function hasPermission(projectId) {
+      let permissionPath = /databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid);
       return request.auth != null &&
-        exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid)) &&
-        get(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid)).data.role == role;
+        exists(permissionPath) &&
+        (get(permissionPath).data.role == 'owner' || get(permissionPath).data.role == 'editor');
     }
 
-    function hasAnyPermission(projectId) {
+    // Check if user is the project owner (for owner-only operations)
+    function isOwner(projectId) {
+      let permissionPath = /databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid);
       return request.auth != null &&
-        exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
+        exists(permissionPath) &&
+        get(permissionPath).data.role == 'owner';
     }
 
-    // Check if project is shared via link (has publicAccessLevel set)
+    // Check if project has link sharing enabled
     function isProjectShared(projectId) {
-      return request.auth != null &&
-             exists(/databases/$(database)/documents/projects/$(projectId)) &&
-             get(/databases/$(database)/documents/projects/$(projectId)).data.keys().hasAny(['publicAccessLevel']);
-    }
-
-    // Check if project allows editing via link
-    function canLinkUsersEdit(projectId) {
       return request.auth != null &&
              exists(/databases/$(database)/documents/projects/$(projectId)) &&
              get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccessLevel', null) == 'editor';
     }
 
-    // Combined check: explicit permission OR link sharing enabled
-    function canAccessProject(projectId) {
-      return hasAnyPermission(projectId) || isProjectShared(projectId);
+    // User can access if they have permission OR project is shared via link
+    function canAccess(projectId) {
+      return hasPermission(projectId) || isProjectShared(projectId);
     }
 
-    function canEditProject(projectId) {
-      // Allow editing if user has explicit permission OR project allows link editing
-      let permissionPath = /databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid);
-      return request.auth != null && (
-        // Has explicit owner/editor permission
-        (exists(permissionPath) &&
-         (get(permissionPath).data.role == 'owner' || get(permissionPath).data.role == 'editor'))
-        ||
-        // OR project allows editing via public link
-        canLinkUsersEdit(projectId)
-      );
-    }
-
-    // Projects: read if has permission or shared via link, write if owner
+    // Projects: read if has permission, write if owner only
     match /projects/{projectId} {
-      allow read: if canAccessProject(projectId);
+      allow read: if canAccess(projectId);
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update: if hasPermission(projectId, 'owner');
-      allow delete: if hasPermission(projectId, 'owner');
+      allow update: if isOwner(projectId);
+      allow delete: if isOwner(projectId);
 
-      // Canvases: inherit project-level permissions
+      // Canvases: all owners/editors can read and write
       match /canvases/{canvasId} {
-        allow get, list: if canAccessProject(projectId);
-        allow write: if canEditProject(projectId);
+        allow read, write: if canAccess(projectId);
 
-        // Objects: inherit project permissions
+        // Objects: all owners/editors can read and write
         match /objects/{objectId} {
-          allow get, list: if canAccessProject(projectId);
-          // TEMPORARY: Allow all authenticated users to write for debugging
-          allow write: if request.auth != null;
+          allow read, write: if canAccess(projectId);
         }
 
-        // Annotations: users with access can read, editors can create, users can delete their own
+        // Annotations: all owners/editors can read and write
         match /annotations/{annotationId} {
-          allow get, list: if canAccessProject(projectId);
-          allow create: if request.auth != null && canEditProject(projectId);
-          allow update, delete: if request.auth != null &&
-                                 (resource.data.userId == request.auth.uid || hasPermission(projectId, 'owner'));
+          allow read, write: if canAccess(projectId);
         }
 
-        // Chat messages
+        // Chat messages: all owners/editors can read and create
         match /chats/{tabId}/messages/{messageId} {
-          allow get, list: if canAccessProject(projectId);
-          allow create: if request.auth != null && canAccessProject(projectId);
-          allow update: if request.auth != null && canAccessProject(projectId)
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+          allow get, list: if canAccess(projectId);
+          allow create: if canAccess(projectId);
+          allow update: if canAccess(projectId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
           allow delete: if false;
         }
 
-        // Chat tabs
+        // Chat tabs: all owners/editors can read and write
         match /chatTabs/{tabId} {
-          allow get, list: if canAccessProject(projectId);
-          allow create: if request.auth != null && canAccessProject(projectId);
-          allow update: if request.auth != null && canAccessProject(projectId);
-          allow delete: if false;
+          allow read, write: if canAccess(projectId);
         }
 
-        // Presence tracking
+        // Presence tracking: all owners/editors can read and write
         match /presence/{userId} {
-          allow get, list: if canAccessProject(projectId);
-          allow write: if request.auth != null && canAccessProject(projectId);
+          allow read, write: if canAccess(projectId);
         }
 
-        // Undo history
+        // Undo history: all owners/editors can read and write
         match /undoHistory/{undoId} {
-          allow get, list: if canAccessProject(projectId);
-          allow write: if request.auth != null && canEditProject(projectId);
+          allow read, write: if canAccess(projectId);
         }
       }
     }
@@ -110,21 +82,20 @@ service cloud.firestore {
       // Allow listing permissions collection (filtered by read rules)
       allow list: if request.auth != null;
       // Allow creating permission if:
-      // 1. User is setting themselves as owner, OR
+      // 1. User is setting themselves as owner when creating a project, OR
       // 2. User is the project owner inviting someone else, OR
-      // 3. User is creating permission for themselves via public link
+      // 3. User is creating permission for themselves via shared link (editor only)
       allow create: if request.auth != null && (
         (request.resource.data.userId == request.auth.uid && request.resource.data.role == 'owner')
         ||
-        hasPermission(request.resource.data.projectId, 'owner')
+        isOwner(request.resource.data.projectId)
         ||
         (request.resource.data.userId == request.auth.uid &&
          isProjectShared(request.resource.data.projectId) &&
-         (request.resource.data.role == 'viewer' || request.resource.data.role == 'editor'))
+         request.resource.data.role == 'editor')
       );
       // Allow update/delete if user is owner of the project
-      allow update, delete: if request.auth != null &&
-        hasPermission(resource.data.projectId, 'owner');
+      allow update, delete: if request.auth != null && isOwner(resource.data.projectId);
     }
 
 

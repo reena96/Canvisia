@@ -21,7 +21,7 @@ export interface ProjectMetadata {
   lastModified: Date
 }
 
-export type PermissionRole = 'owner' | 'editor' | 'viewer'
+export type PermissionRole = 'owner' | 'editor'
 
 export interface Permission {
   projectId: string

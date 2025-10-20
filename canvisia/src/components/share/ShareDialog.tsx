@@ -18,7 +18,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [accessLevel, setAccessLevel] = useState<'viewer' | 'editor' | null>(null);
+  const [linkEnabled, setLinkEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -32,7 +32,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
     try {
       setLoading(true);
       const level = await getProjectAccessLevel(projectId);
-      setAccessLevel(level);
+      setLinkEnabled(level === 'editor');
     } catch (error) {
       console.error('Error loading access level:', error);
     } finally {
@@ -42,23 +42,39 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
 
   const handleCopyLink = async () => {
     try {
+      // Enable link sharing if not already enabled
+      if (!linkEnabled) {
+        setUpdating(true);
+        await setProjectAccessLevel(projectId, 'editor');
+        setLinkEnabled(true);
+        setUpdating(false);
+      }
+
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy link:', error);
       alert('Failed to copy link');
+      setUpdating(false);
     }
   };
 
-  const handleAccessLevelChange = async (newLevel: 'viewer' | 'editor') => {
+  const handleToggleLinkSharing = async () => {
     try {
       setUpdating(true);
-      await setProjectAccessLevel(projectId, newLevel);
-      setAccessLevel(newLevel);
+      if (linkEnabled) {
+        // Disable link sharing
+        await setProjectAccessLevel(projectId, null);
+        setLinkEnabled(false);
+      } else {
+        // Enable link sharing as editor
+        await setProjectAccessLevel(projectId, 'editor');
+        setLinkEnabled(true);
+      }
     } catch (error) {
-      console.error('Error updating access level:', error);
-      alert('Failed to update access level');
+      console.error('Error toggling link sharing:', error);
+      alert('Failed to update link sharing');
     } finally {
       setUpdating(false);
     }
@@ -81,34 +97,34 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
         </div>
 
         <div className="share-dialog-content">
-          {/* Access Level Selector */}
+          {/* Link Sharing Status */}
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#111827', marginBottom: '0.5rem' }}>
-              Anyone with the link can:
-            </label>
-            <select
-              value={accessLevel || 'viewer'}
-              onChange={(e) => handleAccessLevelChange(e.target.value as 'viewer' | 'editor')}
-              disabled={updating || loading}
-              style={{
-                width: '100%',
-                padding: '0.625rem 0.875rem',
-                border: '1px solid #D1D5DB',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                color: '#374151',
-                backgroundColor: 'white',
-                cursor: updating || loading ? 'not-allowed' : 'pointer',
-                opacity: updating || loading ? 0.6 : 1,
-              }}
-            >
-              <option value="viewer">View (read-only)</option>
-              <option value="editor">Edit (full access)</option>
-            </select>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>
+                Link sharing
+              </label>
+              <button
+                onClick={handleToggleLinkSharing}
+                disabled={updating || loading}
+                style={{
+                  padding: '0.375rem 0.875rem',
+                  border: linkEnabled ? '1px solid #DC2626' : '1px solid #10B981',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: linkEnabled ? '#DC2626' : '#10B981',
+                  backgroundColor: 'white',
+                  cursor: updating || loading ? 'not-allowed' : 'pointer',
+                  opacity: updating || loading ? 0.6 : 1,
+                }}
+              >
+                {linkEnabled ? 'Disable' : 'Enable'}
+              </button>
+            </div>
             <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#6b7280' }}>
-              {accessLevel === 'editor'
-                ? 'Link users can create, edit, and delete shapes'
-                : 'Link users can only view, cannot make changes'}
+              {linkEnabled
+                ? 'Anyone with the link can edit this project'
+                : 'Link sharing is currently disabled'}
             </p>
           </div>
 
