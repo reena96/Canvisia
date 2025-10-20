@@ -1450,70 +1450,97 @@ export function alignShapes(
 ): Shape[] {
   if (shapes.length === 0) return []
 
-  console.log(`[AI Helpers] Aligning ${shapes.length} shapes to ${alignment}`)
+  console.log(`[AI Helpers] Aligning ${shapes.length} shapes to ${alignment} (maintaining relative positioning)`)
 
   // Create new array to avoid mutation
   const aligned: Shape[] = []
+  let deltaX = 0
+  let deltaY = 0
 
   switch (alignment) {
     case 'left': {
-      // Find leftmost x
+      // Find leftmost x in the group
       const minX = Math.min(...shapes.map(s => s.x))
+      // Move all shapes so the leftmost shape stays at its current position
+      // (This aligns the group to the left-most shape's position)
+      deltaX = 0  // No change needed - already at leftmost position
       for (const shape of shapes) {
-        aligned.push({ ...shape, x: minX })
+        aligned.push({ ...shape })
       }
       break
     }
 
     case 'right': {
-      // Find rightmost edge
-      const maxRight = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
+      // Find the current rightmost edge and leftmost edge
+      const currentRightmost = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
+      const currentLeftmost = Math.min(...shapes.map(s => s.x))
+      // Calculate the leftmost x that would align the rightmost shape
+      const targetLeftmost = currentRightmost - getShapeWidth(shapes.find(s => s.x + getShapeWidth(s) === currentRightmost)!)
+      // Move all shapes by the delta
+      deltaX = targetLeftmost - currentLeftmost
       for (const shape of shapes) {
-        const shapeWidth = getShapeWidth(shape)
-        aligned.push({ ...shape, x: maxRight - shapeWidth })
+        aligned.push({ ...shape, x: shape.x + deltaX })
       }
       break
     }
 
     case 'top': {
-      // Find topmost y
+      // Find topmost y in the group
       const minY = Math.min(...shapes.map(s => s.y))
+      // Move all shapes so the topmost shape stays at its current position
+      deltaY = 0  // No change needed - already at topmost position
       for (const shape of shapes) {
-        aligned.push({ ...shape, y: minY })
+        aligned.push({ ...shape })
       }
       break
     }
 
     case 'bottom': {
-      // Find bottommost edge
-      const maxBottom = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
+      // Find the current bottommost edge and topmost edge
+      const currentBottommost = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
+      const currentTopmost = Math.min(...shapes.map(s => s.y))
+      // Calculate the topmost y that would align the bottommost shape
+      const targetTopmost = currentBottommost - getShapeHeight(shapes.find(s => s.y + getShapeHeight(s) === currentBottommost)!)
+      // Move all shapes by the delta
+      deltaY = targetTopmost - currentTopmost
       for (const shape of shapes) {
-        const shapeHeight = getShapeHeight(shape)
-        aligned.push({ ...shape, y: maxBottom - shapeHeight })
+        aligned.push({ ...shape, y: shape.y + deltaY })
       }
       break
     }
 
     case 'center-horizontal': {
-      // Calculate average center x
+      // Calculate the group's center x
+      const minX = Math.min(...shapes.map(s => s.x))
+      const maxX = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
+      const groupCenterX = (minX + maxX) / 2
+
+      // Calculate the average center x (target)
       const centerXs = shapes.map(s => s.x + getShapeWidth(s) / 2)
       const avgCenterX = centerXs.reduce((sum, x) => sum + x, 0) / centerXs.length
 
+      // Move all shapes by the delta to center the group
+      deltaX = avgCenterX - groupCenterX
       for (const shape of shapes) {
-        const shapeWidth = getShapeWidth(shape)
-        aligned.push({ ...shape, x: avgCenterX - shapeWidth / 2 })
+        aligned.push({ ...shape, x: shape.x + deltaX })
       }
       break
     }
 
     case 'center-vertical': {
-      // Calculate average center y
+      // Calculate the group's center y
+      const minY = Math.min(...shapes.map(s => s.y))
+      const maxY = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
+      const groupCenterY = (minY + maxY) / 2
+
+      // Calculate the average center y (target)
       const centerYs = shapes.map(s => s.y + getShapeHeight(s) / 2)
       const avgCenterY = centerYs.reduce((sum, y) => sum + y, 0) / centerYs.length
 
+      // Move all shapes by the delta to center the group
+      deltaY = avgCenterY - groupCenterY
       for (const shape of shapes) {
-        const shapeHeight = getShapeHeight(shape)
-        aligned.push({ ...shape, y: avgCenterY - shapeHeight / 2 })
+        aligned.push({ ...shape, y: shape.y + deltaY })
       }
       break
     }
@@ -1523,17 +1550,18 @@ export function alignShapes(
       return shapes
   }
 
+  console.log(`[AI Helpers] Applied delta: (${deltaX}, ${deltaY})`)
   return aligned
 }
 
 /**
  * Align shapes to viewport edges (viewport-aware alignment)
- * Viewport starts after header and extends to bottom of window
+ * Maintains relative positioning - moves shapes as a group
  *
- * Top: Top vertices align to viewport.top (no padding)
- * Bottom: Bottom vertices with 10px padding from viewport.bottom
- * Left: Left vertices with 10px padding from viewport.left
- * Right: Right vertices with 10px padding from viewport.right
+ * Top: Group's top edge aligns to viewport.top (no padding)
+ * Bottom: Group's bottom edge aligns with 10px padding from viewport.bottom
+ * Left: Group's left edge aligns with 10px padding from viewport.left
+ * Right: Group's right edge aligns with 10px padding from viewport.right
  */
 function alignShapesToViewport(
   shapes: Shape[],
@@ -1544,7 +1572,7 @@ function alignShapesToViewport(
   const edges = getViewportEdges(viewportBounds)
   const aligned: Shape[] = []
 
-  console.log(`[AI Helpers] Aligning ${shapes.length} shapes to viewport ${alignment}`)
+  console.log(`[AI Helpers] Aligning ${shapes.length} shapes to viewport ${alignment} (maintaining relative positioning)`)
   console.log(`[AI Helpers] Viewport bounds:`, viewportBounds)
   console.log(`[AI Helpers] Viewport edges:`, edges)
 
@@ -1554,67 +1582,94 @@ function alignShapesToViewport(
 
   console.log(`[AI Helpers] Edge padding (all sides): ${edgePadding}px (${EDGE_PADDING_PX}px screen)`)
 
+  let deltaX = 0
+  let deltaY = 0
+
   switch (alignment) {
     case 'left': {
-      // Left vertices should be inside viewport with padding
-      // center.x = viewport.left + padding + leftOffset
+      // Find the leftmost shape's left edge
+      const currentLeftmost = Math.min(...shapes.map(s => s.x - getLeftOffset(s)))
+      // Target: viewport left edge + padding
+      const targetLeft = edges.left + edgePadding
+      // Calculate delta to move the entire group
+      deltaX = targetLeft - currentLeftmost
+      console.log(`[AI Helpers] Moving group from x=${currentLeftmost} to x=${targetLeft} (delta: ${deltaX})`)
       for (const shape of shapes) {
-        const leftOffset = getLeftOffset(shape)
-        const alignX = edges.left + edgePadding + leftOffset
-        console.log(`[AI Helpers] ${shape.type}: left vertex will be at x=${edges.left + edgePadding}, center at x=${alignX}`)
-        aligned.push({ ...shape, x: alignX })
+        aligned.push({ ...shape, x: shape.x + deltaX })
       }
       break
     }
 
     case 'right': {
-      // Right vertices should be inside viewport with padding
-      // center.x = viewport.right - padding - rightOffset
+      // Find the rightmost shape's right edge
+      const currentRightmost = Math.max(...shapes.map(s => s.x + getRightOffset(s)))
+      // Target: viewport right edge - padding
+      const targetRight = edges.right - edgePadding
+      // Calculate delta to move the entire group
+      deltaX = targetRight - currentRightmost
+      console.log(`[AI Helpers] Moving group from right edge=${currentRightmost} to ${targetRight} (delta: ${deltaX})`)
       for (const shape of shapes) {
-        const rightOffset = getRightOffset(shape)
-        const alignX = edges.right - edgePadding - rightOffset
-        console.log(`[AI Helpers] ${shape.type}: right vertex will be at x=${edges.right - edgePadding}, center at x=${alignX}`)
-        aligned.push({ ...shape, x: alignX })
+        aligned.push({ ...shape, x: shape.x + deltaX })
       }
       break
     }
 
     case 'top': {
-      // Top vertices align to viewport top edge (no padding at top)
-      // center.y = viewport.top + topOffset
+      // Find the topmost shape's top edge
+      const currentTopmost = Math.min(...shapes.map(s => s.y - getTopOffset(s)))
+      // Target: viewport top edge (no padding at top)
+      const targetTop = edges.top
+      // Calculate delta to move the entire group
+      deltaY = targetTop - currentTopmost
+      console.log(`[AI Helpers] Moving group from y=${currentTopmost} to y=${targetTop} (delta: ${deltaY})`)
       for (const shape of shapes) {
-        const topOffset = getTopOffset(shape)
-        const alignY = edges.top + topOffset
-        console.log(`[AI Helpers] ${shape.type}: top vertex will be at y=${edges.top}, center at y=${alignY}`)
-        aligned.push({ ...shape, y: alignY })
+        aligned.push({ ...shape, y: shape.y + deltaY })
       }
       break
     }
 
     case 'bottom': {
-      // Bottom vertices with 10px padding from viewport bottom
-      // center.y = viewport.bottom - edgePadding - bottomOffset
+      // Find the bottommost shape's bottom edge
+      const currentBottommost = Math.max(...shapes.map(s => s.y + getBottomOffset(s)))
+      // Target: viewport bottom edge - padding
+      const targetBottom = edges.bottom - edgePadding
+      // Calculate delta to move the entire group
+      deltaY = targetBottom - currentBottommost
+      console.log(`[AI Helpers] Moving group from bottom edge=${currentBottommost} to ${targetBottom} (delta: ${deltaY})`)
       for (const shape of shapes) {
-        const bottomOffset = getBottomOffset(shape)
-        const alignY = edges.bottom - edgePadding - bottomOffset
-        console.log(`[AI Helpers] ${shape.type}: bottom vertex will be at y=${edges.bottom - edgePadding} (10px from bottom), center at y=${alignY}`)
-        aligned.push({ ...shape, y: alignY })
+        aligned.push({ ...shape, y: shape.y + deltaY })
       }
       break
     }
 
     case 'center-horizontal': {
-      // Center horizontally in viewport
+      // Find the group's horizontal center
+      const minX = Math.min(...shapes.map(s => s.x - getLeftOffset(s)))
+      const maxX = Math.max(...shapes.map(s => s.x + getRightOffset(s)))
+      const currentGroupCenterX = (minX + maxX) / 2
+      // Target: viewport center
+      const targetCenterX = edges.centerX
+      // Calculate delta to move the entire group
+      deltaX = targetCenterX - currentGroupCenterX
+      console.log(`[AI Helpers] Moving group center from x=${currentGroupCenterX} to x=${targetCenterX} (delta: ${deltaX})`)
       for (const shape of shapes) {
-        aligned.push({ ...shape, x: edges.centerX })
+        aligned.push({ ...shape, x: shape.x + deltaX })
       }
       break
     }
 
     case 'center-vertical': {
-      // Center vertically in viewport
+      // Find the group's vertical center
+      const minY = Math.min(...shapes.map(s => s.y - getTopOffset(s)))
+      const maxY = Math.max(...shapes.map(s => s.y + getBottomOffset(s)))
+      const currentGroupCenterY = (minY + maxY) / 2
+      // Target: viewport center
+      const targetCenterY = edges.centerY
+      // Calculate delta to move the entire group
+      deltaY = targetCenterY - currentGroupCenterY
+      console.log(`[AI Helpers] Moving group center from y=${currentGroupCenterY} to y=${targetCenterY} (delta: ${deltaY})`)
       for (const shape of shapes) {
-        aligned.push({ ...shape, y: edges.centerY })
+        aligned.push({ ...shape, y: shape.y + deltaY })
       }
       break
     }
@@ -1624,6 +1679,7 @@ function alignShapesToViewport(
       return shapes
   }
 
+  console.log(`[AI Helpers] Applied delta: (${deltaX}, ${deltaY})`)
   console.log(`[AI Helpers] Aligned shapes:`, aligned.map(s => ({ id: s.id, type: s.type, x: s.x, y: s.y })))
   return aligned
 }

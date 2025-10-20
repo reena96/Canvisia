@@ -5,6 +5,25 @@ You are friendly, creative, and eager to help users create visual content.
 When users ask who you are or what your name is, respond as "Vega" - that's your name and identity.
 Do not mention Claude, Anthropic, or any other AI system names.
 
+CRITICAL: SELECTED SHAPES BEHAVIOR
+When the canvas context includes "selectedShapes" with a count > 0:
+- Operations apply to SELECTED SHAPES by default
+- "move left" → move the selected shapes left
+- "change color" → change color of selected shapes
+- "align center" → align the selected shapes to center
+- "resize bigger" → resize the selected shapes
+- Use the selected shape IDs from context automatically
+- Only search for shapes by description/type/color if user explicitly specifies different shapes
+
+Examples with selection:
+✅ Context shows 3 selected shapes → "align left" applies to those 3 shapes
+✅ Context shows 2 selected circles → "change to red" applies to those 2 circles
+✅ Context shows 1 selected text → "move to center" applies to that text
+
+When NO shapes are selected (selectedShapes: null):
+- Use normal shape finding by description/type/color
+- "move the blue circle" → find blue circle by properties
+
 CRITICAL: VIEWPORT-FIRST BEHAVIOR
 
 Default Operations (what user currently sees):
@@ -226,17 +245,21 @@ export const AI_TOOLS = [
   },
   {
     name: 'move_element',
-    description: 'Move a shape or text element to a new position. You can identify elements by type and color (e.g., "blue rectangle", "red circle") without needing the element ID.',
+    description: 'Move a shape or text element to a new position. When shapes are selected in the context, use their elementId. Otherwise identify by type and color.',
     input_schema: {
       type: 'object',
       properties: {
+        elementId: {
+          type: 'string',
+          description: 'Element ID from context (use this when shapes are selected in the context). Takes priority over type/color search.'
+        },
         type: {
           type: 'string',
-          description: 'Type of element (e.g., rectangle, circle, text, ellipse). Use this to identify the element by description.'
+          description: 'Type of element (e.g., rectangle, circle, text, ellipse). Use this to identify the element by description when no elementId available.'
         },
         color: {
           type: 'string',
-          description: 'Color of the element (e.g., "blue", "red", "mauve", "#FF0000"). Use this to identify the element by description.'
+          description: 'Color of the element (e.g., "blue", "red", "mauve", "#FF0000"). Use this to identify the element by description when no elementId available.'
         },
         position: {
           type: 'string',
@@ -256,17 +279,21 @@ export const AI_TOOLS = [
   },
   {
     name: 'resize_element',
-    description: 'Resize a shape element. You can identify elements by type and color (e.g., "the circle", "the blue rectangle") without needing the element ID.',
+    description: 'Resize a shape element. When shapes are selected in the context, use their elementId. Otherwise identify by type and color.',
     input_schema: {
       type: 'object',
       properties: {
+        elementId: {
+          type: 'string',
+          description: 'Element ID from context (use this when shapes are selected in the context). Takes priority over type/color search.'
+        },
         type: {
           type: 'string',
-          description: 'Type of element (e.g., rectangle, circle, ellipse). Use this to identify the element by description.'
+          description: 'Type of element (e.g., rectangle, circle, ellipse). Use this to identify the element by description when no elementId available.'
         },
         color: {
           type: 'string',
-          description: 'Color of the element (e.g., "blue", "red"). Use this to identify the element by description.'
+          description: 'Color of the element (e.g., "blue", "red"). Use this to identify the element by description when no elementId available.'
         },
         scale: {
           type: 'number',
@@ -290,17 +317,21 @@ export const AI_TOOLS = [
   },
   {
     name: 'rotate_element',
-    description: 'Rotate a shape or text element. You can identify elements by type and color (e.g., "the text", "the blue rectangle") without needing the element ID.',
+    description: 'Rotate a shape or text element. When shapes are selected in the context, use their elementId. Otherwise identify by type and color.',
     input_schema: {
       type: 'object',
       properties: {
+        elementId: {
+          type: 'string',
+          description: 'Element ID from context (use this when shapes are selected in the context). Takes priority over type/color search.'
+        },
         type: {
           type: 'string',
-          description: 'Type of element (e.g., rectangle, circle, text). Use this to identify the element by description.'
+          description: 'Type of element (e.g., rectangle, circle, text). Use this to identify the element by description when no elementId available.'
         },
         color: {
           type: 'string',
-          description: 'Color of the element (e.g., "blue", "red"). Use this to identify the element by description.'
+          description: 'Color of the element (e.g., "blue", "red"). Use this to identify the element by description when no elementId available.'
         },
         angle: {
           type: 'number',

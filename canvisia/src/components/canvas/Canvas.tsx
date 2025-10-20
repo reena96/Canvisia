@@ -674,10 +674,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           await Promise.all(shapesToCreate.map(s => createShape(s)))
         }
 
-        // Update shapes - SMOOTH RENDERING with batch operations
+        // Update shapes - SMOOTH RENDERING with RTDB pattern
         const shapesToUpdate = previousState.filter(s => currentIds.has(s.id))
         if (shapesToUpdate.length > 0) {
           const localUpdates = new Map<string, Partial<Shape>>()
+          const rtdbUpdates = new Map<string, any>()
 
           shapesToUpdate.forEach(targetShape => {
             const currentShape = firestoreShapes.find(curr => curr.id === targetShape.id)
@@ -696,7 +697,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             if (hasChanges) {
               localUpdates.set(targetShape.id, updates)
 
-              // Direct Konva manipulation
+              // Build RTDB position data (only position-related fields)
+              const positionData: any = {}
+              if ('x' in updates) positionData.x = updates.x
+              if ('y' in updates) positionData.y = updates.y
+              if ('x2' in updates) positionData.x2 = (updates as any).x2
+              if ('y2' in updates) positionData.y2 = (updates as any).y2
+              if ('bendX' in updates) positionData.bendX = (updates as any).bendX
+              if ('bendY' in updates) positionData.bendY = (updates as any).bendY
+
+              if (Object.keys(positionData).length > 0) {
+                positionData.updatedBy = userId
+                rtdbUpdates.set(targetShape.id, positionData)
+              }
+
+              // Direct Konva manipulation for immediate visual update
               if (stage) {
                 const node = stage.findOne(`#${targetShape.id}`)
                 if (node) {
@@ -707,11 +722,13 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
                   })
                 }
               }
-
-              // Throttled Firestore update
-              updateShapeThrottled(targetShape.id, updates)
             }
           })
+
+          // Step 1: Write positions to RTDB for instant feedback
+          if (rtdbUpdates.size > 0) {
+            await writeBatchShapePositions(canvasId, rtdbUpdates).catch(() => {})
+          }
 
           if (localUpdates.size > 0) {
             updateShapesLocalBatch(localUpdates)
@@ -720,6 +737,23 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           if (stage) {
             const layer = stage.findOne('Layer')
             if (layer) layer.batchDraw()
+          }
+
+          // Step 2: Brief delay for smooth rendering
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          // Step 3: Persist to Firestore (for non-position and all updates)
+          await Promise.all(
+            Array.from(localUpdates.entries()).map(([id, updates]) =>
+              updateShape(id, updates).catch(err => {
+                console.error(`[Undo] Failed to update shape ${id}:`, err)
+              })
+            )
+          )
+
+          // Step 4: Clear RTDB positions
+          if (rtdbUpdates.size > 0) {
+            await clearShapePositions(canvasId, Array.from(rtdbUpdates.keys())).catch(() => {})
           }
         }
 
@@ -760,10 +794,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           await Promise.all(shapesToCreate.map(s => createShape(s)))
         }
 
-        // Update shapes - SMOOTH RENDERING with batch operations
+        // Update shapes - SMOOTH RENDERING with RTDB pattern
         const shapesToUpdate = nextState.filter(s => currentIds.has(s.id))
         if (shapesToUpdate.length > 0) {
           const localUpdates = new Map<string, Partial<Shape>>()
+          const rtdbUpdates = new Map<string, any>()
 
           shapesToUpdate.forEach(targetShape => {
             const currentShape = firestoreShapes.find(curr => curr.id === targetShape.id)
@@ -782,7 +817,21 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             if (hasChanges) {
               localUpdates.set(targetShape.id, updates)
 
-              // Direct Konva manipulation
+              // Build RTDB position data (only position-related fields)
+              const positionData: any = {}
+              if ('x' in updates) positionData.x = updates.x
+              if ('y' in updates) positionData.y = updates.y
+              if ('x2' in updates) positionData.x2 = (updates as any).x2
+              if ('y2' in updates) positionData.y2 = (updates as any).y2
+              if ('bendX' in updates) positionData.bendX = (updates as any).bendX
+              if ('bendY' in updates) positionData.bendY = (updates as any).bendY
+
+              if (Object.keys(positionData).length > 0) {
+                positionData.updatedBy = userId
+                rtdbUpdates.set(targetShape.id, positionData)
+              }
+
+              // Direct Konva manipulation for immediate visual update
               if (stage) {
                 const node = stage.findOne(`#${targetShape.id}`)
                 if (node) {
@@ -793,11 +842,13 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
                   })
                 }
               }
-
-              // Throttled Firestore update
-              updateShapeThrottled(targetShape.id, updates)
             }
           })
+
+          // Step 1: Write positions to RTDB for instant feedback
+          if (rtdbUpdates.size > 0) {
+            await writeBatchShapePositions(canvasId, rtdbUpdates).catch(() => {})
+          }
 
           if (localUpdates.size > 0) {
             updateShapesLocalBatch(localUpdates)
@@ -806,6 +857,23 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           if (stage) {
             const layer = stage.findOne('Layer')
             if (layer) layer.batchDraw()
+          }
+
+          // Step 2: Brief delay for smooth rendering
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          // Step 3: Persist to Firestore (for non-position and all updates)
+          await Promise.all(
+            Array.from(localUpdates.entries()).map(([id, updates]) =>
+              updateShape(id, updates).catch(err => {
+                console.error(`[Redo] Failed to update shape ${id}:`, err)
+              })
+            )
+          )
+
+          // Step 4: Clear RTDB positions
+          if (rtdbUpdates.size > 0) {
+            await clearShapePositions(canvasId, Array.from(rtdbUpdates.keys())).catch(() => {})
           }
         }
 
@@ -1010,7 +1078,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     }
   }, [isPanning, selectedTool])
 
-  // Handle keyboard shortcuts (Cmd+C, Cmd+V, Cmd+Z)
+  // Handle keyboard shortcuts (Cmd+C, Cmd+X, Cmd+V, Cmd+Z)
   useEffect(() => {
     const handleKeyboardShortcut = async (e: KeyboardEvent) => {
       // Don't interfere with shortcuts when typing in input/textarea
@@ -1028,6 +1096,35 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
         setClipboard(selectedShapes)
         console.log('[Clipboard] Copied', selectedShapes.length, 'shapes')
+        return
+      }
+
+      // Cmd+X / Ctrl+X - Cut selected shapes (copy + delete)
+      if (cmdOrCtrl && e.key === 'x' && selectedIds.length > 0) {
+        e.preventDefault()
+        const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
+
+        // Copy to clipboard
+        setClipboard(selectedShapes)
+        console.log('[Clipboard] Cut', selectedShapes.length, 'shapes')
+
+        // Delete shapes with smooth RTDB rendering
+        try {
+          // Step 1: Clear RTDB positions immediately for instant removal
+          await clearShapePositions(canvasId, selectedIds).catch(() => {})
+
+          // Step 2: Brief delay for smooth disappearance
+          await new Promise(resolve => setTimeout(resolve, 50))
+
+          // Step 3: Delete from Firestore for persistence
+          await Promise.all(selectedIds.map(id => deleteShape(id)))
+
+          // Clear selection after cut
+          clearSelection()
+          console.log('[Clipboard] Cut complete - shapes deleted')
+        } catch (err) {
+          console.error('[Clipboard] Failed to cut shapes:', err)
+        }
         return
       }
 
@@ -1049,12 +1146,41 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           }
         })
 
-        // Create all shapes in Firestore
+        // SMOOTH RENDERING PATTERN for paste:
+        // 1. Write positions to RTDB first for instant visual feedback
+        // 2. Create shapes in Firestore for persistence
+        // 3. Clear RTDB after Firestore completes
         try {
+          // Step 1: Write to RTDB for instant appearance
+          const rtdbUpdates = new Map<string, any>()
+          newShapes.forEach(shape => {
+            const positionData: any = {
+              x: shape.x,
+              y: shape.y,
+              updatedBy: userId,
+            }
+            // Include line/connector endpoints if present
+            if ('x2' in shape) positionData.x2 = (shape as any).x2
+            if ('y2' in shape) positionData.y2 = (shape as any).y2
+            if ('bendX' in shape) positionData.bendX = (shape as any).bendX
+            if ('bendY' in shape) positionData.bendY = (shape as any).bendY
+
+            rtdbUpdates.set(shape.id, positionData)
+          })
+          await writeBatchShapePositions(canvasId, rtdbUpdates)
+
+          // Step 2: Brief delay for smooth appearance
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          // Step 3: Create shapes in Firestore for persistence
           await Promise.all(newShapes.map(shape => createShape(shape)))
+
+          // Step 4: Clear RTDB (Firestore is now source of truth)
+          await clearShapePositions(canvasId, newShapes.map(s => s.id))
+
           // Select the newly pasted shapes
           setSelectedIds(newShapes.map(s => s.id))
-          console.log('[Clipboard] Pasted', newShapes.length, 'shapes')
+          console.log('[Clipboard] Pasted', newShapes.length, 'shapes with smooth rendering')
         } catch (err) {
           console.error('[Clipboard] Failed to paste shapes:', err)
         }
@@ -1088,7 +1214,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     return () => {
       window.removeEventListener('keydown', handleKeyboardShortcut)
     }
-  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds])
+  }, [selectedIds, shapes, clipboard, userId, createShape, setSelectedIds, deleteShape, clearSelection, canvasId])
 
   // Handle mouse move to broadcast cursor position and pan
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
@@ -3078,29 +3204,35 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       <Toolbar
         selectedTool={selectedTool}
         onToolSelect={setSelectedTool}
-        selectedShapeColor={selectedShapeId ? (() => {
-          const selectedShape = shapes.find(s => s.id === selectedShapeId)
-          if (!selectedShape) return undefined
-          return 'fill' in selectedShape ? selectedShape.fill :
-                 'stroke' in selectedShape ? selectedShape.stroke : undefined
+        selectedShapeColor={selectedIds.length > 0 ? (() => {
+          // For multi-select, show color of first selected shape
+          const firstSelectedShape = shapes.find(s => s.id === selectedIds[0])
+          if (!firstSelectedShape) return undefined
+          return 'fill' in firstSelectedShape ? firstSelectedShape.fill :
+                 'stroke' in firstSelectedShape ? firstSelectedShape.stroke : undefined
         })() : undefined}
-        onColorChange={selectedShapeId ? (color) => {
-          const selectedShape = shapes.find(s => s.id === selectedShapeId)
-          if (!selectedShape) return
+        onColorChange={selectedIds.length > 0 ? (color) => {
+          // Apply color change to ALL selected shapes
+          console.log(`[Canvas] Changing color to ${color} for ${selectedIds.length} selected shapes`)
 
-          const updates: Partial<Shape> = {}
-          if ('fill' in selectedShape && selectedShape.fill !== undefined) {
-            (updates as any).fill = color
-          }
-          if ('stroke' in selectedShape && selectedShape.stroke !== undefined) {
-            (updates as any).stroke = color
-          }
-          if (Object.keys(updates).length > 0) {
-            updateShapeLocal(selectedShapeId, updates)
-            updateShape(selectedShapeId, updates).catch(err => {
-              console.error('Failed to update shape color:', err)
-            })
-          }
+          selectedIds.forEach(shapeId => {
+            const selectedShape = shapes.find(s => s.id === shapeId)
+            if (!selectedShape) return
+
+            const updates: Partial<Shape> = {}
+            if ('fill' in selectedShape && selectedShape.fill !== undefined) {
+              (updates as any).fill = color
+            }
+            if ('stroke' in selectedShape && selectedShape.stroke !== undefined) {
+              (updates as any).stroke = color
+            }
+            if (Object.keys(updates).length > 0) {
+              updateShapeLocal(shapeId, updates)
+              updateShape(shapeId, updates).catch(err => {
+                console.error(`Failed to update shape ${shapeId} color:`, err)
+              })
+            }
+          })
         } : undefined}
         zoomPercentage={Math.round(viewport.zoom * 100)}
         onZoomIn={handleZoomIn}

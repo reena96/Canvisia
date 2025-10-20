@@ -3,9 +3,9 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import { acquireAILock, releaseAILock, onAILockChange } from '@/services/ai/lock'
 import { sendMessage } from '@/services/ai/client'
 import { AI_TOOLS, SYSTEM_PROMPT } from '@/services/ai/tools'
-// import { buildContext } from '@/services/ai/context'
+import { buildContext } from '@/services/ai/context'
 import { executeToolCalls } from '@/services/ai/executor'
-// import { useFirestore } from '@/hooks/useFirestore'
+import { useFirestore } from '@/hooks/useFirestore'
 import { useCanvasStore } from '@/stores/canvasStore'
 
 // Helper function to generate descriptive responses based on tool calls
@@ -96,8 +96,9 @@ function generateToolCallResponse(toolCalls: any[]): string {
 
 export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse: string) => void) {
   const { user } = useAuth()
-  // const { shapes} = useFirestore(canvasId)
+  const { shapes } = useFirestore(canvasId)
   const viewport = useCanvasStore((state) => state.viewport)
+  const selectedIds = useCanvasStore((state) => state.selectedIds)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const [lockOwner, setLockOwner] = useState<string | null>(null)
@@ -136,11 +137,11 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
     setIsProcessing(true)
 
     try {
-      // Build context (will be used in future PRs for context-aware commands)
-      // const context = buildContext(shapes)
+      // Build context with current shapes and selection state
+      const context = buildContext(shapes, selectedIds)
 
-      // Call Claude
-      const response = await sendMessage(command, AI_TOOLS, SYSTEM_PROMPT)
+      // Call Claude with context
+      const response = await sendMessage(command, AI_TOOLS, SYSTEM_PROMPT, context)
 
       if (response.error) {
         onMessage?.(command, `❌ AI Error: ${response.error}`)

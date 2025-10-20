@@ -9,14 +9,20 @@ const client = new Anthropic({
 export async function sendMessage(
   message: string,
   tools: any[],
-  systemPrompt: string
+  systemPrompt: string,
+  context?: string
 ): Promise<AIResponse> {
   try {
+    // If context is provided, prepend it to the user message
+    const userMessage = context
+      ? `Canvas Context:\n${context}\n\nUser Command: ${message}`
+      : message
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514', // Claude 3.7 Sonnet (latest and most capable)
       max_tokens: 8192, // Increased for more complex responses
       system: systemPrompt,
-      messages: [{ role: 'user', content: message }],
+      messages: [{ role: 'user', content: userMessage }],
       tools
     })
 
