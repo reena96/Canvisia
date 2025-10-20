@@ -1,18 +1,25 @@
 import { Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import type { Presence } from '@/types/user'
 
 interface HeaderProps {
   activeUsers?: Presence[]
   onSignOut?: () => Promise<void>
+  projectName?: string
 }
 
-export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
+export function Header({ activeUsers = [], onSignOut, projectName }: HeaderProps) {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
 
   console.log('[Header] Rendering with activeUsers:', activeUsers)
 
   if (!user) return null
+
+  const handleBackToProjects = () => {
+    navigate('/projects')
+  }
 
   const handleSignOut = async () => {
     console.log('[Header] Sign out button clicked')
@@ -51,7 +58,38 @@ export function Header({ activeUsers = [], onSignOut }: HeaderProps) {
         zIndex: 1000,
       }}
     >
-      <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1F2937 !important' }}>Canvisia</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {projectName && (
+          <button
+            onClick={handleBackToProjects}
+            style={{
+              padding: '0.5rem 1rem',
+              fontSize: '0.9rem',
+              backgroundColor: 'transparent',
+              border: '1px solid #ddd',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: '#1F2937',
+              fontWeight: '500',
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#e5e7eb'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+          >
+            <span>←</span> Back
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#1F2937 !important' }}>
+          {projectName || 'Canvisia'}
+        </h1>
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         {/* Presence indicator */}

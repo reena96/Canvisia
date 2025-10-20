@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase';
 import { Canvas } from '../components/canvas/Canvas';
 import { CanvasSidebar } from '../components/canvas/CanvasSidebar';
 import { AIChat } from '@/components/ai/AIChat';
+import { Header } from '@/components/layout/Header';
+import { getProject } from '@/services/firestore';
+import type { Project } from '@/types/project';
 
 interface CanvasData {
   id: string;
@@ -18,6 +21,7 @@ export const ProjectView: React.FC = () => {
   const [canvases, setCanvases] = useState<CanvasData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isVegaOpen, setIsVegaOpen] = useState(false);
+  const [project, setProject] = useState<Project | null>(null);
 
   const loadCanvases = async () => {
     if (!projectId) return;
@@ -60,6 +64,17 @@ export const ProjectView: React.FC = () => {
   useEffect(() => {
     loadCanvases();
     updateLastAccessed();
+
+    // Load project data
+    if (projectId) {
+      getProject(projectId).then(projectData => {
+        if (projectData) {
+          setProject(projectData);
+        }
+      }).catch(error => {
+        console.error('Error loading project:', error);
+      });
+    }
   }, [projectId]);
 
   if (loading) {
@@ -70,34 +85,37 @@ export const ProjectView: React.FC = () => {
   const canvasPath = projectId && canvasId ? `projects/${projectId}/canvases/${canvasId}` : '';
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <CanvasSidebar
-        projectId={projectId!}
-        canvases={canvases}
-        activeCanvasId={canvasId}
-        onCanvasesChange={loadCanvases}
-      />
-      {canvasId && (
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-          <Canvas canvasPath={canvasPath} />
-          <AIChat
-            canvasPath={canvasPath}
-            isOpen={isVegaOpen}
-            onClose={() => setIsVegaOpen(false)}
-          />
-        </div>
-      )}
-      {!canvasId && canvases.length === 0 && (
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#6B7280'
-        }}>
-          Create a canvas to get started
-        </div>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <Header projectName={project?.name} />
+      <div style={{ display: 'flex', flex: 1, marginTop: '60px' }}>
+        <CanvasSidebar
+          projectId={projectId!}
+          canvases={canvases}
+          activeCanvasId={canvasId}
+          onCanvasesChange={loadCanvases}
+        />
+        {canvasId && (
+          <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <Canvas canvasPath={canvasPath} />
+            <AIChat
+              canvasPath={canvasPath}
+              isOpen={isVegaOpen}
+              onClose={() => setIsVegaOpen(false)}
+            />
+          </div>
+        )}
+        {!canvasId && canvases.length === 0 && (
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#6B7280'
+          }}>
+            Create a canvas to get started
+          </div>
+        )}
+      </div>
     </div>
   );
 };
