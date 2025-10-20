@@ -34,7 +34,12 @@ service cloud.firestore {
     // Permissions: owner can manage, users can read their own
     match /permissions/{permissionId} {
       allow read: if request.auth != null && permissionId.matches('.*_' + request.auth.uid);
-      allow create, update, delete: if request.auth != null &&
+      // Allow creating permission if user is setting themselves as owner
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.role == 'owner';
+      // Allow update/delete if user is owner of the project
+      allow update, delete: if request.auth != null &&
         hasPermission(resource.data.projectId, 'owner');
     }
 
