@@ -436,6 +436,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       }
 
       // Has local update - merge and create new object
+      console.log('[shapes useMemo] Merging shape with local update:', {
+        shapeId: shape.id,
+        firestoreData: { x: shape.x, y: shape.y, width: (shape as any).width, height: (shape as any).height },
+        localUpdate
+      })
       const mergedShape = {
         ...shape,
         ...localUpdate,
@@ -584,7 +589,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   }, [flushPendingUpdates])
 
   // Optimistic local update (immediate UI feedback)
+  // Track timestamps when local updates are set (to prevent premature clearing)
+  const localUpdateTimestampsRef = useRef<Map<string, number>>(new Map())
+
   const updateShapeLocal = useCallback((shapeId: string, updates: Partial<Shape>) => {
+    localUpdateTimestampsRef.current.set(shapeId, Date.now())
     setLocalShapeUpdates((prev) => ({
       ...prev,
       [shapeId]: { ...(prev[shapeId] || {}), ...updates },
@@ -593,11 +602,20 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
   // Batch update multiple shapes at once (avoids race conditions)
   const updateShapesLocalBatch = useCallback((updates: Map<string, Partial<Shape>>) => {
+    console.log('[updateShapesLocalBatch] Setting local updates for shapes:', Array.from(updates.entries()).map(([id, u]) => ({
+      id,
+      updates: u
+    })))
+    const now = Date.now()
+    updates.forEach((_, shapeId) => {
+      localUpdateTimestampsRef.current.set(shapeId, now)
+    })
     setLocalShapeUpdates((prev) => {
       const next = { ...prev }
       updates.forEach((shapeUpdates, shapeId) => {
         next[shapeId] = { ...(prev[shapeId] || {}), ...shapeUpdates }
       })
+      console.log('[updateShapesLocalBatch] New localShapeUpdates:', next)
       return next
     })
   }, [])
@@ -607,11 +625,23 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   useEffect(() => {
     // Small delay to ensure all components have rendered with the updated data
     const timeoutId = setTimeout(() => {
+      const now = Date.now()
       setLocalShapeUpdates((prev) => {
         const updated = { ...prev }
         firestoreShapes.forEach((shape) => {
           const localUpdate = updated[shape.id]
           if (localUpdate) {
+            // CRITICAL: Don't clear local updates too soon after they were set
+            // This prevents race conditions where user reselects before Firestore fully syncs
+            const updateTimestamp = localUpdateTimestampsRef.current.get(shape.id)
+            const timeSinceUpdate = updateTimestamp ? now - updateTimestamp : Infinity
+
+            if (timeSinceUpdate < 2000) {
+              // Don't clear updates within 2 seconds of setting them
+              console.log(`[LocalUpdates] Skipping clear for shape ${shape.id} (only ${timeSinceUpdate}ms old)`)
+              return
+            }
+
             // Check if ALL properties in local update match Firestore shape
             const allPropertiesMatch = Object.keys(localUpdate).every((key) => {
               const localValue = localUpdate[key as keyof typeof localUpdate]
@@ -629,6 +659,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             if (allPropertiesMatch) {
               console.log('[LocalUpdates] Clearing local update for shape:', shape.id)
               delete updated[shape.id]
+              localUpdateTimestampsRef.current.delete(shape.id)
             }
           }
         })
