@@ -1,20 +1,19 @@
-import { useState } from 'react'
-import { AuthProvider, useAuth } from './components/auth/AuthProvider'
+import { useEffect } from 'react'
+import { useNavigate, Outlet } from 'react-router-dom'
+import { useAuth } from './components/auth/AuthProvider'
 import { LoginButton } from './components/auth/LoginButton'
 import { DevLogin } from './components/auth/DevLogin'
-import { Header } from './components/layout/Header'
-import { Canvas } from './components/canvas/Canvas'
-import { AIChat } from './components/ai/AIChat'
-import type { Presence } from './types/user'
 
-function AppContent() {
+function App() {
   const { user, loading } = useAuth()
-  const [activeUsers, setActiveUsers] = useState<Presence[]>([])
-  // Wrap in object to prevent React from calling the function when setting state
-  const [presenceCleanup, setPresenceCleanup] = useState<{ fn: (() => Promise<void>) | null }>({ fn: null })
-  const [isVegaOpen, setIsVegaOpen] = useState(false)
+  const navigate = useNavigate()
 
-  console.log('[App] Rendering with activeUsers count:', activeUsers.length)
+  // Redirect logged-in users to /projects on app load
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/projects', { replace: true })
+    }
+  }, [user, loading, navigate])
 
   if (loading) {
     return (
@@ -173,59 +172,8 @@ function AppContent() {
     )
   }
 
-  return (
-    <div className="app" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
-      <Header
-        activeUsers={activeUsers}
-        onSignOut={presenceCleanup.fn || undefined}
-      />
-      <Canvas
-        onPresenceChange={setActiveUsers}
-        onMountCleanup={(fn) => setPresenceCleanup({ fn })}
-        onAskVega={() => setIsVegaOpen(true)}
-        isVegaOpen={isVegaOpen}
-      />
-      <AIChat
-        canvasId="default-canvas"
-        isOpen={isVegaOpen}
-        onClose={() => setIsVegaOpen(false)}
-      />
-
-      {/* Attribution Footer */}
-      <div style={{
-        position: 'fixed',
-        bottom: '4px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: '10px',
-        color: '#9CA3AF',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        padding: '2px 8px',
-        borderRadius: '4px',
-        zIndex: 500,
-        textAlign: 'center',
-        pointerEvents: 'auto'
-      }}>
-        <a
-          href="https://www.flaticon.com/free-icons/saturn"
-          title="saturn icons"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: '#6B7280', textDecoration: 'none' }}
-        >
-          Vega icon by Muhammad Ali - Flaticon
-        </a>
-      </div>
-    </div>
-  )
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  )
+  // For authenticated users, render nested routes through Outlet
+  return <Outlet />
 }
 
 export default App
