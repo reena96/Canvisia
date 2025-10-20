@@ -12,21 +12,82 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
     }
 
+    // Canvas-level permission helpers
+    function hasCanvasPermission(canvasPath, role) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid)) &&
+        get(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid)).data.role == role;
+    }
+
+    function hasAnyCanvasPermission(canvasPath) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/canvasPermissions/$(canvasPath + '_' + request.auth.uid));
+    }
+
+    // Combined check: either project OR canvas permission
+    function canAccessCanvas(projectId, canvasPath) {
+      return hasAnyPermission(projectId) || hasAnyCanvasPermission(canvasPath);
+    }
+
+    function canEditCanvas(projectId, canvasPath) {
+      return hasPermission(projectId, 'owner') ||
+             hasPermission(projectId, 'editor') ||
+             hasCanvasPermission(canvasPath, 'owner') ||
+             hasCanvasPermission(canvasPath, 'editor');
+    }
+
     // Projects: read if has permission, write if owner
     match /projects/{projectId} {
       allow read: if hasAnyPermission(projectId);
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if hasPermission(projectId, 'owner');
 
-      // Canvases: inherit project permissions
+      // Canvases: allow project OR canvas-level permissions
       match /canvases/{canvasId} {
-        allow read: if hasAnyPermission(projectId);
-        allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
+        function canvasPath() {
+          return 'projects/' + projectId + '/canvases/' + canvasId;
+        }
+
+        allow get, list: if canAccessCanvas(projectId, canvasPath());
+        allow write: if canEditCanvas(projectId, canvasPath());
 
         // Objects: inherit canvas permissions
         match /objects/{objectId} {
-          allow read: if hasAnyPermission(projectId);
-          allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
+          allow get, list: if canAccessCanvas(projectId, canvasPath());
+          allow write: if canEditCanvas(projectId, canvasPath());
+        }
+
+        // Annotations: users with access can read, editors can create, users can delete their own
+        match /annotations/{annotationId} {
+          allow get, list: if canAccessCanvas(projectId, canvasPath());
+          allow create: if request.auth != null && canEditCanvas(projectId, canvasPath());
+          allow update, delete: if request.auth != null &&
+                                 (resource.data.userId == request.auth.uid ||
+                                  hasPermission(projectId, 'owner') ||
+                                  hasCanvasPermission(canvasPath(), 'owner'));
+        }
+
+        // Chat messages
+        match /chats/{tabId}/messages/{messageId} {
+          allow get, list: if canAccessCanvas(projectId, canvasPath());
+          allow create: if request.auth != null && canAccessCanvas(projectId, canvasPath());
+          allow update: if request.auth != null && canAccessCanvas(projectId, canvasPath())
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+          allow delete: if false;
+        }
+
+        // Chat tabs
+        match /chatTabs/{tabId} {
+          allow get, list: if canAccessCanvas(projectId, canvasPath());
+          allow create: if request.auth != null && canAccessCanvas(projectId, canvasPath());
+          allow update: if request.auth != null && canAccessCanvas(projectId, canvasPath());
+          allow delete: if false;
+        }
+
+        // Presence tracking
+        match /presence/{userId} {
+          allow get, list: if canAccessCanvas(projectId, canvasPath());
+          allow write: if request.auth != null && canAccessCanvas(projectId, canvasPath());
         }
       }
     }
@@ -47,6 +108,27 @@ service cloud.firestore {
       // Allow update/delete if user is owner of the project
       allow update, delete: if request.auth != null &&
         hasPermission(resource.data.projectId, 'owner');
+    }
+
+    // Canvas Permissions: owner can manage, users can read their own
+    match /canvasPermissions/{canvasPermissionId} {
+      allow read: if request.auth != null && canvasPermissionId.matches('.*_' + request.auth.uid);
+      // Allow listing canvas permissions collection (filtered by read rules)
+      allow list: if request.auth != null;
+      // Allow creating canvas permission if:
+      // 1. User is the project owner, OR
+      // 2. User is the canvas owner inviting someone else
+      allow create: if request.auth != null && (
+        hasPermission(request.resource.data.projectId, 'owner')
+        ||
+        hasCanvasPermission(request.resource.data.canvasPath, 'owner')
+      );
+      // Allow update/delete if user is owner of the canvas or project
+      allow update, delete: if request.auth != null && (
+        hasPermission(resource.data.projectId, 'owner')
+        ||
+        hasCanvasPermission(resource.data.canvasPath, 'owner')
+      );
     }
 
     // Legacy canvases collection (read-only for backward compatibility)

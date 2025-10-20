@@ -123,6 +123,8 @@ export const ProjectView: React.FC = () => {
         <ShareDialog
           projectId={projectId}
           projectName={project.name}
+          canvasId={canvasId}
+          canvasName={canvases.find(c => c.id === canvasId)?.name}
           onClose={() => setShowShareDialog(false)}
         />
       )}
