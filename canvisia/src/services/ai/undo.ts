@@ -8,7 +8,7 @@ import type { Shape } from '@/types/shapes'
  */
 export interface UndoAction {
   id: string
-  canvasId: string
+  canvasPath: string  // Changed from canvasId to canvasPath
   userId: string
   timestamp: Date
   command: string  // Original user command
@@ -34,10 +34,10 @@ export interface UndoAction {
 export async function saveUndoAction(action: UndoAction): Promise<void> {
   try {
     // First, delete any existing undo actions for this canvas
-    await clearUndoHistory(action.canvasId)
+    await clearUndoHistory(action.canvasPath)
 
-    // Save the new undo action
-    const undoRef = doc(db, `canvases/${action.canvasId}/undoHistory`, action.id)
+    // Save the new undo action using the project-based path
+    const undoRef = doc(db, `${action.canvasPath}/undoHistory`, action.id)
     await setDoc(undoRef, {
       ...action,
       timestamp: action.timestamp.toISOString()
@@ -53,9 +53,9 @@ export async function saveUndoAction(action: UndoAction): Promise<void> {
 /**
  * Get the most recent undo action for a canvas
  */
-export async function getLastUndoAction(canvasId: string): Promise<UndoAction | null> {
+export async function getLastUndoAction(canvasPath: string): Promise<UndoAction | null> {
   try {
-    const undoHistoryRef = collection(db, `canvases/${canvasId}/undoHistory`)
+    const undoHistoryRef = collection(db, `${canvasPath}/undoHistory`)
     const q = query(undoHistoryRef, orderBy('timestamp', 'desc'), limit(1))
     const snapshot = await getDocs(q)
 
@@ -79,15 +79,15 @@ export async function getLastUndoAction(canvasId: string): Promise<UndoAction | 
 /**
  * Clear undo history for a canvas
  */
-export async function clearUndoHistory(canvasId: string): Promise<void> {
+export async function clearUndoHistory(canvasPath: string): Promise<void> {
   try {
-    const undoHistoryRef = collection(db, `canvases/${canvasId}/undoHistory`)
+    const undoHistoryRef = collection(db, `${canvasPath}/undoHistory`)
     const snapshot = await getDocs(undoHistoryRef)
 
     const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref))
     await Promise.all(deletePromises)
 
-    console.log('[Undo] Cleared undo history for canvas:', canvasId)
+    console.log('[Undo] Cleared undo history for canvas:', canvasPath)
   } catch (error) {
     console.error('[Undo] Error clearing undo history:', error)
     throw error
@@ -97,9 +97,9 @@ export async function clearUndoHistory(canvasId: string): Promise<void> {
 /**
  * Delete a specific undo action (after it's been used)
  */
-export async function deleteUndoAction(canvasId: string, actionId: string): Promise<void> {
+export async function deleteUndoAction(canvasPath: string, actionId: string): Promise<void> {
   try {
-    const undoRef = doc(db, `canvases/${canvasId}/undoHistory`, actionId)
+    const undoRef = doc(db, `${canvasPath}/undoHistory`, actionId)
     await deleteDoc(undoRef)
     console.log('[Undo] Deleted undo action:', actionId)
   } catch (error) {

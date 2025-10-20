@@ -666,7 +666,8 @@ export async function updateProject(
     lastModified: Timestamp.now(),
   }
 
-  await updateDoc(doc(db, 'projects', projectId), updateData)
+  // Use setDoc with merge to handle cases where project document doesn't exist yet
+  await setDoc(doc(db, 'projects', projectId), updateData, { merge: true })
 }
 
 /**
@@ -717,6 +718,46 @@ export async function getProjectCanvases(projectId: string): Promise<ProjectMeta
   canvases.sort((a, b) => a.order - b.order)
 
   return canvases
+}
+
+/**
+ * Subscribe to canvases in a project with real-time updates
+ * @param projectId - Project ID
+ * @param callback - Callback function called with canvases array when data changes
+ * @returns Unsubscribe function
+ */
+export function subscribeToProjectCanvases(
+  projectId: string,
+  callback: (canvases: ProjectMetadata[]) => void
+): () => void {
+  const canvasesRef = collection(db, 'projects', projectId, 'canvases')
+  const q = query(canvasesRef)
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const canvases: ProjectMetadata[] = []
+
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        canvases.push({
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          lastModified: data.lastModified?.toDate?.() || data.lastModified,
+        } as ProjectMetadata)
+      })
+
+      // Sort by order
+      canvases.sort((a, b) => a.order - b.order)
+
+      callback(canvases)
+    },
+    (error) => {
+      console.error('Firestore canvases subscription error:', error)
+    }
+  )
+
+  return unsubscribe
 }
 
 /**
@@ -773,7 +814,8 @@ export async function updateCanvas(
     lastModified: Timestamp.now(),
   }
 
-  await updateDoc(doc(db, 'projects', projectId, 'canvases', canvasId), updateData)
+  // Use setDoc with merge to handle cases where canvas document doesn't exist yet
+  await setDoc(doc(db, 'projects', projectId, 'canvases', canvasId), updateData, { merge: true })
 
   // Update project lastModified
   await updateProject(projectId, {})

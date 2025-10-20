@@ -9,19 +9,18 @@ import {
   executeMoveElement,
   executeResizeElement,
   executeRotateElement,
-  // executeChangeColor, // TODO: Implement
-  // executeDeleteElements, // TODO: Implement
+  executeChangeColor,
+  executeDeleteElements,
   executeArrangeElements,
   executeAlignElements,
-  // executeCreateUIComponent, // TODO: Implement
-  // executeCreateFlowchart, // TODO: Implement
-  // executeCreateDiagram, // TODO: Implement
-  // executeUndo, // TODO: Implement
+  executeCreateUIComponent,
+  executeCreateFlowchart,
+  executeCreateDiagram,
+  executeUndo,
 } from '@/utils/aiHelpers'
-// TODO: Implement undo tracking in execution functions
-// import { saveUndoAction } from './undo'
-// import type { UndoAction } from './undo'
-// import { v4 as uuidv4 } from 'uuid'
+import { saveUndoAction } from './undo'
+import type { UndoAction } from './undo'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Execution result with metadata for partial match detection and undo tracking
@@ -53,11 +52,12 @@ export interface ExecutionResult {
  */
 export async function executeToolCalls(
   toolCalls: AIToolCall[],
-  canvasId: string,
+  canvasPath: string,
   userId: string,
-  viewport: Viewport
+  viewport: Viewport,
+  command: string
 ): Promise<ExecutionResult[]> {
-  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasId, 'userId:', userId, 'viewport:', viewport)
+  console.log('Executing tool calls:', toolCalls, 'for canvas:', canvasPath, 'userId:', userId, 'viewport:', viewport, 'command:', command)
 
   const results: ExecutionResult[] = []
 
@@ -69,91 +69,102 @@ export async function executeToolCalls(
 
       switch (toolCall.name) {
         case 'create_shape':
-          await executeCreateShape(canvasId, userId, toolCall.input as any, viewport)
+          result = await executeCreateShape(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_shape completed successfully')
           break
 
         case 'create_multiple_shapes':
-          await executeCreateMultipleShapes(canvasId, userId, toolCall.input as any, viewport)
+          await executeCreateMultipleShapes(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_multiple_shapes completed successfully')
           break
 
         case 'create_text':
-          await executeCreateText(canvasId, userId, toolCall.input as any, viewport)
+          await executeCreateText(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_text completed successfully')
           break
 
         case 'create_arrow':
-          await executeCreateArrow(canvasId, userId, toolCall.input as any, viewport)
+          await executeCreateArrow(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] create_arrow completed successfully')
           break
 
         // PR 15: Manipulation Commands
         case 'move_element':
-          await executeMoveElement(canvasId, userId, toolCall.input as any, viewport)
+          await executeMoveElement(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] move_element completed successfully')
           break
 
         case 'resize_element':
-          await executeResizeElement(canvasId, userId, toolCall.input as any, viewport)
+          await executeResizeElement(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] resize_element completed successfully')
           break
 
         case 'rotate_element':
-          await executeRotateElement(canvasId, userId, toolCall.input as any, viewport)
+          await executeRotateElement(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] rotate_element completed successfully')
           break
 
         case 'change_color':
-          // TODO: Implement executeChangeColor
-          console.warn('[Executor] change_color not yet implemented')
-          result = { success: false, error: 'Not implemented' }
+          result = await executeChangeColor(canvasPath, userId, toolCall.input as any)
+          console.log('[Executor] change_color completed successfully')
           break
 
         case 'delete_elements':
-          // TODO: Implement executeDeleteElements
-          console.warn('[Executor] delete_elements not yet implemented')
-          result = { success: false, error: 'Not implemented' }
+          result = await executeDeleteElements(canvasPath, userId, toolCall.input as any)
+          console.log('[Executor] delete_elements completed successfully')
           break
 
         // PR 16: Layout Commands
         case 'arrange_elements':
-          await executeArrangeElements(canvasId, userId, toolCall.input as any)
+          await executeArrangeElements(canvasPath, userId, toolCall.input as any)
           console.log('[Executor] arrange_elements completed successfully')
           break
 
         case 'align_elements':
-          await executeAlignElements(canvasId, userId, toolCall.input as any, viewport)
+          await executeAlignElements(canvasPath, userId, toolCall.input as any, viewport)
           console.log('[Executor] align_elements completed successfully')
           break
 
         // PR 17: Complex Commands
         case 'create_flowchart':
-          // TODO: Implement executeCreateFlowchart
-          console.warn('[Executor] create_flowchart not yet implemented')
-          result = { success: false, error: 'Not implemented' }
+          await executeCreateFlowchart(canvasPath, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_flowchart completed successfully')
           break
 
         case 'create_ui_component':
-          // TODO: Implement executeCreateUIComponent
-          console.warn('[Executor] create_ui_component not yet implemented')
-          result = { success: false, error: 'Not implemented' }
+          await executeCreateUIComponent(canvasPath, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_ui_component completed successfully')
           break
 
         case 'create_diagram':
-          // TODO: Implement executeCreateDiagram
-          console.warn('[Executor] create_diagram not yet implemented')
-          result = { success: false, error: 'Not implemented' }
+          await executeCreateDiagram(canvasPath, userId, toolCall.input as any, viewport)
+          console.log('[Executor] create_diagram completed successfully')
           break
 
         case 'undo':
-          // TODO: Implement executeUndo
-          console.warn('[Executor] undo not yet implemented')
-          result = { success: false, error: 'Not implemented' }
+          result = await executeUndo(canvasPath, userId)
+          console.log('[Executor] undo completed successfully')
           break
 
         default:
           console.warn(`Unknown tool: ${toolCall.name}`)
+      }
+
+      // Save undo action if undo data is present
+      if (result.undoData && toolCall.name !== 'undo') {
+        const undoAction: UndoAction = {
+          id: uuidv4(),
+          canvasPath,
+          userId,
+          timestamp: new Date(),
+          command,
+          actionType: result.undoData.actionType,
+          createdShapeIds: result.undoData.createdShapeIds,
+          modifiedShapes: result.undoData.modifiedShapes,
+          deletedShapes: result.undoData.deletedShapes
+        }
+        await saveUndoAction(undoAction)
+        console.log('[Executor] Saved undo action:', undoAction.id)
       }
 
       results.push(result)

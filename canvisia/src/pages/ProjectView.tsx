@@ -5,8 +5,9 @@ import { CanvasSidebar } from '../components/canvas/CanvasSidebar';
 import { AIChat } from '@/components/ai/AIChat';
 import { Header } from '@/components/layout/Header';
 import { ShareDialog } from '@/components/share/ShareDialog';
-import { getProject, getProjectCanvases } from '@/services/firestore';
+import { getProject, subscribeToProjectCanvases } from '@/services/firestore';
 import type { Project } from '@/types/project';
+import type { Presence } from '@/types/user';
 
 interface CanvasData {
   id: string;
@@ -29,23 +30,12 @@ export const ProjectView: React.FC = () => {
   const [isVegaOpen, setIsVegaOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [activeUsers, setActiveUsers] = useState<Presence[]>([]);
+  const [canvasCleanup, setCanvasCleanup] = useState<(() => Promise<void>) | null>(null);
 
   const loadCanvases = async () => {
-    if (!projectId) return;
-
-    try {
-      const canvasesData = await getProjectCanvases(projectId);
-      setCanvases(canvasesData);
-
-      // If no canvas is specified but we have canvases, navigate to the first one
-      if (!canvasId && canvasesData && canvasesData.length > 0) {
-        navigate(`/p/${projectId}/${canvasesData[0].id}`, { replace: true });
-      }
-    } catch (error) {
-      console.error('Error loading canvases:', error);
-    } finally {
-      setLoading(false);
-    }
+    // This function is now only used for the onCanvasesChange callback
+    // The actual real-time subscription is set up in useEffect
   };
 
   const updateLastAccessed = async () => {
@@ -60,19 +50,35 @@ export const ProjectView: React.FC = () => {
   };
 
   useEffect(() => {
-    loadCanvases();
+    if (!projectId) return;
+
     updateLastAccessed();
 
     // Load project data
-    if (projectId) {
-      getProject(projectId).then(projectData => {
-        if (projectData) {
-          setProject(projectData);
-        }
-      }).catch(error => {
-        console.error('Error loading project:', error);
-      });
-    }
+    getProject(projectId).then(projectData => {
+      if (projectData) {
+        setProject(projectData);
+      }
+    }).catch(error => {
+      console.error('Error loading project:', error);
+    });
+
+    // Set up real-time subscription to canvases
+    setLoading(true);
+    const unsubscribe = subscribeToProjectCanvases(projectId, (canvasesData) => {
+      setCanvases(canvasesData);
+      setLoading(false);
+
+      // If no canvas is specified but we have canvases, navigate to the first one
+      if (!canvasId && canvasesData && canvasesData.length > 0) {
+        navigate(`/p/${projectId}/${canvasesData[0].id}`, { replace: true });
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
   }, [projectId]);
 
   if (loading) {
@@ -82,12 +88,27 @@ export const ProjectView: React.FC = () => {
   // Construct canvas path for Firestore
   const canvasPath = projectId && canvasId ? `projects/${projectId}/canvases/${canvasId}` : '';
 
+  // Handle cleanup before sign out
+  const handleSignOut = async () => {
+    console.log('[ProjectView] Sign out requested - running cleanup')
+    if (canvasCleanup) {
+      try {
+        await canvasCleanup()
+        console.log('[ProjectView] Canvas cleanup completed successfully')
+      } catch (error) {
+        console.error('[ProjectView] Canvas cleanup failed:', error)
+      }
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Header
         projectName={project?.name}
         projectId={projectId}
         onShareClick={() => setShowShareDialog(true)}
+        activeUsers={activeUsers}
+        onSignOut={handleSignOut}
       />
       <div style={{ display: 'flex', flex: 1, marginTop: '60px' }}>
         <CanvasSidebar
@@ -102,6 +123,8 @@ export const ProjectView: React.FC = () => {
               canvasPath={canvasPath}
               onAskVega={() => setIsVegaOpen(!isVegaOpen)}
               isVegaOpen={isVegaOpen}
+              onPresenceChange={setActiveUsers}
+              onMountCleanup={setCanvasCleanup}
             />
             <AIChat
               canvasPath={canvasPath}

@@ -103,14 +103,17 @@ function generateToolCallResponse(toolCalls: any[]): string {
   }
 }
 
-export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse: string) => void) {
+export function useAI(canvasPath: string, onMessage?: (userMsg: string, aiResponse: string) => void) {
   const { user } = useAuth()
-  const { shapes } = useFirestore(canvasId)
+  const { shapes } = useFirestore(canvasPath)
   const viewport = useCanvasStore((state) => state.viewport)
   const selectedIds = useCanvasStore((state) => state.selectedIds)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const [lockOwner, setLockOwner] = useState<string | null>(null)
+
+  // Extract canvasId from canvasPath for AI lock (RTDB uses canvasId)
+  const canvasId = canvasPath.split('/').pop() || ''
 
   // Listen to lock changes
   useEffect(() => {
@@ -127,9 +130,14 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
   }, [canvasId, user?.uid])
 
   const sendCommand = async (command: string) => {
-    if (!user) return
+    console.log('🎯 [useAI sendCommand] Called with:', { command, canvasPath, userId: user?.uid })
+    if (!user) {
+      console.error('❌ [useAI sendCommand] No user authenticated')
+      return
+    }
 
     // Try to acquire lock
+    console.log('🎯 [useAI sendCommand] Attempting to acquire lock for canvasId:', canvasId)
     const acquired = await acquireAILock(
       canvasId,
       user.uid,
@@ -147,7 +155,7 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
     try {
       // Build context with current shapes and selection state
-      const context = await buildContext(shapes, selectedIds, canvasId)
+      const context = await buildContext(shapes, selectedIds, canvasPath)
 
       // Call Claude with context
       const response = await sendMessage(command, AI_TOOLS, SYSTEM_PROMPT, context)
@@ -159,7 +167,7 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
       // Execute tool calls
       if (response.tool_calls && response.tool_calls.length > 0) {
-        const executionResults = await executeToolCalls(response.tool_calls, canvasId, user.uid, viewport)
+        const executionResults = await executeToolCalls(response.tool_calls, canvasPath, user.uid, viewport, command)
         let aiResponse = generateToolCallResponse(response.tool_calls)
 
         // Check for partial matches and add clarifications

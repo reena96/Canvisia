@@ -9,7 +9,7 @@
       }
     },
     "presence": {
-      "$canvasId": {
+      "$projectId": {
         ".read": true,
         "$userId": {
           ".write": "$userId === auth.uid"
@@ -17,7 +17,7 @@
       }
     },
     "connections": {
-      "$canvasId": {
+      "$projectId": {
         ".read": true,
         "$userId": {
           ".write": "$userId === auth.uid"
