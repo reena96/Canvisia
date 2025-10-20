@@ -28,6 +28,15 @@ service cloud.firestore {
           allow read: if hasAnyPermission(projectId);
           allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
         }
+
+        // Annotations: users with access can read, editors can create, users can delete their own
+        match /annotations/{annotationId} {
+          allow read: if hasAnyPermission(projectId);
+          allow create: if request.auth != null &&
+                        (hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor'));
+          allow update, delete: if request.auth != null &&
+                                 (resource.data.userId == request.auth.uid || hasPermission(projectId, 'owner'));
+        }
       }
     }
 
@@ -57,6 +66,13 @@ service cloud.firestore {
       match /objects/{objectId} {
         allow read: if request.auth != null;
         allow write: if false;
+      }
+
+      // Annotations (legacy path - for backward compatibility)
+      match /annotations/{annotationId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       }
 
       // Chat messages (keep for backward compatibility)
