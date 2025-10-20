@@ -1,57 +1,80 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Canvas objects (shapes)
-    match /canvases/{canvasId}/objects/{objectId} {
-      // Anyone can read shapes
-      allow read: if true;
 
-      // Only authenticated users can create shapes
-      allow create: if request.auth != null
-                    && request.resource.data.createdBy == request.auth.uid;
-
-      // Any authenticated user can edit any shape (collaborative editing)
-      allow update: if request.auth != null;
-
-      // Any authenticated user can delete any shape (collaborative editing)
-      allow delete: if request.auth != null;
+    // Helper function to check if user has permission
+    function hasPermission(projectId, role) {
+      let permDoc = get(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
+      return permDoc != null && permDoc.data.role == role;
     }
 
-    // Chat messages
-    match /canvases/{canvasId}/chats/{tabId}/messages/{messageId} {
-      // Anyone can read chat messages
-      allow read: if true;
-
-      // Only authenticated users can create messages
-      allow create: if request.auth != null;
-
-      // Allow authenticated users to update readBy field only
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
-
-      // Messages cannot be deleted
-      allow delete: if false;
+    function hasAnyPermission(projectId) {
+      return exists(/databases/$(database)/documents/permissions/$(projectId + '_' + request.auth.uid));
     }
 
-    // Chat tabs
-    match /canvases/{canvasId}/chatTabs/{tabId} {
-      // Anyone can read chat tabs
-      allow read: if true;
+    // Projects: read if has permission, write if owner
+    match /projects/{projectId} {
+      allow read: if hasAnyPermission(projectId);
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if hasPermission(projectId, 'owner');
 
-      // Only authenticated users can create tabs
-      allow create: if request.auth != null;
+      // Canvases: inherit project permissions
+      match /canvases/{canvasId} {
+        allow read: if hasAnyPermission(projectId);
+        allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
 
-      // Allow authenticated users to update tab name or hiddenBy array
-      allow update: if request.auth != null;
-
-      // Tabs are never deleted, only hidden per user
-      allow delete: if false;
+        // Objects: inherit canvas permissions
+        match /objects/{objectId} {
+          allow read: if hasAnyPermission(projectId);
+          allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
+        }
+      }
     }
 
-    // Deny all other access
-    match /{document=**} {
-      allow read, write: if false;
+    // Permissions: owner can manage, users can read their own
+    match /permissions/{permissionId} {
+      allow read: if request.auth != null && permissionId.matches('.*_' + request.auth.uid);
+      // Allow listing permissions collection (filtered by read rules)
+      allow list: if request.auth != null;
+      // Allow creating permission if:
+      // 1. User is setting themselves as owner, OR
+      // 2. User is the project owner inviting someone else
+      allow create: if request.auth != null && (
+        (request.resource.data.userId == request.auth.uid && request.resource.data.role == 'owner')
+        ||
+        hasPermission(request.resource.data.projectId, 'owner')
+      );
+      // Allow update/delete if user is owner of the project
+      allow update, delete: if request.auth != null &&
+        hasPermission(resource.data.projectId, 'owner');
+    }
+
+    // Legacy canvases collection (read-only for backward compatibility)
+    match /canvases/{canvasId} {
+      allow read: if request.auth != null;
+      allow write: if false;  // Prevent new writes to old structure
+
+      match /objects/{objectId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+
+      // Chat messages (keep for backward compatibility)
+      match /chats/{tabId}/messages/{messageId} {
+        allow read: if true;
+        allow create: if request.auth != null;
+        allow update: if request.auth != null
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+        allow delete: if false;
+      }
+
+      // Chat tabs (keep for backward compatibility)
+      match /chatTabs/{tabId} {
+        allow read: if true;
+        allow create: if request.auth != null;
+        allow update: if request.auth != null;
+        allow delete: if false;
+      }
     }
   }
 }

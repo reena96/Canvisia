@@ -1,9 +1,7 @@
-import { createShape, updateShape, getShapes, deleteShape } from '@/services/firestore'
+import { createShape, updateShape, getShapes } from '@/services/firestore'
 import { writeBatchShapePositions, clearShapePositions } from '@/services/rtdb'
-import { getLastUndoAction, deleteUndoAction } from '@/services/ai/undo'
 import type { Shape, Rectangle, Circle, Ellipse, RoundedRectangle, Cylinder, Triangle, Pentagon, Hexagon, Star, Text, Arrow, BidirectionalArrow } from '@/types/shapes'
 import type { Viewport } from '@/types/canvas'
-import type { ExecutionResult } from '@/services/ai/executor'
 import { v4 as uuidv4 } from 'uuid'
 import {
   getViewportBounds,
@@ -146,7 +144,7 @@ function resolveColor(color?: string): string {
  * Creates N shapes and arranges them in a grid pattern by default
  */
 export async function executeCreateMultipleShapes(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     count: number
@@ -164,6 +162,11 @@ export async function executeCreateMultipleShapes(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateMultipleShapes called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  void (canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath)
 
   const {
     count,
@@ -187,7 +190,7 @@ export async function executeCreateMultipleShapes(
 
   // Smart placement starting position
   const viewportBounds = getViewportBounds(viewport)
-  const existingShapes = await getShapes(canvasId)
+  const existingShapes = await getShapes(canvasPath)
 
   // Determine shape size for initial placement
   let shapeWidth = width
@@ -375,7 +378,7 @@ export async function executeCreateMultipleShapes(
   console.log(`[AI Helpers] Creating ${arrangedShapes.length} shapes in Firestore`)
 
   for (const shape of arrangedShapes) {
-    await createShape(canvasId, shape)
+    await createShape(canvasPath, shape)
   }
 
   console.log('[AI Helpers] Multiple shapes created successfully')
@@ -385,7 +388,7 @@ export async function executeCreateMultipleShapes(
  * Execute create_shape tool call
  */
 export async function executeCreateShape(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     shapeType: string
@@ -402,6 +405,11 @@ export async function executeCreateShape(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  void (canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath)
 
   const {
     shapeType,
@@ -428,7 +436,7 @@ export async function executeCreateShape(
   } else {
     // Smart placement in viewport
     const viewportBounds = getViewportBounds(viewport)
-    const existingShapes = await getShapes(canvasId)
+    const existingShapes = await getShapes(canvasPath)
 
     // Determine shape size for collision detection
     let shapeWidth = width
@@ -589,7 +597,7 @@ export async function executeCreateShape(
   }
 
   console.log('[AI Helpers] Creating shape in Firestore:', shape)
-  await createShape(canvasId, shape)
+  await createShape(canvasPath, shape)
   console.log('[AI Helpers] Shape created successfully:', shape.id)
 }
 
@@ -597,7 +605,7 @@ export async function executeCreateShape(
  * Execute create_text tool call
  */
 export async function executeCreateText(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     text: string
@@ -610,6 +618,11 @@ export async function executeCreateText(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  void (canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath)
 
   const {
     text,
@@ -634,7 +647,7 @@ export async function executeCreateText(
   } else {
     // Smart placement in viewport
     const viewportBounds = getViewportBounds(viewport)
-    const existingShapes = await getShapes(canvasId)
+    const existingShapes = await getShapes(canvasPath)
 
     const placement = findEmptySpaceInViewport(
       viewportBounds,
@@ -677,7 +690,7 @@ export async function executeCreateText(
   }
 
   console.log('[AI Helpers] Creating text in Firestore:', textShape)
-  await createShape(canvasId, textShape)
+  await createShape(canvasPath, textShape)
   console.log('[AI Helpers] Text created successfully:', textShape.id)
 }
 
@@ -685,7 +698,7 @@ export async function executeCreateText(
  * Execute create_arrow tool call
  */
 export async function executeCreateArrow(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     x1?: number
@@ -698,6 +711,11 @@ export async function executeCreateArrow(
   viewport: Viewport
 ): Promise<void> {
   console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
+
+  // Extract canvasId for RTDB if needed
+  void (canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath)
 
   const {
     x1: inputX1,
@@ -725,7 +743,7 @@ export async function executeCreateArrow(
   } else {
     // Smart placement in viewport
     const viewportBounds = getViewportBounds(viewport)
-    const existingShapes = await getShapes(canvasId)
+    const existingShapes = await getShapes(canvasPath)
 
     const placement = findEmptySpaceInViewport(
       viewportBounds,
@@ -778,7 +796,7 @@ export async function executeCreateArrow(
   }
 
   console.log('[AI Helpers] Creating arrow in Firestore:', arrow)
-  await createShape(canvasId, arrow)
+  await createShape(canvasPath, arrow)
   console.log('[AI Helpers] Arrow created successfully:', arrow.id)
 }
 
@@ -981,8 +999,6 @@ function applyFilters(
     type?: string
     color?: string
     textContent?: string
-    groupId?: string
-    groupName?: string
   }
 ): Shape[] {
   let filtered = shapes
@@ -991,19 +1007,6 @@ function applyFilters(
   filtered = applyTypeFilter(filtered, filters.type)
   filtered = applyColorFilter(filtered, filters.color)
   filtered = applyTextContentFilter(filtered, filters.textContent)
-
-  // Filter by groupId (exact match)
-  if (filters.groupId) {
-    filtered = filtered.filter(s => s.groupId === filters.groupId)
-  }
-
-  // Filter by groupName (case-insensitive partial match)
-  if (filters.groupName) {
-    const lowerGroupName = filters.groupName.toLowerCase()
-    filtered = filtered.filter(s =>
-      s.groupName?.toLowerCase().includes(lowerGroupName)
-    )
-  }
 
   return filtered
 }
@@ -1077,107 +1080,11 @@ export function findShape(
 }
 
 /**
- * Find similar shapes when exact match fails
- * Returns array of similar shapes with reasons why they're similar
- */
-export function findSimilarShapes(
-  shapes: Shape[],
-  descriptor: {
-    type?: string
-    color?: string
-  }
-): Array<{ shape: Shape; reason: string }> {
-  const similar: Array<{ shape: Shape; reason: string }> = []
-
-  // If looking for specific type and color, find shapes with matching type (different color)
-  if (descriptor.type && descriptor.color) {
-    const typeMatches = shapes.filter(s => s.type === descriptor.type)
-    for (const shape of typeMatches) {
-      if (!matchesColor(shape, descriptor.color)) {
-        const shapeColor = 'fill' in shape ? (shape as any).fill : ('stroke' in shape ? (shape as any).stroke : 'unknown')
-        similar.push({
-          shape,
-          reason: `${descriptor.type} with different color (${shapeColor})`
-        })
-      }
-    }
-  }
-
-  // If looking for specific type only, show all shapes of that type
-  if (descriptor.type && !descriptor.color) {
-    const typeMatches = shapes.filter(s => s.type === descriptor.type)
-    for (const shape of typeMatches) {
-      const shapeColor = 'fill' in shape ? (shape as any).fill : ('stroke' in shape ? (shape as any).stroke : 'N/A')
-      similar.push({
-        shape,
-        reason: `${descriptor.type} (${shapeColor})`
-      })
-    }
-  }
-
-  // If looking for specific color, find shapes with matching color (different type)
-  if (descriptor.color && !descriptor.type) {
-    const colorMatches = shapes.filter(s => matchesColor(s, descriptor.color!))
-    for (const shape of colorMatches) {
-      similar.push({
-        shape,
-        reason: `${shape.type} with matching color`
-      })
-    }
-  }
-
-  return similar.slice(0, 3) // Return max 3 suggestions
-}
-
-/**
- * Generate helpful error message when shape is not found
- */
-export function generateShapeNotFoundMessage(
-  descriptor: {
-    type?: string
-    color?: string
-  },
-  shapes: Shape[]
-): string {
-  let message = ''
-
-  // Build description of what was searched for
-  if (descriptor.type && descriptor.color) {
-    message = `I couldn't find a ${descriptor.color} ${descriptor.type} on the canvas.`
-  } else if (descriptor.type) {
-    message = `I couldn't find a ${descriptor.type} on the canvas.`
-  } else if (descriptor.color) {
-    message = `I couldn't find a ${descriptor.color} shape on the canvas.`
-  } else {
-    message = `I couldn't find that shape on the canvas.`
-  }
-
-  // Find similar shapes
-  const similar = findSimilarShapes(shapes, descriptor)
-
-  if (similar.length > 0) {
-    message += '\n\nDid you mean one of these?\n'
-    similar.forEach((item, index) => {
-      message += `${index + 1}. ${item.reason}\n`
-    })
-  } else {
-    // No similar shapes - offer to create
-    if (descriptor.type && descriptor.color) {
-      message += `\n\nWould you like me to create a ${descriptor.color} ${descriptor.type}?`
-    } else if (descriptor.type) {
-      message += `\n\nWould you like me to create a ${descriptor.type}?`
-    }
-  }
-
-  return message
-}
-
-/**
  * Execute move_element tool call with smooth rendering
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeMoveElement(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementId?: string
@@ -1192,8 +1099,13 @@ export async function executeMoveElement(
 ): Promise<void> {
   console.log('[AI Helpers] executeMoveElement called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   // Get all shapes
-  const shapes = await getShapes(canvasId)
+  const shapes = await getShapes(canvasPath)
 
   // Find the target shape
   const shape = findShape(shapes, {
@@ -1204,12 +1116,7 @@ export async function executeMoveElement(
   })
 
   if (!shape) {
-    // Generate helpful error message with suggestions
-    const helpfulMessage = generateShapeNotFoundMessage(
-      { type: input.type, color: input.color },
-      shapes
-    )
-    throw new Error(helpfulMessage)
+    throw new Error('Shape not found matching the description')
   }
 
   // Determine new position
@@ -1268,7 +1175,7 @@ export async function executeMoveElement(
     firestoreUpdates.bendX = positionData.bendX
     firestoreUpdates.bendY = positionData.bendY
   }
-  await updateShape(canvasId, shape.id, firestoreUpdates)
+  await updateShape(canvasPath, shape.id, firestoreUpdates)
 
   // 4. Clear RTDB (Firestore is now source of truth)
   await clearShapePositions(canvasId, [shape.id])
@@ -1281,7 +1188,7 @@ export async function executeMoveElement(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeResizeElement(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementId?: string
@@ -1299,8 +1206,13 @@ export async function executeResizeElement(
 ): Promise<void> {
   console.log('[AI Helpers] executeResizeElement called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   // Get all shapes
-  const shapes = await getShapes(canvasId)
+  const shapes = await getShapes(canvasPath)
 
   // Find the target shape
   const shape = findShape(shapes, {
@@ -1311,12 +1223,7 @@ export async function executeResizeElement(
   })
 
   if (!shape) {
-    // Generate helpful error message with suggestions
-    const helpfulMessage = generateShapeNotFoundMessage(
-      { type: input.type, color: input.color },
-      shapes
-    )
-    throw new Error(helpfulMessage)
+    throw new Error('Shape not found matching the description')
   }
 
   // Prepare update object (use any to handle different shape types)
@@ -1387,7 +1294,7 @@ export async function executeResizeElement(
   await new Promise(resolve => setTimeout(resolve, 100))
 
   // 3. Persist to Firestore for permanent storage
-  await updateShape(canvasId, shape.id, updates)
+  await updateShape(canvasPath, shape.id, updates)
 
   // 4. Clear RTDB (Firestore is now source of truth)
   await clearShapePositions(canvasId, [shape.id])
@@ -1400,7 +1307,7 @@ export async function executeResizeElement(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeRotateElement(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementId?: string
@@ -1413,8 +1320,13 @@ export async function executeRotateElement(
 ): Promise<void> {
   console.log('[AI Helpers] executeRotateElement called with:', input)
 
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
   // Get all shapes
-  const shapes = await getShapes(canvasId)
+  const shapes = await getShapes(canvasPath)
 
   // Find the target shape
   const shape = findShape(shapes, {
@@ -1425,12 +1337,7 @@ export async function executeRotateElement(
   })
 
   if (!shape) {
-    // Generate helpful error message with suggestions
-    const helpfulMessage = generateShapeNotFoundMessage(
-      { type: input.type, color: input.color },
-      shapes
-    )
-    throw new Error(helpfulMessage)
+    throw new Error('Shape not found matching the description')
   }
 
   console.log(`[AI Helpers] Rotating shape ${shape.id} to ${input.angle} degrees`)
@@ -1451,176 +1358,12 @@ export async function executeRotateElement(
   await new Promise(resolve => setTimeout(resolve, 100))
 
   // 3. Persist to Firestore for permanent storage
-  await updateShape(canvasId, shape.id, { rotation: input.angle })
+  await updateShape(canvasPath, shape.id, { rotation: input.angle })
 
   // 4. Clear RTDB (Firestore is now source of truth)
   await clearShapePositions(canvasId, [shape.id])
 
   console.log('[AI Helpers] Shape rotated successfully with smooth rendering')
-}
-
-/**
- * Execute change_color tool call
- * Changes the color of shapes based on filters or elementIds
- * Follows object reference priority: explicit reference > selected shapes > all objects
- */
-export async function executeChangeColor(
-  canvasId: string,
-  _userId: string,
-  input: {
-    elementIds?: string[]
-    newColor: string
-    category?: 'shapes' | 'text' | 'arrows'
-    type?: string
-    color?: string
-    textContent?: string
-    groupName?: string
-  }
-): Promise<ExecutionResult> {
-  console.log('[AI Helpers] executeChangeColor called with:', input)
-
-  // Get all shapes
-  const shapes = await getShapes(canvasId)
-
-  let targetShapes: Shape[] = []
-  let usedFilters = false
-
-  // Determine which shapes to change color for
-  if (input.elementIds && input.elementIds.length > 0) {
-    if (input.elementIds[0] === 'all') {
-      // Apply filters to all shapes
-      usedFilters = true
-      targetShapes = applyFilters(shapes, {
-        category: input.category,
-        type: input.type,
-        color: input.color,
-        textContent: input.textContent,
-        groupName: input.groupName,
-      })
-      console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
-    } else {
-      // Use specific element IDs
-      targetShapes = shapes.filter(s => input.elementIds!.includes(s.id))
-      console.log(`[AI Helpers] Found ${targetShapes.length} shapes by IDs`)
-    }
-  } else {
-    // No elementIds specified - this means use selected shapes from context
-    // (The AI will populate elementIds from context when shapes are selected)
-    throw new Error('No shapes specified for color change')
-  }
-
-  if (targetShapes.length === 0) {
-    throw new Error('No shapes found matching the criteria')
-  }
-
-  console.log(`[AI Helpers] Changing color of ${targetShapes.length} shapes to ${input.newColor}`)
-
-  // Update each shape's color in Firestore
-  // Note: We don't use RTDB for color changes since they don't need smooth animation
-  for (const shape of targetShapes) {
-    // Different shapes have different color properties
-    if (shape.type === 'text') {
-      // Text uses 'fill' for text color
-      await updateShape(canvasId, shape.id, { fill: input.newColor })
-    } else if (shape.type === 'line' || shape.type === 'arrow' || shape.type === 'bidirectionalArrow') {
-      // Lines/arrows use 'stroke' for color
-      await updateShape(canvasId, shape.id, { stroke: input.newColor })
-    } else {
-      // Shapes (circle, rectangle, etc.) use 'fill' for fill color
-      await updateShape(canvasId, shape.id, { fill: input.newColor })
-    }
-  }
-
-  console.log('[AI Helpers] Color changed successfully')
-
-  // Generate clarification if using filters and found few shapes
-  const result: ExecutionResult = { success: true }
-  if (usedFilters && targetShapes.length <= 2) {
-    const shapeType = input.type || (input.category || 'shape')
-    result.partialMatch = {
-      actual: targetShapes.length,
-      type: shapeType,
-      clarification: `I changed the color of ${targetShapes.length} ${shapeType}${targetShapes.length === 1 ? '' : 's'}. Did you expect more ${shapeType}s? Would you like me to create additional ${shapeType}s with the new color?`
-    }
-  }
-
-  return result
-}
-
-/**
- * Execute delete_elements tool call
- * Deletes shapes based on filters or elementIds
- * Follows object reference priority: explicit reference > selected shapes > all objects
- */
-export async function executeDeleteElements(
-  canvasId: string,
-  _userId: string,
-  input: {
-    elementIds?: string[]
-    category?: 'shapes' | 'text' | 'arrows'
-    type?: string
-    color?: string
-    textContent?: string
-    groupName?: string
-  }
-): Promise<ExecutionResult> {
-  console.log('[AI Helpers] executeDeleteElements called with:', input)
-
-  // Get all shapes
-  const shapes = await getShapes(canvasId)
-
-  let targetShapes: Shape[] = []
-  let usedFilters = false
-
-  // Determine which shapes to delete
-  if (input.elementIds && input.elementIds.length > 0) {
-    if (input.elementIds[0] === 'all') {
-      // Apply filters to all shapes
-      usedFilters = true
-      targetShapes = applyFilters(shapes, {
-        category: input.category,
-        type: input.type,
-        color: input.color,
-        textContent: input.textContent,
-        groupName: input.groupName,
-      })
-      console.log(`[AI Helpers] Filtered ${targetShapes.length} shapes from ${shapes.length} total`)
-    } else {
-      // Use specific element IDs
-      targetShapes = shapes.filter(s => input.elementIds!.includes(s.id))
-      console.log(`[AI Helpers] Found ${targetShapes.length} shapes by IDs`)
-    }
-  } else {
-    // No elementIds specified - this means use selected shapes from context
-    // (The AI will populate elementIds from context when shapes are selected)
-    throw new Error('No shapes specified for deletion')
-  }
-
-  if (targetShapes.length === 0) {
-    throw new Error('No shapes found matching the criteria')
-  }
-
-  console.log(`[AI Helpers] Deleting ${targetShapes.length} shapes`)
-
-  // Delete each shape from Firestore
-  for (const shape of targetShapes) {
-    await deleteShape(canvasId, shape.id)
-  }
-
-  console.log('[AI Helpers] Shapes deleted successfully')
-
-  // Generate clarification if using filters and deleted few shapes
-  const result: ExecutionResult = { success: true }
-  if (usedFilters && targetShapes.length <= 2) {
-    const shapeType = input.type || (input.category || 'shape')
-    result.partialMatch = {
-      actual: targetShapes.length,
-      type: shapeType,
-      clarification: `I deleted ${targetShapes.length} ${shapeType}${targetShapes.length === 1 ? '' : 's'}. Did you expect to delete more ${shapeType}s?`
-    }
-  }
-
-  return result
 }
 
 /**
@@ -1735,6 +1478,10 @@ export function arrangeInColumn(shapes: Shape[], spacing: number = 20): Shape[] 
 /**
  * Align shapes to a specific alignment
  * Returns new array with updated positions (immutable)
+ *
+ * NOTE: This function maintains relative positioning (moves shapes as a group)
+ * rather than aligning them to a common edge. This preserves the spatial
+ * relationships between shapes while aligning the group as a whole.
  */
 export function alignShapes(
   shapes: Shape[],
@@ -1751,9 +1498,8 @@ export function alignShapes(
 
   switch (alignment) {
     case 'left': {
-      // Move all shapes so the leftmost shape stays at its current position
-      // (This aligns the group to the left-most shape's position)
-      deltaX = 0  // No change needed - already at leftmost position
+      // All shapes stay at their current positions (already at leftmost)
+      deltaX = 0
       for (const shape of shapes) {
         aligned.push({ ...shape })
       }
@@ -1761,13 +1507,15 @@ export function alignShapes(
     }
 
     case 'right': {
-      // Find the current rightmost edge and leftmost edge
-      const currentRightmost = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
-      const currentLeftmost = Math.min(...shapes.map(s => s.x))
-      // Calculate the leftmost x that would align the rightmost shape
-      const targetLeftmost = currentRightmost - getShapeWidth(shapes.find(s => s.x + getShapeWidth(s) === currentRightmost)!)
+      // Find the current rightmost edge
+      const maxRightEdge = Math.max(...shapes.map(s => s.x + getShapeWidth(s)))
+      // Find the rightmost shape
+      const rightmostShape = shapes.find(s => s.x + getShapeWidth(s) === maxRightEdge)!
+      const rightmostX = rightmostShape.x
+      // Find current leftmost
+      const minX = Math.min(...shapes.map(s => s.x))
       // Move all shapes by the delta
-      deltaX = targetLeftmost - currentLeftmost
+      deltaX = rightmostX - minX
       for (const shape of shapes) {
         aligned.push({ ...shape, x: shape.x + deltaX })
       }
@@ -1775,8 +1523,8 @@ export function alignShapes(
     }
 
     case 'top': {
-      // Move all shapes so the topmost shape stays at its current position
-      deltaY = 0  // No change needed - already at topmost position
+      // All shapes stay at their current positions (already at topmost)
+      deltaY = 0
       for (const shape of shapes) {
         aligned.push({ ...shape })
       }
@@ -1784,13 +1532,15 @@ export function alignShapes(
     }
 
     case 'bottom': {
-      // Find the current bottommost edge and topmost edge
-      const currentBottommost = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
-      const currentTopmost = Math.min(...shapes.map(s => s.y))
-      // Calculate the topmost y that would align the bottommost shape
-      const targetTopmost = currentBottommost - getShapeHeight(shapes.find(s => s.y + getShapeHeight(s) === currentBottommost)!)
+      // Find the current bottommost edge
+      const maxBottomEdge = Math.max(...shapes.map(s => s.y + getShapeHeight(s)))
+      // Find the bottommost shape
+      const bottommostShape = shapes.find(s => s.y + getShapeHeight(s) === maxBottomEdge)!
+      const bottommostY = bottommostShape.y
+      // Find current topmost
+      const minY = Math.min(...shapes.map(s => s.y))
       // Move all shapes by the delta
-      deltaY = targetTopmost - currentTopmost
+      deltaY = bottommostY - minY
       for (const shape of shapes) {
         aligned.push({ ...shape, y: shape.y + deltaY })
       }
@@ -1977,7 +1727,7 @@ function alignShapesToViewport(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeArrangeElements(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementIds: string[]
@@ -1987,15 +1737,19 @@ export async function executeArrangeElements(
     type?: string
     color?: string
     textContent?: string
-    groupName?: string
   }
-): Promise<ExecutionResult> {
+): Promise<void> {
   console.log('[AI Helpers] executeArrangeElements called with:', input)
 
-  const { elementIds, pattern, spacing = 20, category, type, color, textContent, groupName } = input
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
+  const { elementIds, pattern, spacing = 20, category, type, color, textContent } = input
 
   // Get all shapes
-  const allShapes = await getShapes(canvasId)
+  const allShapes = await getShapes(canvasPath)
 
   // Handle "all" keyword - arrange all shapes on canvas
   const shouldArrangeAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
@@ -2006,7 +1760,7 @@ export async function executeArrangeElements(
 
   // Apply filters when using "all"
   if (shouldArrangeAll) {
-    shapesToArrange = applyFilters(shapesToArrange, { category, type, color, textContent, groupName })
+    shapesToArrange = applyFilters(shapesToArrange, { category, type, color, textContent })
   }
 
   if (shapesToArrange.length === 0) {
@@ -2061,7 +1815,7 @@ export async function executeArrangeElements(
   // 3. Persist all to Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const shape of arrangedShapes) {
-    await updateShape(canvasId, shape.id, {
+    await updateShape(canvasPath, shape.id, {
       x: shape.x,
       y: shape.y,
     })
@@ -2071,19 +1825,6 @@ export async function executeArrangeElements(
   await clearShapePositions(canvasId, arrangedShapes.map(s => s.id))
 
   console.log('[AI Helpers] Arrangement complete with smooth rendering')
-
-  // Generate clarification if using filters and arranged few shapes
-  const result: ExecutionResult = { success: true }
-  if (shouldArrangeAll && shapesToArrange.length <= 2) {
-    const shapeType = type || (category || 'shape')
-    result.partialMatch = {
-      actual: shapesToArrange.length,
-      type: shapeType,
-      clarification: `I arranged ${shapesToArrange.length} ${shapeType}${shapesToArrange.length === 1 ? '' : 's'} in a ${pattern}. Did you expect to arrange more ${shapeType}s?`
-    }
-  }
-
-  return result
 }
 
 /**
@@ -2091,7 +1832,7 @@ export async function executeArrangeElements(
  * Uses RTDB for instant visual feedback, then persists to Firestore
  */
 export async function executeAlignElements(
-  canvasId: string,
+  canvasPath: string,
   userId: string,
   input: {
     elementIds: string[]
@@ -2101,16 +1842,20 @@ export async function executeAlignElements(
     type?: string
     color?: string
     textContent?: string
-    groupName?: string
   },
   viewport: Viewport
-): Promise<ExecutionResult> {
+): Promise<void> {
   console.log('[AI Helpers] executeAlignElements called with:', input)
 
-  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent, groupName } = input
+  // Extract canvasId for RTDB if needed
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
+
+  const { elementIds, alignment, alignTo = 'viewport', category, type, color, textContent } = input
 
   // Get all shapes
-  const allShapes = await getShapes(canvasId)
+  const allShapes = await getShapes(canvasPath)
 
   // Handle "all" keyword - align all shapes on canvas
   const shouldAlignAll = elementIds?.includes('all') || elementIds?.length === 1 && elementIds[0] === 'all'
@@ -2121,7 +1866,7 @@ export async function executeAlignElements(
 
   // Apply filters when using "all"
   if (shouldAlignAll) {
-    shapesToAlign = applyFilters(shapesToAlign, { category, type, color, textContent, groupName })
+    shapesToAlign = applyFilters(shapesToAlign, { category, type, color, textContent })
   }
 
   if (shapesToAlign.length === 0) {
@@ -2161,7 +1906,7 @@ export async function executeAlignElements(
   // 3. Persist all to Firestore (batch update)
   console.log('[AI Helpers] Updating shape positions in Firestore')
   for (const alignedShape of alignedShapes) {
-    await updateShape(canvasId, alignedShape.id, {
+    await updateShape(canvasPath, alignedShape.id, {
       x: alignedShape.x,
       y: alignedShape.y,
     })
@@ -2171,1239 +1916,4 @@ export async function executeAlignElements(
   await clearShapePositions(canvasId, alignedShapes.map(s => s.id))
 
   console.log('[AI Helpers] Alignment complete with smooth rendering')
-
-  // Generate clarification if using filters and aligned few shapes
-  const result: ExecutionResult = { success: true }
-  if (shouldAlignAll && shapesToAlign.length <= 2) {
-    const shapeType = type || (category || 'shape')
-    result.partialMatch = {
-      actual: shapesToAlign.length,
-      type: shapeType,
-      clarification: `I aligned ${shapesToAlign.length} ${shapeType}${shapesToAlign.length === 1 ? '' : 's'} to ${alignment}. Did you expect to align more ${shapeType}s?`
-    }
-  }
-
-  return result
-}
-
-// =============================================================================
-// PR #17: Complex AI Commands
-// =============================================================================
-
-/**
- * Execute create_ui_component tool call
- * Creates common UI components like login forms, nav bars, cards, etc.
- */
-export async function executeCreateUIComponent(
-  canvasId: string,
-  userId: string,
-  input: {
-    componentType: 'button' | 'card' | 'form' | 'navbar' | 'sidebar'
-    x?: number
-    y?: number
-    label?: string
-    width?: number
-    height?: number
-  },
-  viewport: Viewport
-): Promise<void> {
-  console.log('[AI Helpers] executeCreateUIComponent called with:', input, 'userId:', userId)
-
-  const { componentType, x, y, label, width = 200, height = 50 } = input
-
-  // Generate group ID for all shapes in this UI component
-  const groupId = uuidv4()
-  const groupName = componentType
-  const groupType = 'ui_component' as const
-
-  // Calculate actual component dimensions for each type
-  let componentWidth: number
-  let componentHeight: number
-
-  switch (componentType) {
-    case 'button':
-      componentWidth = width
-      componentHeight = height
-      break
-    case 'card':
-      componentWidth = width
-      componentHeight = height * 3 // Cards are 3x taller
-      break
-    case 'form':
-      componentWidth = width
-      componentHeight = 210 // Username (24) + input (40) + gap (30) + Password (24) + input (40) + gap (30) + button (40) = 210
-      break
-    case 'navbar':
-      componentWidth = width * 2.5 // Wider for nav bar
-      componentHeight = 60
-      break
-    case 'sidebar':
-      componentWidth = 200
-      componentHeight = 400
-      break
-    default:
-      componentWidth = width
-      componentHeight = height
-  }
-
-  // Determine starting position using smart placement with actual dimensions
-  const viewportBounds = getViewportBounds(viewport)
-  const existingShapes = await getShapes(canvasId)
-  const { x: defaultX, y: defaultY } = findEmptySpaceInViewport(
-    viewportBounds,
-    existingShapes,
-    { width: componentWidth, height: componentHeight }
-  )
-
-  const startX = x ?? defaultX
-  const startY = y ?? defaultY
-
-  const shapes: Shape[] = []
-
-  switch (componentType) {
-    case 'button': {
-      // Simple button: rectangle + centered text
-      const buttonId = uuidv4()
-      const textId = uuidv4()
-
-      const button: Rectangle = {
-        id: buttonId,
-        type: 'rectangle',
-        x: startX,
-        y: startY,
-        width: width,
-        height: height,
-        fill: '#3B82F6',
-        stroke: '#2563EB',
-        strokeWidth: 2,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-
-      const text: Text = {
-        id: textId,
-        type: 'text',
-        x: startX + width / 2,
-        y: startY + height / 2 - 12, // Center vertically
-        text: label || 'Button',
-        fontSize: 18,
-        fontFamily: 'Arial',
-        fontWeight: 700,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'center',
-        lineHeight: 1.2,
-        fill: '#000000',
-        width: width - 20,
-        height: 24,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-
-      shapes.push(button, text)
-      break
-    }
-
-    case 'card': {
-      // Card: background rectangle + title + content placeholder
-      const cardBg = uuidv4()
-      const titleId = uuidv4()
-      const contentId = uuidv4()
-
-      const cardHeight = height * 3 // Cards are typically taller
-
-      const background: Rectangle = {
-        id: cardBg,
-        type: 'rectangle',
-        x: startX,
-        y: startY,
-        width: width,
-        height: cardHeight,
-        fill: '#FFFFFF',
-        stroke: '#E5E7EB',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-
-      const title: Text = {
-        id: titleId,
-        type: 'text',
-        x: startX + 16,
-        y: startY + 16,
-        text: label || 'Card Title',
-        fontSize: 22,
-        fontFamily: 'Arial',
-        fontWeight: 700,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'left',
-        lineHeight: 1.2,
-        fill: '#111827',
-        width: width - 32,
-        height: 32,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-
-      const content: Text = {
-        id: contentId,
-        type: 'text',
-        x: startX + 16,
-        y: startY + 58,
-        text: 'Card content goes here',
-        fontSize: 16,
-        fontFamily: 'Arial',
-        fontWeight: 400,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'left',
-        lineHeight: 1.4,
-        fill: '#6B7280',
-        width: width - 32,
-        height: 64,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-
-      shapes.push(background, title, content)
-      break
-    }
-
-    case 'form': {
-      // Login form: 2 input fields (username, password) + button
-      // Create rectangles FIRST, then text labels on top (proper z-order)
-      const usernameLabel = uuidv4()
-      const usernameInput = uuidv4()
-      const passwordLabel = uuidv4()
-      const passwordInput = uuidv4()
-      const submitButton = uuidv4()
-      const buttonText = uuidv4()
-
-      // Username input rectangle (background layer)
-      shapes.push({
-        id: usernameInput,
-        type: 'rectangle',
-        x: startX,
-        y: startY + 30,
-        width: width,
-        height: 40,
-        fill: '#FFFFFF',
-        stroke: '#D1D5DB',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Rectangle)
-
-      // Password input rectangle (background layer)
-      shapes.push({
-        id: passwordInput,
-        type: 'rectangle',
-        x: startX,
-        y: startY + 100,
-        width: width,
-        height: 40,
-        fill: '#FFFFFF',
-        stroke: '#D1D5DB',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Rectangle)
-
-      // Submit button rectangle (background layer)
-      shapes.push({
-        id: submitButton,
-        type: 'rectangle',
-        x: startX,
-        y: startY + 170,
-        width: width,
-        height: 40,
-        fill: '#3B82F6',
-        stroke: '#2563EB',
-        strokeWidth: 2,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Rectangle)
-
-      // Username label (text layer - on top)
-      shapes.push({
-        id: usernameLabel,
-        type: 'text',
-        x: startX,
-        y: startY,
-        text: 'Username',
-        fontSize: 18,
-        fontFamily: 'Arial',
-        fontWeight: 600,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'left',
-        lineHeight: 1.2,
-        fill: '#1F2937',
-        width: width,
-        height: 24,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Text)
-
-      // Password label (text layer - on top)
-      shapes.push({
-        id: passwordLabel,
-        type: 'text',
-        x: startX,
-        y: startY + 70,
-        text: 'Password',
-        fontSize: 18,
-        fontFamily: 'Arial',
-        fontWeight: 600,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'left',
-        lineHeight: 1.2,
-        fill: '#1F2937',
-        width: width,
-        height: 24,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Text)
-
-      // Button text (text layer - on top)
-      shapes.push({
-        id: buttonText,
-        type: 'text',
-        x: startX + width / 2,
-        y: startY + 178,
-        text: label || 'Login',
-        fontSize: 18,
-        fontFamily: 'Arial',
-        fontWeight: 700,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'center',
-        lineHeight: 1.2,
-        fill: '#000000',
-        width: width - 20,
-        height: 24,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Text)
-
-      break
-    }
-
-    case 'navbar': {
-      // Nav bar: background + 4 menu items
-      // Create background FIRST (bottom layer), then text on top
-      const navBg = uuidv4()
-      const menuItems = ['Home', 'About', 'Services', 'Contact']
-      const navbarWidth = width * 2.5 // Wider for nav bar
-      const itemSpacing = navbarWidth / (menuItems.length + 1) // +1 for better spacing
-
-      // LAYER 1: Background rectangle (bottom)
-      shapes.push({
-        id: navBg,
-        type: 'rectangle',
-        x: startX,
-        y: startY,
-        width: navbarWidth,
-        height: 60,
-        fill: '#1F2937',
-        stroke: '#111827',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Rectangle)
-
-      // LAYER 2: Menu text items (on top) - evenly spaced and centered
-      menuItems.forEach((item, index) => {
-        shapes.push({
-          id: uuidv4(),
-          type: 'text',
-          x: startX + itemSpacing * (index + 1), // Center of each spacing section
-          y: startY + 20,
-          text: item,
-          fontSize: 20,
-          fontFamily: 'Arial',
-          fontWeight: 700,
-          fontStyle: 'normal',
-          textDecoration: 'none',
-          align: 'center', // Center-align text for proper centering
-          lineHeight: 1.2,
-          fill: '#FFFFFF',
-          width: 120,
-          height: 26,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-        } as Text)
-      })
-
-      break
-    }
-
-    case 'sidebar': {
-      // Sidebar: background + 3 menu items
-      const sidebarBg = uuidv4()
-      const menuItems = ['Dashboard', 'Profile', 'Settings']
-
-      // Background
-      shapes.push({
-        id: sidebarBg,
-        type: 'rectangle',
-        x: startX,
-        y: startY,
-        width: 200,
-        height: 400,
-        fill: '#F3F4F6',
-        stroke: '#E5E7EB',
-        strokeWidth: 1,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Rectangle)
-
-      // Menu items
-      menuItems.forEach((item, index) => {
-        shapes.push({
-          id: uuidv4(),
-          type: 'text',
-          x: startX + 20,
-          y: startY + 30 + (index * 60),
-          text: item,
-          fontSize: 18,
-          fontFamily: 'Arial',
-          fontWeight: 600,
-          fontStyle: 'normal',
-          textDecoration: 'none',
-          align: 'left',
-          lineHeight: 1.2,
-          fill: '#374151',
-          width: 160,
-          height: 24,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-        } as Text)
-      })
-
-      break
-    }
-
-    default:
-      throw new Error(`Unknown component type: ${componentType}`)
-  }
-
-  // Create all shapes in Firestore
-  console.log(`[AI Helpers] Creating ${shapes.length} shapes for ${componentType}`)
-  for (const shape of shapes) {
-    await createShape(canvasId, shape)
-  }
-
-  console.log(`[AI Helpers] UI component '${componentType}' created successfully`)
-}
-
-/**
- * Execute create_flowchart tool call
- * Creates a flowchart with connected nodes and proper metadata for simulation
- */
-export async function executeCreateFlowchart(
-  canvasId: string,
-  userId: string,
-  input: {
-    nodes: Array<{
-      id: string
-      label: string
-      type: 'start' | 'process' | 'decision' | 'end'
-    }>
-    connections?: Array<{
-      from: string
-      to: string
-      label?: string
-    }>
-    startX?: number
-    startY?: number
-  },
-  viewport: Viewport
-): Promise<void> {
-  console.log('[AI Helpers] executeCreateFlowchart called with:', input, 'userId:', userId)
-
-  const { nodes, connections = [], startX, startY } = input
-
-  if (nodes.length === 0) {
-    throw new Error('Flowchart must have at least one node')
-  }
-
-  // Generate group ID for all shapes in this flowchart
-  const groupId = uuidv4()
-  const groupName = 'flowchart'
-  const groupType = 'flowchart' as const
-
-  // Node spacing - increased to prevent arrows from overlapping with shapes
-  const verticalSpacing = 180  // Increased from 150 to give more space for arrows
-  const horizontalSpacing = 300  // Spacing for horizontal branches
-  const nodeWidth = 180
-  const nodeHeight = 80
-
-  // Build connection graph for smart positioning
-  const outgoingConnections = new Map<string, Array<{ to: string; label?: string }>>()
-  const incomingConnections = new Map<string, number>()
-
-  // Auto-generate connections if not provided
-  const actualConnections: Array<{ from: string; to: string; label?: string }> = connections.length > 0
-    ? connections
-    : nodes.slice(0, -1).map((node, i) => ({
-        from: node.id,
-        to: nodes[i + 1].id,
-      }))
-
-  // Build graph
-  for (const conn of actualConnections) {
-    if (!outgoingConnections.has(conn.from)) {
-      outgoingConnections.set(conn.from, [])
-    }
-    outgoingConnections.get(conn.from)!.push({ to: conn.to, label: conn.label })
-    incomingConnections.set(conn.to, (incomingConnections.get(conn.to) || 0) + 1)
-  }
-
-  // Calculate node positions using tree layout with branch detection
-  // IMPORTANT: Calculate positions BEFORE finding viewport space to get accurate bounding box
-  interface NodePosition {
-    nodeId: string
-    centerX: number
-    centerY: number
-    depth: number
-    branchOffset: number
-  }
-
-  const nodePositions = new Map<string, NodePosition>()
-  const visitedNodes = new Set<string>()
-
-  // Find root node (node with no incoming connections)
-  const rootNode = nodes.find(n => !incomingConnections.has(n.id)) || nodes[0]
-
-  // Tree traversal to calculate RELATIVE positions (starting at 0,0)
-  function calculatePositions(
-    nodeId: string,
-    depth: number,
-    branchOffset: number
-  ) {
-    if (visitedNodes.has(nodeId)) return
-    visitedNodes.add(nodeId)
-
-    // Calculate relative position (will be offset later)
-    const centerX = branchOffset * horizontalSpacing + nodeWidth / 2
-    const centerY = depth * verticalSpacing + nodeHeight / 2
-
-    nodePositions.set(nodeId, { nodeId, centerX, centerY, depth, branchOffset })
-
-    const outgoing = outgoingConnections.get(nodeId) || []
-
-    if (outgoing.length === 0) {
-      // Leaf node - no children
-      return
-    } else if (outgoing.length === 1) {
-      // Single path - continue straight down
-      calculatePositions(outgoing[0].to, depth + 1, branchOffset)
-    } else {
-      // Multiple paths - branch horizontally
-      // Primary path (No/False/Continue) goes straight down (branchOffset 0)
-      // Alternate path (Yes/True) goes to the right (branchOffset +1)
-
-      let primaryPath: { to: string; label?: string } | null = null
-      let alternatePaths: Array<{ to: string; label?: string }> = []
-
-      for (const conn of outgoing) {
-        const label = conn.label?.toLowerCase() || ''
-        // Primary path: No, False, Failure, Continue, or unlabeled
-        if (!label || label.includes('no') || label.includes('false') ||
-            label.includes('failure') || label.includes('continue')) {
-          primaryPath = conn
-        } else {
-          // Alternate path: Yes, True, Success
-          alternatePaths.push(conn)
-        }
-      }
-
-      // If no primary path identified, first connection is primary
-      if (!primaryPath && outgoing.length > 0) {
-        primaryPath = outgoing[0]
-        alternatePaths = outgoing.slice(1)
-      }
-
-      // Process primary path (continues at same horizontal offset)
-      if (primaryPath) {
-        calculatePositions(primaryPath.to, depth + 1, branchOffset)
-      }
-
-      // Process alternate paths (shift horizontally to the right)
-      alternatePaths.forEach((path, index) => {
-        calculatePositions(path.to, depth + 1, branchOffset + 1 + index)
-      })
-    }
-  }
-
-  // Calculate all node positions starting from root (relative to 0,0)
-  calculatePositions(rootNode.id, 0, 0)
-
-  // Calculate bounding box of the flowchart
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-
-  for (const node of nodes) {
-    const position = nodePositions.get(node.id)
-    if (position) {
-      // Account for node dimensions
-      const left = position.centerX - nodeWidth / 2
-      const right = position.centerX + nodeWidth / 2
-      const top = position.centerY - nodeHeight / 2
-      const bottom = position.centerY + nodeHeight / 2
-
-      minX = Math.min(minX, left)
-      maxX = Math.max(maxX, right)
-      minY = Math.min(minY, top)
-      maxY = Math.max(maxY, bottom)
-    }
-  }
-
-  const flowchartWidth = maxX - minX
-  const flowchartHeight = maxY - minY
-
-  console.log(`[AI Helpers] Flowchart dimensions: ${flowchartWidth}x${flowchartHeight}`)
-
-  // Find empty space in viewport that can fit the entire flowchart
-  const viewportBounds = getViewportBounds(viewport)
-  const existingShapes = await getShapes(canvasId)
-  const { x: defaultStartX, y: defaultStartY } = findEmptySpaceInViewport(
-    viewportBounds,
-    existingShapes,
-    { width: flowchartWidth, height: flowchartHeight }
-  )
-
-  // Use provided position or auto-detected position
-  const finalStartX = startX ?? defaultStartX
-  const finalStartY = startY ?? defaultStartY
-
-  // Offset to apply to all positions (accounting for the minX/minY offset)
-  const offsetX = finalStartX - minX
-  const offsetY = finalStartY - minY
-
-  console.log(`[AI Helpers] Flowchart position: (${finalStartX}, ${finalStartY}), offset: (${offsetX}, ${offsetY})`)
-
-  // Create node shapes with metadata
-  // IMPORTANT: Create shapes first, then text, to ensure correct z-order (text on top)
-  const createdNodes = new Map<string, { shape: Shape; centerX: number; centerY: number }>()
-  const textLabels: Text[] = []
-
-  // Step 1: Create all node shapes first
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i]
-    const nodeId = uuidv4()
-    const textId = uuidv4()
-
-    // Get calculated position and apply offset to move flowchart to final location
-    const position = nodePositions.get(node.id)
-    const centerX = position ? position.centerX + offsetX : (finalStartX + nodeWidth / 2)
-    const centerY = position ? position.centerY + offsetY : (finalStartY + (i * verticalSpacing) + nodeHeight / 2)
-
-    let nodeShape: Shape
-
-    switch (node.type) {
-      case 'start':
-      case 'end': {
-        // Ellipse for start/end
-        nodeShape = {
-          id: nodeId,
-          type: 'ellipse',
-          x: centerX,
-          y: centerY,
-          radiusX: nodeWidth / 2,
-          radiusY: nodeHeight / 2,
-          fill: node.type === 'start' ? '#10B981' : '#EF4444',
-          stroke: '#1F2937',
-          strokeWidth: 2,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-          metadata: {
-            nodeType: node.type,
-            flowchartId: `flowchart-${Date.now()}`,
-            processTime: node.type === 'start' ? 0 : 0,
-          },
-        } as Ellipse
-        break
-      }
-
-      case 'decision': {
-        // Diamond for decision (using pentagon as approximation)
-        nodeShape = {
-          id: nodeId,
-          type: 'pentagon',
-          x: centerX,
-          y: centerY,
-          radiusX: nodeWidth / 2,
-          radiusY: nodeHeight / 2,
-          fill: '#F59E0B',
-          stroke: '#1F2937',
-          strokeWidth: 2,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-          metadata: {
-            nodeType: 'decision',
-            flowchartId: `flowchart-${Date.now()}`,
-            successRate: 0.7, // Default 70% success rate
-          },
-        } as Pentagon
-        break
-      }
-
-      case 'process':
-      default: {
-        // Rectangle for process - position by CENTER to match ellipse/pentagon positioning
-        nodeShape = {
-          id: nodeId,
-          type: 'rectangle',
-          x: centerX - nodeWidth / 2, // Convert center position to top-left corner
-          y: centerY - nodeHeight / 2, // Convert center position to top-left corner
-          width: nodeWidth,
-          height: nodeHeight,
-          fill: '#3B82F6',
-          stroke: '#1F2937',
-          strokeWidth: 2,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-          metadata: {
-            nodeType: 'process',
-            flowchartId: `flowchart-${Date.now()}`,
-            processTime: 1000, // Default 1 second process time
-            capacity: 10, // Default capacity of 10 concurrent tokens
-          },
-        } as Rectangle
-        break
-      }
-    }
-
-    // Create node shape immediately
-    await createShape(canvasId, nodeShape)
-    createdNodes.set(node.id, { shape: nodeShape, centerX, centerY })
-
-    // Store text label for later creation (after all shapes and arrows)
-    const labelText: Text = {
-      id: textId,
-      type: 'text',
-      x: centerX,
-      y: centerY - 12,
-      text: node.label,
-      fontSize: 18,
-      fontFamily: 'Arial',
-      fontWeight: 700,
-      fontStyle: 'normal',
-      textDecoration: 'none',
-      align: 'center',
-      lineHeight: 1.2,
-      fill: '#000000',
-      width: nodeWidth - 20,
-      height: 24,
-      rotation: 0,
-      createdBy: userId,
-      updatedAt: new Date().toISOString(),
-      groupId,
-      groupName,
-      groupType,
-    }
-    textLabels.push(labelText)
-  }
-
-  // Step 2: Create connections (arrows) with metadata
-  const createdConnections: Array<{ from: string; to: string; arrowId: string }> = []
-
-  for (const conn of actualConnections) {
-    const fromNode = createdNodes.get(conn.from)
-    const toNode = createdNodes.get(conn.to)
-
-    if (!fromNode || !toNode) {
-      console.warn(`[AI Helpers] Skipping connection ${conn.from} → ${conn.to}: node not found`)
-      continue
-    }
-
-    const arrowId = uuidv4()
-
-    // Calculate arrow positions with gap between shapes and arrows
-    // Add 10px gap so arrows don't overlap with shape borders
-    const arrowGap = 10
-    const fromY = fromNode.centerY + (nodeHeight / 2) + arrowGap
-    const toY = toNode.centerY - (nodeHeight / 2) - arrowGap
-
-    const arrow: Arrow = {
-      id: arrowId,
-      type: 'arrow',
-      x: fromNode.centerX,
-      y: fromY,
-      x2: toNode.centerX,
-      y2: toY,
-      stroke: '#1F2937',
-      strokeWidth: 2,
-      rotation: 0,
-      createdBy: userId,
-      updatedAt: new Date().toISOString(),
-      groupId,
-      groupName,
-      groupType,
-      connections: {
-        fromShapeId: fromNode.shape.id,
-        toShapeId: toNode.shape.id,
-      },
-    }
-
-    await createShape(canvasId, arrow)
-    createdConnections.push({ from: conn.from, to: conn.to, arrowId })
-
-    // Store arrow label for later creation (after all shapes and arrows)
-    if (conn.label) {
-      const labelId = uuidv4()
-      const midX = (fromNode.centerX + toNode.centerX) / 2
-      const midY = (fromY + toY) / 2
-
-      const labelText: Text = {
-        id: labelId,
-        type: 'text',
-        x: midX + 25, // Position clearly to the right of arrow (not overlapping)
-        y: midY - 11, // Position clearly above arrow midpoint
-        text: conn.label,
-        fontSize: 14,
-        fontFamily: 'Arial',
-        fontWeight: 600,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'left',
-        lineHeight: 1.2,
-        fill: '#000000', // Pure black for maximum visibility on white canvas
-        width: 100,
-        height: 22,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-      textLabels.push(labelText)
-    }
-  }
-
-  // Step 3: Create all text labels last (ensures they appear on top of all shapes)
-  console.log(`[AI Helpers] Creating ${textLabels.length} text labels on top of shapes`)
-  for (const textLabel of textLabels) {
-    await createShape(canvasId, textLabel)
-  }
-
-  console.log(`[AI Helpers] Flowchart created with ${nodes.length} nodes and ${createdConnections.length} connections`)
-}
-
-/**
- * Execute create_diagram tool call
- * Creates structured diagrams like org charts, trees, networks, etc.
- */
-export async function executeCreateDiagram(
-  canvasId: string,
-  userId: string,
-  input: {
-    diagramType: 'tree' | 'orgchart' | 'network' | 'sequence'
-    data: any
-    x?: number
-    y?: number
-  },
-  viewport: Viewport
-): Promise<void> {
-  console.log('[AI Helpers] executeCreateDiagram called with:', input, 'userId:', userId)
-
-  const { diagramType, data, x, y } = input
-
-  // Generate group ID for all shapes in this diagram
-  const groupId = uuidv4()
-  const groupName = diagramType
-  const groupType = 'diagram' as const
-
-  // Calculate actual diagram dimensions for each type
-  let diagramWidth: number
-  let diagramHeight: number
-
-  switch (diagramType) {
-    case 'orgchart': {
-      // Org chart: CEO at top + 3 managers below horizontally
-      const nodeWidth = 140
-      const nodeHeight = 60
-      const horizontalSpacing = 180
-      const verticalSpacing = 120
-      const managerCount = 3
-
-      // Width: (managerCount-1) * horizontalSpacing + nodeWidth + extra padding
-      // Managers are centered, so leftmost is at -totalWidth/2, rightmost at +totalWidth/2 + nodeWidth
-      const totalManagerSpread = (managerCount - 1) * horizontalSpacing
-      diagramWidth = totalManagerSpread + nodeWidth + horizontalSpacing // Extra padding
-      diagramHeight = verticalSpacing + nodeHeight + 30 // Vertical spacing + node + padding
-      break
-    }
-    case 'tree':
-    case 'network':
-    case 'sequence': {
-      // Simple single-node diagrams
-      const radius = 40
-      diagramWidth = radius * 2 + 20 // Circle + padding
-      diagramHeight = radius * 2 + 20
-      break
-    }
-    default:
-      diagramWidth = 400
-      diagramHeight = 400
-  }
-
-  // Determine starting position using smart placement with actual dimensions
-  const viewportBounds = getViewportBounds(viewport)
-  const existingShapes = await getShapes(canvasId)
-  const { x: defaultX, y: defaultY } = findEmptySpaceInViewport(
-    viewportBounds,
-    existingShapes,
-    { width: diagramWidth, height: diagramHeight }
-  )
-
-  const startX = x ?? defaultX
-  const startY = y ?? defaultY
-
-  switch (diagramType) {
-    case 'orgchart': {
-      // Simple 3-level org chart: CEO → 3 Managers → 2 Employees each
-      const nodeWidth = 140
-      const nodeHeight = 60
-      const horizontalSpacing = 180
-      const verticalSpacing = 120
-
-      // CEO at top
-      const ceoId = uuidv4()
-      const ceoTextId = uuidv4()
-
-      const ceo: Rectangle = {
-        id: ceoId,
-        type: 'rectangle',
-        x: startX,
-        y: startY,
-        width: nodeWidth,
-        height: nodeHeight,
-        fill: '#8B5CF6',
-        stroke: '#1F2937',
-        strokeWidth: 2,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      }
-      await createShape(canvasId, ceo)
-
-      await createShape(canvasId, {
-        id: ceoTextId,
-        type: 'text',
-        x: startX + nodeWidth / 2,
-        y: startY + nodeHeight / 2 - 12,
-        text: data.ceo || 'CEO',
-        fontSize: 18,
-        fontFamily: 'Arial',
-        fontWeight: 700,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'center',
-        lineHeight: 1.2,
-        fill: '#000000',
-        width: nodeWidth - 20,
-        height: 24,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Text)
-
-      // Managers (3)
-      const managerCount = 3
-      const managerIds: string[] = []
-      const totalWidth = (managerCount - 1) * horizontalSpacing
-      const managersStartX = startX - totalWidth / 2
-
-      for (let i = 0; i < managerCount; i++) {
-        const managerId = uuidv4()
-        const managerTextId = uuidv4()
-        const managerX = managersStartX + (i * horizontalSpacing)
-        const managerY = startY + verticalSpacing
-
-        const manager: Rectangle = {
-          id: managerId,
-          type: 'rectangle',
-          x: managerX,
-          y: managerY,
-          width: nodeWidth,
-          height: nodeHeight,
-          fill: '#3B82F6',
-          stroke: '#1F2937',
-          strokeWidth: 2,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-        }
-        await createShape(canvasId, manager)
-        managerIds.push(managerId)
-
-        await createShape(canvasId, {
-          id: managerTextId,
-          type: 'text',
-          x: managerX + nodeWidth / 2,
-          y: managerY + nodeHeight / 2 - 11,
-          text: `Manager ${i + 1}`,
-          fontSize: 16,
-          fontFamily: 'Arial',
-          fontWeight: 700,
-          fontStyle: 'normal',
-          textDecoration: 'none',
-          align: 'center',
-          lineHeight: 1.2,
-          fill: '#000000',
-          width: nodeWidth - 20,
-          height: 22,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-        } as Text)
-
-        // Arrow from CEO to Manager - connect from CEO bottom center to manager top center
-        await createShape(canvasId, {
-          id: uuidv4(),
-          type: 'arrow',
-          x: startX + nodeWidth / 2,  // CEO bottom center X
-          y: startY + nodeHeight,      // CEO bottom Y
-          x2: managerX + nodeWidth / 2, // Manager top center X
-          y2: managerY,                  // Manager top Y
-          stroke: '#6B7280',
-          strokeWidth: 2,
-          rotation: 0,
-          createdBy: userId,
-          updatedAt: new Date().toISOString(),
-          groupId,
-          groupName,
-          groupType,
-          connections: {
-            fromShapeId: ceoId,
-            toShapeId: managerId,
-          },
-        } as Arrow)
-      }
-
-      console.log(`[AI Helpers] Created org chart with ${1 + managerCount} nodes`)
-      break
-    }
-
-    case 'tree':
-    case 'network':
-    case 'sequence': {
-      // Simple placeholder implementation - can be enhanced later
-      console.log(`[AI Helpers] Diagram type '${diagramType}' - creating basic structure`)
-
-      // Create a simple 3-node structure
-      const node1 = uuidv4()
-      await createShape(canvasId, {
-        id: node1,
-        type: 'circle',
-        x: startX,
-        y: startY,
-        radius: 40,
-        fill: '#10B981',
-        stroke: '#1F2937',
-        strokeWidth: 2,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Circle)
-
-      // Node label text - centered INSIDE the circle (not half-overlapping)
-      await createShape(canvasId, {
-        id: uuidv4(),
-        type: 'text',
-        x: startX,
-        y: startY - 11, // Center text vertically inside circle (subtract half of text height)
-        text: 'Node 1',
-        fontSize: 14,
-        fontFamily: 'Arial',
-        fontWeight: 700,
-        fontStyle: 'normal',
-        textDecoration: 'none',
-        align: 'center',
-        lineHeight: 1.2,
-        fill: '#000000',
-        width: 80,
-        height: 22,
-        rotation: 0,
-        createdBy: userId,
-        updatedAt: new Date().toISOString(),
-        groupId,
-        groupName,
-        groupType,
-      } as Text)
-
-      console.log(`[AI Helpers] Created basic ${diagramType} diagram`)
-      break
-    }
-
-    default:
-      throw new Error(`Unknown diagram type: ${diagramType}`)
-  }
-
-  console.log(`[AI Helpers] Diagram '${diagramType}' created successfully`)
-}
-
-// =============================================================================
-// Undo Functionality
-// =============================================================================
-
-/**
- * Execute undo - reverts the last AI action
- */
-export async function executeUndo(
-  canvasId: string,
-  _userId: string
-): Promise<ExecutionResult> {
-  console.log('[AI Helpers] executeUndo called for canvas:', canvasId)
-
-  // Get the last undo action
-  const lastAction = await getLastUndoAction(canvasId)
-
-  if (!lastAction) {
-    throw new Error('No action to undo. The last AI command has already been undone or there are no recent actions.')
-  }
-
-  console.log('[AI Helpers] Undoing action:', lastAction.actionType, 'from command:', lastAction.command)
-
-  try {
-    switch (lastAction.actionType) {
-      case 'create': {
-        // For creates, delete all created shapes
-        if (lastAction.createdShapeIds && lastAction.createdShapeIds.length > 0) {
-          for (const shapeId of lastAction.createdShapeIds) {
-            await deleteShape(canvasId, shapeId)
-          }
-          console.log(`[AI Helpers] Deleted ${lastAction.createdShapeIds.length} created shapes`)
-        }
-        break
-      }
-
-      case 'modify': {
-        // For modifies, restore original states
-        if (lastAction.modifiedShapes && lastAction.modifiedShapes.length > 0) {
-          for (const { id, originalState } of lastAction.modifiedShapes) {
-            await updateShape(canvasId, id, originalState)
-          }
-          console.log(`[AI Helpers] Restored ${lastAction.modifiedShapes.length} modified shapes`)
-        }
-        break
-      }
-
-      case 'delete': {
-        // For deletes, recreate the deleted shapes
-        if (lastAction.deletedShapes && lastAction.deletedShapes.length > 0) {
-          for (const shape of lastAction.deletedShapes) {
-            await createShape(canvasId, shape)
-          }
-          console.log(`[AI Helpers] Restored ${lastAction.deletedShapes.length} deleted shapes`)
-        }
-        break
-      }
-
-      default:
-        throw new Error(`Unknown action type: ${lastAction.actionType}`)
-    }
-
-    // Delete the undo action so it can't be undone again
-    await deleteUndoAction(canvasId, lastAction.id)
-
-    return {
-      success: true
-    }
-  } catch (error) {
-    console.error('[AI Helpers] Error during undo:', error)
-    throw error
-  }
 }

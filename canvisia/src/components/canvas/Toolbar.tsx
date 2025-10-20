@@ -36,8 +36,8 @@ export function Toolbar({
   const [polygonsExpanded, setPolygonsExpanded] = useState(false)
   const [arrowsExpanded, setArrowsExpanded] = useState(false)
 
-  const circleTools: Tool[] = ['circle', 'ellipse', 'roundedRectangle', 'cylinder']
-  const polygonTools: Tool[] = ['rectangle', 'triangle', 'pentagon', 'hexagon', 'star']
+  const circleTools: Tool[] = ['circle', 'ellipse', 'cylinder']
+  const polygonTools: Tool[] = ['rectangle', 'roundedRectangle', 'triangle', 'pentagon', 'hexagon', 'star']
   const arrowTools: Tool[] = ['line', 'arrow', 'bidirectionalArrow']
 
   const isCircleSelected = circleTools.includes(selectedTool)
@@ -68,9 +68,9 @@ export function Toolbar({
         style={{
           width: '40px',
           height: '40px',
-          border: selectedTool === 'select' ? '2px solid #3B82F6' : '2px solid transparent',
+          border: selectedTool === 'select' ? '2px solid #8B5CF6' : '2px solid transparent',
           borderRadius: '6px',
-          backgroundColor: selectedTool === 'select' ? '#EFF6FF' : 'white',
+          backgroundColor: selectedTool === 'select' ? '#EDE9FE' : 'white',
           color: '#1F2937',
           cursor: 'pointer',
           display: 'flex',
@@ -97,9 +97,9 @@ export function Toolbar({
         style={{
           width: '40px',
           height: '40px',
-          border: selectedTool === 'boxSelect' ? '2px solid #3B82F6' : '2px solid transparent',
+          border: selectedTool === 'boxSelect' ? '2px solid #8B5CF6' : '2px solid transparent',
           borderRadius: '6px',
-          backgroundColor: selectedTool === 'boxSelect' ? '#EFF6FF' : 'white',
+          backgroundColor: selectedTool === 'boxSelect' ? '#EDE9FE' : 'white',
           color: '#1F2937',
           cursor: 'pointer',
           display: 'flex',
@@ -126,9 +126,9 @@ export function Toolbar({
         style={{
           width: '40px',
           height: '40px',
-          border: selectedTool === 'lasso' ? '2px solid #3B82F6' : '2px solid transparent',
+          border: selectedTool === 'lasso' ? '2px solid #8B5CF6' : '2px solid transparent',
           borderRadius: '6px',
-          backgroundColor: selectedTool === 'lasso' ? '#EFF6FF' : 'white',
+          backgroundColor: selectedTool === 'lasso' ? '#EDE9FE' : 'white',
           color: '#1F2937',
           cursor: 'pointer',
           display: 'flex',
@@ -155,9 +155,9 @@ export function Toolbar({
         style={{
           width: '40px',
           height: '40px',
-          border: selectedTool === 'hand' ? '2px solid #3B82F6' : '2px solid transparent',
+          border: selectedTool === 'hand' ? '2px solid #8B5CF6' : '2px solid transparent',
           borderRadius: '6px',
-          backgroundColor: selectedTool === 'hand' ? '#EFF6FF' : 'white',
+          backgroundColor: selectedTool === 'hand' ? '#EDE9FE' : 'white',
           color: '#1F2937',
           cursor: 'pointer',
           display: 'flex',
@@ -191,15 +191,14 @@ export function Toolbar({
 
       <div style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
 
-      {/* Circles - Collapsible */}
+      {/* Conics - Collapsible */}
       <div style={{ position: 'relative', display: 'flex', gap: '4px' }}>
         <ToolButton
           icon={isCircleSelected ?
             selectedTool === 'circle' ? shapeIcons.circle :
             selectedTool === 'ellipse' ? shapeIcons.ellipse :
-            selectedTool === 'roundedRectangle' ? shapeIcons.roundedRectangle :
             shapeIcons.cylinder : shapeIcons.circle}
-          label="Circles"
+          label="Conics"
           selected={isCircleSelected}
           onClick={() => {
             setCirclesExpanded(!circlesExpanded)
@@ -242,13 +241,6 @@ export function Toolbar({
               isImage={true}
             />
             <ToolButton
-              icon={shapeIcons.roundedRectangle}
-              label="Rounded Rectangle"
-              selected={selectedTool === 'roundedRectangle'}
-              onClick={() => onToolSelect('roundedRectangle')}
-              isImage={true}
-            />
-            <ToolButton
               icon={shapeIcons.cylinder}
               label="Cylinder"
               selected={selectedTool === 'cylinder'}
@@ -264,6 +256,7 @@ export function Toolbar({
         <ToolButton
           icon={isPolygonSelected ?
             selectedTool === 'rectangle' ? shapeIcons.rectangle :
+            selectedTool === 'roundedRectangle' ? shapeIcons.roundedRectangle :
             selectedTool === 'triangle' ? shapeIcons.triangle :
             selectedTool === 'pentagon' ? shapeIcons.pentagon :
             selectedTool === 'hexagon' ? shapeIcons.hexagon :
@@ -301,6 +294,13 @@ export function Toolbar({
               label="Rectangle"
               selected={selectedTool === 'rectangle'}
               onClick={() => onToolSelect('rectangle')}
+              isImage={true}
+            />
+            <ToolButton
+              icon={shapeIcons.roundedRectangle}
+              label="Rounded Rectangle"
+              selected={selectedTool === 'roundedRectangle'}
+              onClick={() => onToolSelect('roundedRectangle')}
               isImage={true}
             />
             <ToolButton
@@ -586,9 +586,9 @@ function ToolButton({ icon, label, selected, onClick, disabled, fontSize = '20px
       style={{
         width: '40px',
         height: '40px',
-        border: selected ? '2px solid #3B82F6' : '2px solid transparent',
+        border: selected ? '2px solid #8B5CF6' : '2px solid transparent',
         borderRadius: '6px',
-        backgroundColor: selected ? '#EFF6FF' : disabled ? '#F3F4F6' : 'white',
+        backgroundColor: selected ? '#EDE9FE' : disabled ? '#F3F4F6' : 'white',
         color: disabled ? '#9CA3AF' : '#1F2937',
         fontSize: fontSize,
         cursor: disabled ? 'not-allowed' : 'pointer',

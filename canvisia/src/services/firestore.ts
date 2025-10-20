@@ -14,16 +14,22 @@ import {
 } from 'firebase/firestore'
 import type { Shape } from '@/types/shapes'
 import type { Presence } from '@/types/user'
+import type { Project, Permission, ProjectMetadata } from '@/types/project'
 
 export { db }
 
 /**
  * Create a new shape in Firestore
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path (e.g., "projects/abc/canvases/xyz" or "default-canvas")
  * @param shape - Shape data
  */
-export async function createShape(canvasId: string, shape: Shape): Promise<void> {
-  const shapeRef = doc(db, 'canvases', canvasId, 'objects', shape.id)
+export async function createShape(canvasPath: string, shape: Shape): Promise<void> {
+  // Support both old format "canvasId" and new format "projects/x/canvases/y"
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const shapeRef = doc(db, objectsPath, shape.id)
 
   // Convert Date to Firestore Timestamp
   const shapeData = {
@@ -34,20 +40,33 @@ export async function createShape(canvasId: string, shape: Shape): Promise<void>
   }
 
   await setDoc(shapeRef, shapeData)
+
+  // Update project lastModified if this is a new project format
+  if (canvasPath.includes('projects/')) {
+    const projectId = canvasPath.split('/')[1]
+    const canvasId = canvasPath.split('/')[3]
+    if (projectId && canvasId) {
+      await updateCanvas(projectId, canvasId, {})
+    }
+  }
 }
 
 /**
  * Update an existing shape in Firestore
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path
  * @param shapeId - Shape ID
  * @param updates - Partial shape data to update
  */
 export async function updateShape(
-  canvasId: string,
+  canvasPath: string,
   shapeId: string,
   updates: Partial<Shape>
 ): Promise<void> {
-  const shapeRef = doc(db, 'canvases', canvasId, 'objects', shapeId)
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const shapeRef = doc(db, objectsPath, shapeId)
 
   // Add updatedAt timestamp
   const updateData = {
@@ -56,25 +75,51 @@ export async function updateShape(
   }
 
   await updateDoc(shapeRef, updateData)
+
+  // Update project lastModified if this is a new project format
+  if (canvasPath.includes('projects/')) {
+    const projectId = canvasPath.split('/')[1]
+    const canvasId = canvasPath.split('/')[3]
+    if (projectId && canvasId) {
+      await updateCanvas(projectId, canvasId, {})
+    }
+  }
 }
 
 /**
  * Delete a shape from Firestore
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path
  * @param shapeId - Shape ID
  */
-export async function deleteShape(canvasId: string, shapeId: string): Promise<void> {
-  const shapeRef = doc(db, 'canvases', canvasId, 'objects', shapeId)
+export async function deleteShape(canvasPath: string, shapeId: string): Promise<void> {
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const shapeRef = doc(db, objectsPath, shapeId)
   await deleteDoc(shapeRef)
+
+  // Update project lastModified if this is a new project format
+  if (canvasPath.includes('projects/')) {
+    const projectId = canvasPath.split('/')[1]
+    const canvasId = canvasPath.split('/')[3]
+    if (projectId && canvasId) {
+      await updateCanvas(projectId, canvasId, {})
+    }
+  }
 }
 
 /**
  * Get all shapes from a canvas (one-time fetch)
- * @param canvasId - Canvas ID
+ * @param canvasPath - Full canvas path
  * @returns Promise with array of shapes
  */
-export async function getShapes(canvasId: string): Promise<Shape[]> {
-  const objectsRef = collection(db, 'canvases', canvasId, 'objects')
+export async function getShapes(canvasPath: string): Promise<Shape[]> {
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const objectsRef = collection(db, objectsPath)
   const q = query(objectsRef)
 
   const snapshot = await getDocs(q)
@@ -97,15 +142,19 @@ export async function getShapes(canvasId: string): Promise<Shape[]> {
 
 /**
  * Subscribe to shapes collection with real-time updates
- * @param canvasId - Canvas ID
- * @param callback - Callback function with shapes array
+ * @param canvasPath - Full canvas path
+ * @param callback - Callback function called with shapes array when data changes
  * @returns Unsubscribe function
  */
 export function subscribeToShapes(
-  canvasId: string,
+  canvasPath: string,
   callback: (shapes: Shape[]) => void
 ): () => void {
-  const objectsRef = collection(db, 'canvases', canvasId, 'objects')
+  const objectsPath = canvasPath.includes('/')
+    ? `${canvasPath}/objects`
+    : `canvases/${canvasPath}/objects`
+
+  const objectsRef = collection(db, objectsPath)
   const q = query(objectsRef)
 
   const unsubscribe = onSnapshot(
@@ -435,4 +484,395 @@ export function subscribeToChatTabs(
   )
 
   return unsubscribe
+}
+
+/**
+ * Create a new project with default canvas
+ * @param userId - Owner user ID
+ * @param projectName - Project name
+ * @returns Project ID
+ */
+export async function createProject(
+  userId: string,
+  projectName: string = 'Untitled Project'
+): Promise<string> {
+  const projectId = doc(collection(db, 'projects')).id
+  const now = Timestamp.now()
+
+  // Create project document
+  const projectData: Omit<Project, 'createdAt' | 'lastModified' | 'lastAccessed'> & {
+    createdAt: Timestamp
+    lastModified: Timestamp
+    lastAccessed: Timestamp
+  } = {
+    id: projectId,
+    name: projectName,
+    ownerId: userId,
+    thumbnail: null,
+    createdAt: now,
+    lastModified: now,
+    lastAccessed: now,
+  }
+
+  await setDoc(doc(db, 'projects', projectId), projectData)
+
+  // Create owner permission
+  const permissionId = `${projectId}_${userId}`
+  const permissionData: Omit<Permission, 'invitedAt' | 'acceptedAt'> & {
+    invitedAt: Timestamp
+    acceptedAt: Timestamp | null
+  } = {
+    projectId,
+    userId,
+    userEmail: '', // Will be filled by caller if available
+    role: 'owner',
+    invitedBy: userId,
+    invitedAt: now,
+    acceptedAt: now,
+  }
+
+  await setDoc(doc(db, 'permissions', permissionId), permissionData)
+
+  // Create default canvas
+  const canvasId = doc(collection(db, 'projects', projectId, 'canvases')).id
+  const canvasData = {
+    id: canvasId,
+    name: 'Canvas 1',
+    order: 0,
+    thumbnail: null,
+    settings: {
+      backgroundColor: '#ffffff',
+      gridEnabled: true,
+    },
+    createdAt: now,
+    lastModified: now,
+  }
+
+  await setDoc(doc(db, 'projects', projectId, 'canvases', canvasId), canvasData)
+
+  return projectId
+}
+
+/**
+ * Get all projects accessible by user
+ * @param userId - User ID
+ * @returns Array of projects
+ */
+export async function getUserProjects(userId: string): Promise<Project[]> {
+  // Query permissions collection for user's accessible projects
+  const permissionsRef = collection(db, 'permissions')
+  const q = query(permissionsRef)
+  const snapshot = await getDocs(q)
+
+  const projectIds: string[] = []
+  snapshot.forEach((doc) => {
+    const data = doc.data()
+    if (doc.id.endsWith(`_${userId}`)) {
+      projectIds.push(data.projectId)
+    }
+  })
+
+  if (projectIds.length === 0) return []
+
+  // Fetch all projects
+  const projects: Project[] = []
+  for (const projectId of projectIds) {
+    const projectDoc = await getDoc(doc(db, 'projects', projectId))
+    if (projectDoc.exists()) {
+      const data = projectDoc.data()
+      projects.push({
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        lastModified: data.lastModified?.toDate?.() || data.lastModified,
+        lastAccessed: data.lastAccessed?.toDate?.() || data.lastAccessed,
+      } as Project)
+    }
+  }
+
+  return projects
+}
+
+/**
+ * Get a single project by ID
+ * @param projectId - Project ID
+ * @returns Project or null
+ */
+export async function getProject(projectId: string): Promise<Project | null> {
+  const projectDoc = await getDoc(doc(db, 'projects', projectId))
+  if (!projectDoc.exists()) return null
+
+  const data = projectDoc.data()
+  return {
+    ...data,
+    createdAt: data.createdAt?.toDate?.() || data.createdAt,
+    lastModified: data.lastModified?.toDate?.() || data.lastModified,
+    lastAccessed: data.lastAccessed?.toDate?.() || data.lastAccessed,
+  } as Project
+}
+
+/**
+ * Update project metadata
+ * @param projectId - Project ID
+ * @param updates - Fields to update
+ */
+export async function updateProject(
+  projectId: string,
+  updates: Partial<Omit<Project, 'id' | 'createdAt'>>
+): Promise<void> {
+  const updateData = {
+    ...updates,
+    lastModified: Timestamp.now(),
+  }
+
+  await updateDoc(doc(db, 'projects', projectId), updateData)
+}
+
+/**
+ * Delete a project and all its canvases
+ * @param projectId - Project ID
+ */
+export async function deleteProject(projectId: string): Promise<void> {
+  // Delete all canvases and their objects
+  const canvasesRef = collection(db, 'projects', projectId, 'canvases')
+  const canvasesSnapshot = await getDocs(canvasesRef)
+
+  for (const canvasDoc of canvasesSnapshot.docs) {
+    // Delete all objects in canvas
+    const objectsRef = collection(db, 'projects', projectId, 'canvases', canvasDoc.id, 'objects')
+    const objectsSnapshot = await getDocs(objectsRef)
+    for (const objectDoc of objectsSnapshot.docs) {
+      await deleteDoc(objectDoc.ref)
+    }
+    // Delete canvas
+    await deleteDoc(canvasDoc.ref)
+  }
+
+  // Delete project
+  await deleteDoc(doc(db, 'projects', projectId))
+}
+
+/**
+ * Get all canvases in a project
+ * @param projectId - Project ID
+ * @returns Array of canvas metadata
+ */
+export async function getProjectCanvases(projectId: string): Promise<ProjectMetadata[]> {
+  const canvasesRef = collection(db, 'projects', projectId, 'canvases')
+  const q = query(canvasesRef)
+  const snapshot = await getDocs(q)
+
+  const canvases: ProjectMetadata[] = []
+  snapshot.forEach((doc) => {
+    const data = doc.data()
+    canvases.push({
+      ...data,
+      createdAt: data.createdAt?.toDate?.() || data.createdAt,
+      lastModified: data.lastModified?.toDate?.() || data.lastModified,
+    } as ProjectMetadata)
+  })
+
+  // Sort by order
+  canvases.sort((a, b) => a.order - b.order)
+
+  return canvases
+}
+
+/**
+ * Create a new canvas in a project
+ * @param projectId - Project ID
+ * @param canvasName - Canvas name
+ * @returns Canvas ID
+ */
+export async function createCanvas(
+  projectId: string,
+  canvasName: string = 'New Page'
+): Promise<string> {
+  // Get existing canvases to determine order
+  const canvases = await getProjectCanvases(projectId)
+  const maxOrder = canvases.length > 0 ? Math.max(...canvases.map(c => c.order)) : -1
+
+  const canvasId = doc(collection(db, 'projects', projectId, 'canvases')).id
+  const now = Timestamp.now()
+
+  const canvasData = {
+    id: canvasId,
+    name: canvasName,
+    order: maxOrder + 1,
+    thumbnail: null,
+    settings: {
+      backgroundColor: '#ffffff',
+      gridEnabled: true,
+    },
+    createdAt: now,
+    lastModified: now,
+  }
+
+  await setDoc(doc(db, 'projects', projectId, 'canvases', canvasId), canvasData)
+
+  // Update project lastModified
+  await updateProject(projectId, {})
+
+  return canvasId
+}
+
+/**
+ * Update canvas metadata
+ * @param projectId - Project ID
+ * @param canvasId - Canvas ID
+ * @param updates - Fields to update
+ */
+export async function updateCanvas(
+  projectId: string,
+  canvasId: string,
+  updates: Partial<{ name: string; thumbnail: string | null; settings: any }>
+): Promise<void> {
+  const updateData = {
+    ...updates,
+    lastModified: Timestamp.now(),
+  }
+
+  await updateDoc(doc(db, 'projects', projectId, 'canvases', canvasId), updateData)
+
+  // Update project lastModified
+  await updateProject(projectId, {})
+}
+
+/**
+ * Delete a canvas from a project
+ * @param projectId - Project ID
+ * @param canvasId - Canvas ID
+ */
+export async function deleteCanvas(projectId: string, canvasId: string): Promise<void> {
+  // Delete all objects in canvas
+  const objectsRef = collection(db, 'projects', projectId, 'canvases', canvasId, 'objects')
+  const snapshot = await getDocs(objectsRef)
+  for (const objectDoc of snapshot.docs) {
+    await deleteDoc(objectDoc.ref)
+  }
+
+  // Delete canvas
+  await deleteDoc(doc(db, 'projects', projectId, 'canvases', canvasId))
+
+  // Update project lastModified
+  await updateProject(projectId, {})
+}
+
+/**
+ * Check user permission for a project
+ * @param projectId - Project ID
+ * @param userId - User ID
+ * @returns Permission or null
+ */
+export async function getUserProjectPermission(
+  projectId: string,
+  userId: string
+): Promise<Permission | null> {
+  const permissionId = `${projectId}_${userId}`
+  const permissionDoc = await getDoc(doc(db, 'permissions', permissionId))
+
+  if (!permissionDoc.exists()) return null
+
+  const data = permissionDoc.data()
+  return {
+    ...data,
+    invitedAt: data.invitedAt?.toDate?.() || data.invitedAt,
+    acceptedAt: data.acceptedAt?.toDate?.() || data.acceptedAt,
+  } as Permission
+}
+
+/**
+ * Invite a user to collaborate on a project by email
+ * Note: This creates a pending invitation. The user must be registered in Firebase Auth.
+ * @param projectId - Project ID
+ * @param userEmail - Email of user to invite
+ * @param userId - User ID (required for now; in production this would be looked up)
+ * @param role - Permission role (editor or viewer)
+ * @param invitedBy - User ID of inviter
+ */
+export async function inviteUserByEmail(
+  projectId: string,
+  userEmail: string,
+  userId: string,
+  role: 'editor' | 'viewer',
+  invitedBy: string
+): Promise<void> {
+  const permissionId = `${projectId}_${userId}`
+  const now = Timestamp.now()
+
+  const permissionData: Omit<Permission, 'invitedAt' | 'acceptedAt'> & {
+    invitedAt: Timestamp
+    acceptedAt: Timestamp | null
+  } = {
+    projectId,
+    userId,
+    userEmail,
+    role,
+    invitedBy,
+    invitedAt: now,
+    acceptedAt: null, // Pending acceptance
+  }
+
+  await setDoc(doc(db, 'permissions', permissionId), permissionData)
+}
+
+/**
+ * Get all collaborators for a project
+ * @param projectId - Project ID
+ * @returns Array of permissions with user info
+ */
+export async function getProjectCollaborators(
+  projectId: string
+): Promise<(Permission & { userName?: string })[]> {
+  const permissionsRef = collection(db, 'permissions')
+  const snapshot = await getDocs(permissionsRef)
+
+  const collaborators: (Permission & { userName?: string })[] = []
+
+  snapshot.forEach((doc) => {
+    const data = doc.data()
+    if (data.projectId === projectId) {
+      collaborators.push({
+        projectId: data.projectId,
+        userId: data.userId,
+        userEmail: data.userEmail,
+        role: data.role,
+        invitedBy: data.invitedBy,
+        invitedAt: data.invitedAt?.toDate?.() || data.invitedAt,
+        acceptedAt: data.acceptedAt?.toDate?.() || data.acceptedAt,
+        userName: data.userName || data.userEmail, // Fallback to email if no name
+      })
+    }
+  })
+
+  return collaborators
+}
+
+/**
+ * Update a user's permission role for a project
+ * @param projectId - Project ID
+ * @param userId - User ID
+ * @param newRole - New permission role
+ */
+export async function updatePermissionRole(
+  projectId: string,
+  userId: string,
+  newRole: 'editor' | 'viewer'
+): Promise<void> {
+  const permissionId = `${projectId}_${userId}`
+  await updateDoc(doc(db, 'permissions', permissionId), {
+    role: newRole,
+  })
+}
+
+/**
+ * Remove a collaborator from a project
+ * @param projectId - Project ID
+ * @param userId - User ID to remove
+ */
+export async function removeProjectCollaborator(
+  projectId: string,
+  userId: string
+): Promise<void> {
+  const permissionId = `${projectId}_${userId}`
+  await deleteDoc(doc(db, 'permissions', permissionId))
 }
