@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Share2 } from 'lucide-react';
+import { Share2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { getUserProjects, createProject, updateProject } from '@/services/firestore';
+import { getUserProjects, createProject, updateProject, deleteProject } from '@/services/firestore';
 import type { Project } from '@/types/project';
 import { ShareDialog } from '@/components/share/ShareDialog';
 import { Header } from '@/components/layout/Header';
@@ -123,6 +123,22 @@ const ProjectsPage: React.FC = () => {
   const handleShare = (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSharingProjectId(projectId);
+  };
+
+  const handleDelete = async (projectId: string, projectName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteProject(projectId);
+      await loadProjects();
+    } catch (error) {
+      console.error('[ProjectsPage] Error deleting project:', error);
+      alert('Failed to delete project');
+    }
   };
 
   const getFilteredProjects = () => {
@@ -265,6 +281,13 @@ const ProjectsPage: React.FC = () => {
                           title="Rename project"
                         >
                           ✏️
+                        </button>
+                        <button
+                          className="delete-project-btn"
+                          onClick={(e) => handleDelete(project.id, project.name, e)}
+                          title="Delete project"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
