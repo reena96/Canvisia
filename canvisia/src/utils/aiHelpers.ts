@@ -2664,7 +2664,7 @@ export async function executeCreateFlowchart(
   // Determine starting position
   const viewportBounds = getViewportBounds(viewport)
   const existingShapes = await getShapes(canvasId)
-  const estimatedHeight = nodes.length * 150
+  const estimatedHeight = nodes.length * 180  // Updated to match verticalSpacing
   const { x: defaultStartX, y: defaultStartY } = findEmptySpaceInViewport(
     viewportBounds,
     existingShapes,
@@ -2674,8 +2674,8 @@ export async function executeCreateFlowchart(
   const finalStartX = startX ?? defaultStartX
   const finalStartY = startY ?? defaultStartY
 
-  // Node spacing
-  const verticalSpacing = 150
+  // Node spacing - increased to prevent arrows from overlapping with shapes
+  const verticalSpacing = 180  // Increased from 150 to give more space for arrows
   const nodeWidth = 180
   const nodeHeight = 80
 
@@ -2831,9 +2831,11 @@ export async function executeCreateFlowchart(
 
     const arrowId = uuidv4()
 
-    // Calculate arrow positions (bottom of from node to top of to node)
-    const fromY = fromNode.centerY + (nodeHeight / 2)
-    const toY = toNode.centerY - (nodeHeight / 2)
+    // Calculate arrow positions with gap between shapes and arrows
+    // Add 10px gap so arrows don't overlap with shape borders
+    const arrowGap = 10
+    const fromY = fromNode.centerY + (nodeHeight / 2) + arrowGap
+    const toY = toNode.centerY - (nodeHeight / 2) - arrowGap
 
     const arrow: Arrow = {
       id: arrowId,
