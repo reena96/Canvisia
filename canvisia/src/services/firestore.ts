@@ -926,10 +926,17 @@ export async function removeProjectCollaborator(
 /**
  * Enable public access for a project
  * @param projectId - Project ID
+ * @param isPublic - Whether to make public
+ * @param accessLevel - 'viewer' (read-only) or 'editor' (can edit)
  */
-export async function setProjectPublicAccess(projectId: string, isPublic: boolean): Promise<void> {
+export async function setProjectPublicAccess(
+  projectId: string,
+  isPublic: boolean,
+  accessLevel: 'viewer' | 'editor' = 'viewer'
+): Promise<void> {
   await updateDoc(doc(db, 'projects', projectId), {
     publicAccess: isPublic,
+    publicAccessLevel: accessLevel,
   })
 }
 
@@ -937,14 +944,18 @@ export async function setProjectPublicAccess(projectId: string, isPublic: boolea
  * Enable public access for a canvas
  * @param projectId - Project ID
  * @param canvasId - Canvas ID
+ * @param isPublic - Whether to make public
+ * @param accessLevel - 'viewer' (read-only) or 'editor' (can edit)
  */
 export async function setCanvasPublicAccess(
   projectId: string,
   canvasId: string,
-  isPublic: boolean
+  isPublic: boolean,
+  accessLevel: 'viewer' | 'editor' = 'viewer'
 ): Promise<void> {
   await updateDoc(doc(db, `projects/${projectId}/canvases`, canvasId), {
     publicAccess: isPublic,
+    publicAccessLevel: accessLevel,
   })
 }
 
@@ -965,6 +976,36 @@ export async function isProjectPublic(projectId: string): Promise<boolean> {
 export async function isCanvasPublic(projectId: string, canvasId: string): Promise<boolean> {
   const canvasDoc = await getDoc(doc(db, `projects/${projectId}/canvases`, canvasId))
   return canvasDoc.exists() && canvasDoc.data()?.publicAccess === true
+}
+
+/**
+ * Get project's public access level
+ * @param projectId - Project ID
+ * @returns 'viewer' or 'editor', or null if not public
+ */
+export async function getProjectPublicAccessLevel(projectId: string): Promise<'viewer' | 'editor' | null> {
+  const projectDoc = await getDoc(doc(db, 'projects', projectId))
+  if (!projectDoc.exists() || projectDoc.data()?.publicAccess !== true) {
+    return null
+  }
+  return projectDoc.data()?.publicAccessLevel || 'viewer'
+}
+
+/**
+ * Get canvas's public access level
+ * @param projectId - Project ID
+ * @param canvasId - Canvas ID
+ * @returns 'viewer' or 'editor', or null if not public
+ */
+export async function getCanvasPublicAccessLevel(
+  projectId: string,
+  canvasId: string
+): Promise<'viewer' | 'editor' | null> {
+  const canvasDoc = await getDoc(doc(db, `projects/${projectId}/canvases`, canvasId))
+  if (!canvasDoc.exists() || canvasDoc.data()?.publicAccess !== true) {
+    return null
+  }
+  return canvasDoc.data()?.publicAccessLevel || 'viewer'
 }
 
 // ============================================================================

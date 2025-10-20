@@ -28,16 +28,32 @@ service cloud.firestore {
 
     // Check if project is publicly accessible
     function isProjectPublic(projectId) {
-      let projectDoc = get(/databases/$(database)/documents/projects/$(projectId));
-      return projectDoc.data.keys().hasAny(['publicAccess']) &&
-             projectDoc.data.publicAccess == true;
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/projects/$(projectId)) &&
+             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccess', false) == true;
     }
 
     // Check if canvas is publicly accessible
     function isCanvasPublic(projectId, canvasId) {
-      let canvasDoc = get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId));
-      return canvasDoc.data.keys().hasAny(['publicAccess']) &&
-             canvasDoc.data.publicAccess == true;
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)) &&
+             get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)).data.get('publicAccess', false) == true;
+    }
+
+    // Check if project allows public editing
+    function canPublicEditProject(projectId) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/projects/$(projectId)) &&
+             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccess', false) == true &&
+             get(/databases/$(database)/documents/projects/$(projectId)).data.get('publicAccessLevel', 'viewer') == 'editor';
+    }
+
+    // Check if canvas allows public editing
+    function canPublicEditCanvas(projectId, canvasId) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)) &&
+             get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)).data.get('publicAccess', false) == true &&
+             get(/databases/$(database)/documents/projects/$(projectId)/canvases/$(canvasId)).data.get('publicAccessLevel', 'viewer') == 'editor';
     }
 
     // Combined check: project permission OR canvas permission OR public access
@@ -47,14 +63,18 @@ service cloud.firestore {
       return hasAnyPermission(projectId) ||
              hasAnyCanvasPermission(canvasPath) ||
              isProjectPublic(projectId) ||
-             (request.auth != null && isCanvasPublic(projectId, canvasId));
+             isCanvasPublic(projectId, canvasId);
     }
 
     function canEditCanvas(projectId, canvasPath) {
+      let pathParts = canvasPath.split('/');
+      let canvasId = pathParts[3];
       return hasPermission(projectId, 'owner') ||
              hasPermission(projectId, 'editor') ||
              hasCanvasPermission(canvasPath, 'owner') ||
-             hasCanvasPermission(canvasPath, 'editor');
+             hasCanvasPermission(canvasPath, 'editor') ||
+             canPublicEditProject(projectId) ||
+             canPublicEditCanvas(projectId, canvasId);
     }
 
     // Projects: read if has permission or public, write if owner

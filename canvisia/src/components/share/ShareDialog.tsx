@@ -5,6 +5,8 @@ import {
   setCanvasPublicAccess,
   isProjectPublic,
   isCanvasPublic,
+  getProjectPublicAccessLevel,
+  getCanvasPublicAccessLevel,
 } from '@/services/firestore';
 import './ShareDialog.css';
 
@@ -25,6 +27,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [accessLevel, setAccessLevel] = useState<'viewer' | 'editor'>('viewer');
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -46,6 +49,14 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
         ? await isCanvasPublic(projectId, canvasId!)
         : await isProjectPublic(projectId);
       setIsPublic(publicStatus);
+
+      // Load access level if public
+      if (publicStatus) {
+        const level = isCanvasShare
+          ? await getCanvasPublicAccessLevel(projectId, canvasId!)
+          : await getProjectPublicAccessLevel(projectId);
+        setAccessLevel(level || 'viewer');
+      }
     } catch (error) {
       console.error('Error loading public status:', error);
     } finally {
@@ -70,15 +81,36 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       const newPublicStatus = !isPublic;
 
       if (isCanvasShare) {
-        await setCanvasPublicAccess(projectId, canvasId!, newPublicStatus);
+        await setCanvasPublicAccess(projectId, canvasId!, newPublicStatus, accessLevel);
       } else {
-        await setProjectPublicAccess(projectId, newPublicStatus);
+        await setProjectPublicAccess(projectId, newPublicStatus, accessLevel);
       }
 
       setIsPublic(newPublicStatus);
     } catch (error) {
       console.error('Error updating public access:', error);
       alert('Failed to update sharing settings');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleAccessLevelChange = async (newLevel: 'viewer' | 'editor') => {
+    try {
+      setUpdating(true);
+      setAccessLevel(newLevel);
+
+      // Update access level if already public
+      if (isPublic) {
+        if (isCanvasShare) {
+          await setCanvasPublicAccess(projectId, canvasId!, true, newLevel);
+        } else {
+          await setProjectPublicAccess(projectId, true, newLevel);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating access level:', error);
+      alert('Failed to update access level');
     } finally {
       setUpdating(false);
     }
@@ -111,7 +143,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
                 </h3>
                 <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
                   {isPublic
-                    ? `Anyone with the link can view this ${isCanvasShare ? 'canvas' : 'project'}`
+                    ? `Anyone with the link can ${accessLevel === 'editor' ? 'edit' : 'view'} this ${isCanvasShare ? 'canvas' : 'project'}`
                     : `Only you can access this ${isCanvasShare ? 'canvas' : 'project'}`}
                 </p>
               </div>
@@ -136,6 +168,34 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
               {updating ? 'Updating...' : isPublic ? 'Make Private' : 'Make Public'}
             </button>
           </div>
+
+          {/* Access Level Selector - Only show when public */}
+          {isPublic && (
+            <div style={{ marginTop: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+                Public access level
+              </label>
+              <select
+                value={accessLevel}
+                onChange={(e) => handleAccessLevelChange(e.target.value as 'viewer' | 'editor')}
+                disabled={updating}
+                style={{
+                  width: '100%',
+                  padding: '0.625rem 0.875rem',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  color: '#374151',
+                  backgroundColor: 'white',
+                  cursor: updating ? 'not-allowed' : 'pointer',
+                  opacity: updating ? 0.6 : 1,
+                }}
+              >
+                <option value="viewer">Can view (read-only)</option>
+                <option value="editor">Can edit (full access)</option>
+              </select>
+            </div>
+          )}
 
           <div className="divider" />
 
