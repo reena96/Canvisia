@@ -5,24 +5,29 @@ You are friendly, creative, and eager to help users create visual content.
 When users ask who you are or what your name is, respond as "Vega" - that's your name and identity.
 Do not mention Claude, Anthropic, or any other AI system names.
 
-CRITICAL: SELECTED SHAPES BEHAVIOR
-When the canvas context includes "selectedShapes" with a count > 0:
-- Operations apply to SELECTED SHAPES by default
-- "move left" → move the selected shapes left
-- "change color" → change color of selected shapes
-- "align center" → align the selected shapes to center
-- "resize bigger" → resize the selected shapes
-- Use the selected shape IDs from context automatically
-- Only search for shapes by description/type/color if user explicitly specifies different shapes
+CRITICAL: OBJECT REFERENCE PRIORITY
+The user specifies which objects to operate on in TWO ways:
 
-Examples with selection:
-✅ Context shows 3 selected shapes → "align left" applies to those 3 shapes
-✅ Context shows 2 selected circles → "change to red" applies to those 2 circles
-✅ Context shows 1 selected text → "move to center" applies to that text
+1. EXPLICIT REFERENCE (HIGHEST PRIORITY):
+   If the user explicitly states which objects to operate on, use ONLY those objects:
+   - "move the blue circle to the left" → find and move ONLY the blue circle (ignore selected shapes)
+   - "change all red shapes to green" → find and change ONLY red shapes (ignore selected shapes)
+   - "align the rectangles" → find and align ONLY rectangles (ignore selected shapes)
+   - "resize circle-123" → resize ONLY that specific shape (ignore selected shapes)
 
-When NO shapes are selected (selectedShapes: null):
-- Use normal shape finding by description/type/color
-- "move the blue circle" → find blue circle by properties
+2. IMPLICIT REFERENCE (FALLBACK):
+   If the user is ambiguous about which objects (no explicit reference), ONLY THEN use selected shapes:
+   - "move left" (ambiguous) + 3 shapes selected → move those 3 selected shapes
+   - "change color" (ambiguous) + 2 circles selected → change color of those 2 circles
+   - "align center" (ambiguous) + 1 text selected → align that selected text
+   - "resize bigger" (ambiguous) + shapes selected → resize the selected shapes
+
+3. NO REFERENCE AND NO SELECTION:
+   If user is ambiguous AND nothing is selected, apply to all relevant objects:
+   - "move left" + no selection → move all objects
+   - "align center" + no selection → align all objects
+
+PRIORITY ORDER: Explicit Reference > Selected Shapes > All Objects
 
 CRITICAL: VIEWPORT-FIRST BEHAVIOR
 
@@ -342,8 +347,84 @@ export const AI_TOOLS = [
     }
   },
   {
+    name: 'change_color',
+    description: 'Change the color of shapes. Use ["all"] to target all shapes, or filter by elementIds, type, color, category, or groupName. Follows object reference priority: explicit reference > selected shapes > all objects. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        elementIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of element IDs to change color, or ["all"] to change all shapes on the canvas. If not specified and shapes are selected in context, use selected shapes.'
+        },
+        newColor: {
+          type: 'string',
+          description: 'New color as hex code (e.g., "#FF0000" for red, "#0000FF" for blue, "#800080" for purple)'
+        },
+        category: {
+          type: 'string',
+          enum: ['shapes', 'text', 'arrows'],
+          description: 'Optional: Filter by category when using ["all"]. "shapes" = geometric shapes ONLY, excludes text/arrows.'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: Filter by specific type when using ["all"] (e.g., "hexagon", "circle", "rectangle")'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional: Filter by current color when using ["all"] (e.g., "red", "blue", "#FF0000")'
+        },
+        textContent: {
+          type: 'string',
+          description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
+        }
+      },
+      required: ['newColor']
+    }
+  },
+  {
+    name: 'delete_elements',
+    description: 'Delete shapes from the canvas. Use ["all"] to target all shapes, or filter by elementIds, type, color, category, or groupName. Follows object reference priority: explicit reference > selected shapes > all objects. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        elementIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of element IDs to delete, or ["all"] to delete all shapes on the canvas. If not specified and shapes are selected in context, use selected shapes.'
+        },
+        category: {
+          type: 'string',
+          enum: ['shapes', 'text', 'arrows'],
+          description: 'Optional: Filter by category when using ["all"]. "shapes" = geometric shapes ONLY, excludes text/arrows.'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: Filter by specific type when using ["all"] (e.g., "hexagon", "circle", "text")'
+        },
+        color: {
+          type: 'string',
+          description: 'Optional: Filter by color when using ["all"] (e.g., "red", "blue", "#FF0000")'
+        },
+        textContent: {
+          type: 'string',
+          description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
+        }
+      },
+      required: []
+    }
+  },
+  {
     name: 'arrange_elements',
-    description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs.',
+    description: 'Arrange multiple elements in a pattern (grid, row, column). To arrange ALL shapes on the canvas, use "all" as the special keyword instead of specific IDs. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
     input_schema: {
       type: 'object',
       properties: {
@@ -377,6 +458,10 @@ export const AI_TOOLS = [
         textContent: {
           type: 'string',
           description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
         }
       },
       required: ['elementIds', 'pattern']
@@ -384,7 +469,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'align_elements',
-    description: 'Align multiple elements to viewport edges (default) or canvas. To align ALL shapes, use "all" keyword.',
+    description: 'Align multiple elements to viewport edges (default) or canvas. To align ALL shapes, use "all" keyword. Use groupName to target all shapes in a group like "flowchart", "button", "form", etc.',
     input_schema: {
       type: 'object',
       properties: {
@@ -419,6 +504,10 @@ export const AI_TOOLS = [
         textContent: {
           type: 'string',
           description: 'Optional: Filter text elements by content (partial match, case-insensitive) when using ["all"]'
+        },
+        groupName: {
+          type: 'string',
+          description: 'Optional: Filter by group name when using ["all"] (e.g., "flowchart", "button", "form", "navbar", "orgchart"). Use this to target all shapes in a specific group.'
         }
       },
       required: ['elementIds', 'alignment']
@@ -426,7 +515,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'create_flowchart',
-    description: 'Create a complete flowchart with connected nodes',
+    description: 'Create a professional flowchart with intelligent branching layout. Node types: start (green ellipse), process (blue rectangle), decision (orange pentagon), end (red ellipse). IMPORTANT: For decision nodes, create TWO connections - label the primary path "No"/"False"/"Continue" (goes down) and alternate path "Yes"/"True"/"Success" (branches right). The layout algorithm automatically detects branches and positions them horizontally. Decision nodes enable complex flowcharts with multiple paths.',
     input_schema: {
       type: 'object',
       properties: {
@@ -435,24 +524,24 @@ export const AI_TOOLS = [
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string' },
-              label: { type: 'string' },
-              type: { type: 'string', enum: ['start', 'process', 'decision', 'end'] }
+              id: { type: 'string', description: 'Unique identifier (e.g., "node1", "node2")' },
+              label: { type: 'string', description: 'Text displayed in the node (e.g., "Start", "Business Idea", "Viable Business?")' },
+              type: { type: 'string', enum: ['start', 'process', 'decision', 'end'], description: 'Node type: start=green ellipse, process=blue rectangle, decision=orange pentagon, end=red ellipse' }
             }
           },
-          description: 'Array of flowchart nodes'
+          description: 'Array of flowchart nodes in top-to-bottom order'
         },
         connections: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              from: { type: 'string' },
-              to: { type: 'string' },
-              label: { type: 'string' }
+              from: { type: 'string', description: 'Source node ID' },
+              to: { type: 'string', description: 'Target node ID' },
+              label: { type: 'string', description: 'Optional label for connection (e.g., "Yes", "No", "Success", "Failure")' }
             }
           },
-          description: 'Array of connections between nodes'
+          description: 'Array of connections between nodes. If omitted, nodes are auto-connected sequentially. CRITICAL: For decision nodes, define TWO connections with proper labels - use "No"/"False"/"Continue" for the primary path (continues down) and "Yes"/"True"/"Success" for the alternate path (branches right). Labels determine branch positioning.'
         },
         startX: {
           type: 'number',
@@ -468,7 +557,7 @@ export const AI_TOOLS = [
   },
   {
     name: 'create_ui_component',
-    description: 'Create a common UI component (button, card, form, etc.)',
+    description: 'Create a common UI component (button, card, form, navbar, sidebar) with smart viewport placement to avoid overlaps.',
     input_schema: {
       type: 'object',
       properties: {
@@ -479,11 +568,11 @@ export const AI_TOOLS = [
         },
         x: {
           type: 'number',
-          description: 'X coordinate'
+          description: 'X coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y: {
           type: 'number',
-          description: 'Y coordinate'
+          description: 'Y coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         label: {
           type: 'string',
@@ -498,12 +587,12 @@ export const AI_TOOLS = [
           description: 'Component height (default: 50)'
         }
       },
-      required: ['componentType', 'x', 'y']
+      required: ['componentType']
     }
   },
   {
     name: 'create_diagram',
-    description: 'Create a structured diagram (org chart, tree, network)',
+    description: 'Create a structured diagram (org chart, tree, network, sequence) with smart viewport placement to avoid overlaps.',
     input_schema: {
       type: 'object',
       properties: {
@@ -518,14 +607,23 @@ export const AI_TOOLS = [
         },
         x: {
           type: 'number',
-          description: 'Starting X coordinate (default: 500)'
+          description: 'Starting X coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         },
         y: {
           type: 'number',
-          description: 'Starting Y coordinate (default: 200)'
+          description: 'Starting Y coordinate (optional) - ONLY provide if user specifies exact position. Omit for smart placement in viewport.'
         }
       },
       required: ['diagramType', 'data']
+    }
+  },
+  {
+    name: 'undo',
+    description: 'Undo the last AI action. Use this when the user asks to "undo" or "revert" the last action.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: []
     }
   }
 ]

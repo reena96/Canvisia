@@ -69,6 +69,15 @@ function generateToolCallResponse(toolCalls: any[]): string {
         descriptions.push('Rotated element')
         break
 
+      case 'change_color':
+        const newColor = input.newColor || 'new color'
+        descriptions.push(`Changed color to ${newColor}`)
+        break
+
+      case 'delete_elements':
+        descriptions.push('Deleted elements')
+        break
+
       case 'arrange_elements':
         const pattern = input.pattern || 'pattern'
         descriptions.push(`Arranged elements in a ${pattern}`)
@@ -138,7 +147,7 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
     try {
       // Build context with current shapes and selection state
-      const context = buildContext(shapes, selectedIds)
+      const context = await buildContext(shapes, selectedIds, canvasId)
 
       // Call Claude with context
       const response = await sendMessage(command, AI_TOOLS, SYSTEM_PROMPT, context)
@@ -150,8 +159,18 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
       // Execute tool calls
       if (response.tool_calls && response.tool_calls.length > 0) {
-        await executeToolCalls(response.tool_calls, canvasId, user.uid, viewport)
-        const aiResponse = generateToolCallResponse(response.tool_calls)
+        const executionResults = await executeToolCalls(response.tool_calls, canvasId, user.uid, viewport)
+        let aiResponse = generateToolCallResponse(response.tool_calls)
+
+        // Check for partial matches and add clarifications
+        const clarifications = executionResults
+          .filter(result => result.partialMatch)
+          .map(result => result.partialMatch!.clarification)
+
+        if (clarifications.length > 0) {
+          aiResponse += '\n\n' + clarifications.join('\n\n')
+        }
+
         onMessage?.(command, aiResponse)
       } else {
         const aiResponse = response.content || 'No actions taken'
@@ -160,7 +179,9 @@ export function useAI(canvasId: string, onMessage?: (userMsg: string, aiResponse
 
     } catch (error) {
       console.error('AI command error:', error)
-      onMessage?.(command, '❌ Failed to execute command')
+      // Pass through the helpful error message if available
+      const errorMessage = error instanceof Error ? error.message : 'Failed to execute command'
+      onMessage?.(command, `❌ ${errorMessage}`)
     } finally {
       setIsProcessing(false)
       await releaseAILock(canvasId)

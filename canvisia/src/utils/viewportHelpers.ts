@@ -323,18 +323,94 @@ export function findEmptySpaceInViewport(
 }
 
 /**
+ * Get bounding box for a group of shapes
+ */
+function getGroupBoundingBox(groupShapes: Shape[]): {
+  x: number
+  y: number
+  width: number
+  height: number
+} {
+  if (groupShapes.length === 0) {
+    return { x: 0, y: 0, width: 0, height: 0 }
+  }
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+
+  for (const shape of groupShapes) {
+    const shapeWidth = getShapeWidth(shape)
+    const shapeHeight = getShapeHeight(shape)
+
+    minX = Math.min(minX, shape.x)
+    minY = Math.min(minY, shape.y)
+    maxX = Math.max(maxX, shape.x + shapeWidth)
+    maxY = Math.max(maxY, shape.y + shapeHeight)
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY
+  }
+}
+
+/**
  * Check if position collides with any existing shapes
+ * IMPORTANT: Treats grouped shapes (flowcharts, UI components, diagrams) as single entities
+ * to avoid placing new content inside or too close to complex diagrams
  */
 function hasCollisionWithAny(
   pos: { x: number; y: number },
   size: { width: number; height: number },
   shapes: Shape[]
 ): boolean {
+  // Group shapes by groupId
+  const groupedShapes = new Map<string, Shape[]>()
+  const ungroupedShapes: Shape[] = []
+
   for (const shape of shapes) {
+    if (shape.groupId) {
+      if (!groupedShapes.has(shape.groupId)) {
+        groupedShapes.set(shape.groupId, [])
+      }
+      groupedShapes.get(shape.groupId)!.push(shape)
+    } else {
+      ungroupedShapes.push(shape)
+    }
+  }
+
+  // Check collision with grouped shapes (flowcharts, UI components, diagrams)
+  // Use larger padding (50px) to avoid placing things too close to complex diagrams
+  const GROUP_PADDING = 50
+
+  for (const [groupId, groupShapes] of groupedShapes) {
+    const groupBox = getGroupBoundingBox(groupShapes)
+
+    // Check if new shape would overlap with group's bounding box
+    const hasOverlap = !(
+      pos.x + size.width + GROUP_PADDING < groupBox.x ||
+      pos.x > groupBox.x + groupBox.width + GROUP_PADDING ||
+      pos.y + size.height + GROUP_PADDING < groupBox.y ||
+      pos.y > groupBox.y + groupBox.height + GROUP_PADDING
+    )
+
+    if (hasOverlap) {
+      console.log(`[Viewport] Collision detected with group: ${groupShapes[0].groupName || groupId}`)
+      return true
+    }
+  }
+
+  // Check collision with individual ungrouped shapes (normal padding)
+  for (const shape of ungroupedShapes) {
     if (shapesCollide(pos, size, shape)) {
       return true
     }
   }
+
   return false
 }
 
