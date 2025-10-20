@@ -2662,29 +2662,11 @@ export async function executeCreateFlowchart(
   const groupName = 'flowchart'
   const groupType = 'flowchart' as const
 
-  // Determine starting position
-  const viewportBounds = getViewportBounds(viewport)
-  const existingShapes = await getShapes(canvasId)
-  const estimatedHeight = nodes.length * 180  // Updated to match verticalSpacing
-  const { x: defaultStartX, y: defaultStartY } = findEmptySpaceInViewport(
-    viewportBounds,
-    existingShapes,
-    { width: 300, height: estimatedHeight }
-  )
-
-  const finalStartX = startX ?? defaultStartX
-  const finalStartY = startY ?? defaultStartY
-
   // Node spacing - increased to prevent arrows from overlapping with shapes
   const verticalSpacing = 180  // Increased from 150 to give more space for arrows
   const horizontalSpacing = 300  // Spacing for horizontal branches
   const nodeWidth = 180
   const nodeHeight = 80
-
-  // Create node shapes with metadata
-  // IMPORTANT: Create shapes first, then text, to ensure correct z-order (text on top)
-  const createdNodes = new Map<string, { shape: Shape; centerX: number; centerY: number }>()
-  const textLabels: Text[] = []
 
   // Build connection graph for smart positioning
   const outgoingConnections = new Map<string, Array<{ to: string; label?: string }>>()
@@ -2708,6 +2690,7 @@ export async function executeCreateFlowchart(
   }
 
   // Calculate node positions using tree layout with branch detection
+  // IMPORTANT: Calculate positions BEFORE finding viewport space to get accurate bounding box
   interface NodePosition {
     nodeId: string
     centerX: number
@@ -2722,18 +2705,18 @@ export async function executeCreateFlowchart(
   // Find root node (node with no incoming connections)
   const rootNode = nodes.find(n => !incomingConnections.has(n.id)) || nodes[0]
 
-  // Tree traversal to calculate positions
+  // Tree traversal to calculate RELATIVE positions (starting at 0,0)
   function calculatePositions(
     nodeId: string,
     depth: number,
-    branchOffset: number,
-    baseX: number
+    branchOffset: number
   ) {
     if (visitedNodes.has(nodeId)) return
     visitedNodes.add(nodeId)
 
-    const centerX = baseX + branchOffset * horizontalSpacing
-    const centerY = finalStartY + (depth * verticalSpacing) + nodeHeight / 2
+    // Calculate relative position (will be offset later)
+    const centerX = branchOffset * horizontalSpacing + nodeWidth / 2
+    const centerY = depth * verticalSpacing + nodeHeight / 2
 
     nodePositions.set(nodeId, { nodeId, centerX, centerY, depth, branchOffset })
 
@@ -2744,7 +2727,7 @@ export async function executeCreateFlowchart(
       return
     } else if (outgoing.length === 1) {
       // Single path - continue straight down
-      calculatePositions(outgoing[0].to, depth + 1, branchOffset, baseX)
+      calculatePositions(outgoing[0].to, depth + 1, branchOffset)
     } else {
       // Multiple paths - branch horizontally
       // Primary path (No/False/Continue) goes straight down (branchOffset 0)
@@ -2773,18 +2756,66 @@ export async function executeCreateFlowchart(
 
       // Process primary path (continues at same horizontal offset)
       if (primaryPath) {
-        calculatePositions(primaryPath.to, depth + 1, branchOffset, baseX)
+        calculatePositions(primaryPath.to, depth + 1, branchOffset)
       }
 
       // Process alternate paths (shift horizontally to the right)
       alternatePaths.forEach((path, index) => {
-        calculatePositions(path.to, depth + 1, branchOffset + 1 + index, baseX)
+        calculatePositions(path.to, depth + 1, branchOffset + 1 + index)
       })
     }
   }
 
-  // Calculate all node positions starting from root
-  calculatePositions(rootNode.id, 0, 0, finalStartX + nodeWidth / 2)
+  // Calculate all node positions starting from root (relative to 0,0)
+  calculatePositions(rootNode.id, 0, 0)
+
+  // Calculate bounding box of the flowchart
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
+  for (const node of nodes) {
+    const position = nodePositions.get(node.id)
+    if (position) {
+      // Account for node dimensions
+      const left = position.centerX - nodeWidth / 2
+      const right = position.centerX + nodeWidth / 2
+      const top = position.centerY - nodeHeight / 2
+      const bottom = position.centerY + nodeHeight / 2
+
+      minX = Math.min(minX, left)
+      maxX = Math.max(maxX, right)
+      minY = Math.min(minY, top)
+      maxY = Math.max(maxY, bottom)
+    }
+  }
+
+  const flowchartWidth = maxX - minX
+  const flowchartHeight = maxY - minY
+
+  console.log(`[AI Helpers] Flowchart dimensions: ${flowchartWidth}x${flowchartHeight}`)
+
+  // Find empty space in viewport that can fit the entire flowchart
+  const viewportBounds = getViewportBounds(viewport)
+  const existingShapes = await getShapes(canvasId)
+  const { x: defaultStartX, y: defaultStartY } = findEmptySpaceInViewport(
+    viewportBounds,
+    existingShapes,
+    { width: flowchartWidth, height: flowchartHeight }
+  )
+
+  // Use provided position or auto-detected position
+  const finalStartX = startX ?? defaultStartX
+  const finalStartY = startY ?? defaultStartY
+
+  // Offset to apply to all positions (accounting for the minX/minY offset)
+  const offsetX = finalStartX - minX
+  const offsetY = finalStartY - minY
+
+  console.log(`[AI Helpers] Flowchart position: (${finalStartX}, ${finalStartY}), offset: (${offsetX}, ${offsetY})`)
+
+  // Create node shapes with metadata
+  // IMPORTANT: Create shapes first, then text, to ensure correct z-order (text on top)
+  const createdNodes = new Map<string, { shape: Shape; centerX: number; centerY: number }>()
+  const textLabels: Text[] = []
 
   // Step 1: Create all node shapes first
   for (let i = 0; i < nodes.length; i++) {
@@ -2792,10 +2823,10 @@ export async function executeCreateFlowchart(
     const nodeId = uuidv4()
     const textId = uuidv4()
 
-    // Get calculated position or fallback to simple vertical layout
+    // Get calculated position and apply offset to move flowchart to final location
     const position = nodePositions.get(node.id)
-    const centerX = position?.centerX || (finalStartX + nodeWidth / 2)
-    const centerY = position?.centerY || (finalStartY + (i * verticalSpacing) + nodeHeight / 2)
+    const centerX = position ? position.centerX + offsetX : (finalStartX + nodeWidth / 2)
+    const centerY = position ? position.centerY + offsetY : (finalStartY + (i * verticalSpacing) + nodeHeight / 2)
 
     let nodeShape: Shape
 
