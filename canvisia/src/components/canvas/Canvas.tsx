@@ -1266,23 +1266,31 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         shapesCount: shapes.length
       })
 
-      // Find all shapes that are inside the lasso polygon
-      const selectedShapeIds: string[] = []
-      shapes.forEach((shape) => {
-        const inside = isShapeInLasso(shape, lassoPoints)
-        if (inside) {
-          console.log('[Lasso] Shape inside:', shape.id, 'at', shape.x, shape.y)
-          selectedShapeIds.push(shape.id)
-        }
-      })
+      // Check if the loop is closed
+      const loopClosed = isLassoClosed(lassoPoints, viewport)
+      console.log('[Lasso] Loop closed:', loopClosed)
 
-      console.log('[Lasso] Found shapes in lasso:', selectedShapeIds.length)
-      console.log('[Lasso] Previously selected:', selectedIds.length)
+      if (loopClosed) {
+        // Find all shapes that are inside the lasso polygon
+        const selectedShapeIds: string[] = []
+        shapes.forEach((shape) => {
+          const inside = isShapeInLasso(shape, lassoPoints)
+          if (inside) {
+            console.log('[Lasso] Shape inside:', shape.id, 'at', shape.x, shape.y)
+            selectedShapeIds.push(shape.id)
+          }
+        })
 
-      // Add to existing selection (similar to box select)
-      const newSelection = [...new Set([...selectedIds, ...selectedShapeIds])]
-      console.log('[Lasso] New total selection:', newSelection.length)
-      setSelectedIds(newSelection)
+        console.log('[Lasso] Found shapes in lasso:', selectedShapeIds.length)
+        console.log('[Lasso] Previously selected:', selectedIds.length)
+
+        // Add to existing selection (similar to box select)
+        const newSelection = [...new Set([...selectedIds, ...selectedShapeIds])]
+        console.log('[Lasso] New total selection:', newSelection.length)
+        setSelectedIds(newSelection)
+      } else {
+        console.log('[Lasso] Loop not closed - no selection made')
+      }
 
       // Clear lasso
       setIsLassoSelecting(false)
@@ -1378,6 +1386,19 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       if (intersect) inside = !inside
     }
     return inside
+  }
+
+  // Helper function to check if lasso loop is closed
+  const isLassoClosed = (lassoPoints: number[], viewport: { zoom: number }): boolean => {
+    if (lassoPoints.length < 6) return false // Need at least 3 points
+
+    const threshold = 20 / viewport.zoom // 20px threshold in canvas coordinates
+    const firstX = lassoPoints[0]
+    const firstY = lassoPoints[1]
+    const lastX = lassoPoints[lassoPoints.length - 2]
+    const lastY = lassoPoints[lassoPoints.length - 1]
+
+    return Math.abs(firstX - lastX) < threshold && Math.abs(firstY - lastY) < threshold
   }
 
   // Helper function to check if a shape is inside the lasso polygon
@@ -3180,16 +3201,24 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           )}
 
           {/* Lasso selection path */}
-          {isLassoSelecting && lassoPoints.length > 0 && (
-            <Line
-              points={lassoPoints}
-              stroke="#3B82F6"
-              strokeWidth={2 / viewport.zoom}
-              fill="rgba(59, 130, 246, 0.1)"
-              closed={true}
-              listening={false}
-            />
-          )}
+          {isLassoSelecting && lassoPoints.length > 0 && (() => {
+            // Check if loop is closed (first and last points are close)
+            const threshold = 20 / viewport.zoom // 20px threshold in canvas coordinates
+            const isClosed = lassoPoints.length >= 6 &&
+              Math.abs(lassoPoints[0] - lassoPoints[lassoPoints.length - 2]) < threshold &&
+              Math.abs(lassoPoints[1] - lassoPoints[lassoPoints.length - 1]) < threshold
+
+            return (
+              <Line
+                points={lassoPoints}
+                stroke={isClosed ? "#10B981" : "#3B82F6"} // Green when closed, blue otherwise
+                strokeWidth={2 / viewport.zoom}
+                fill={isClosed ? "rgba(16, 185, 129, 0.1)" : "rgba(59, 130, 246, 0.1)"}
+                closed={false}
+                listening={false}
+              />
+            )
+          })()}
 
           {/* Live selection box during multi-select resize */}
           {isResizing && currentGroupBounds && selectedIds.length > 1 && (
