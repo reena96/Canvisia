@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate, Outlet } from 'react-router-dom'
+import { useNavigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './components/auth/AuthProvider'
 import { LoginButton } from './components/auth/LoginButton'
 import { DevLogin } from './components/auth/DevLogin'
@@ -7,13 +7,14 @@ import { DevLogin } from './components/auth/DevLogin'
 function App() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
-  // Redirect logged-in users to /projects on app load
+  // Redirect logged-in users to /projects ONLY if they're on the root path
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && location.pathname === '/') {
       navigate('/projects', { replace: true })
     }
-  }, [user, loading, navigate])
+  }, [user, loading, navigate, location.pathname])
 
   if (loading) {
     return (
