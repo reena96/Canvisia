@@ -20,22 +20,45 @@ service cloud.firestore {
 
       // Canvases: inherit project permissions
       match /canvases/{canvasId} {
-        allow read: if hasAnyPermission(projectId);
+        allow get, list: if hasAnyPermission(projectId);
         allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
 
         // Objects: inherit canvas permissions
         match /objects/{objectId} {
-          allow read: if hasAnyPermission(projectId);
+          allow get, list: if hasAnyPermission(projectId);
           allow write: if hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor');
         }
 
         // Annotations: users with access can read, editors can create, users can delete their own
         match /annotations/{annotationId} {
-          allow read: if hasAnyPermission(projectId);
+          allow get, list: if hasAnyPermission(projectId);
           allow create: if request.auth != null &&
                         (hasPermission(projectId, 'owner') || hasPermission(projectId, 'editor'));
           allow update, delete: if request.auth != null &&
                                  (resource.data.userId == request.auth.uid || hasPermission(projectId, 'owner'));
+        }
+
+        // Chat messages
+        match /chats/{tabId}/messages/{messageId} {
+          allow get, list: if hasAnyPermission(projectId);
+          allow create: if request.auth != null && hasAnyPermission(projectId);
+          allow update: if request.auth != null && hasAnyPermission(projectId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+          allow delete: if false;
+        }
+
+        // Chat tabs
+        match /chatTabs/{tabId} {
+          allow get, list: if hasAnyPermission(projectId);
+          allow create: if request.auth != null && hasAnyPermission(projectId);
+          allow update: if request.auth != null && hasAnyPermission(projectId);
+          allow delete: if false;
+        }
+
+        // Presence tracking
+        match /presence/{userId} {
+          allow get, list: if hasAnyPermission(projectId);
+          allow write: if request.auth != null && hasAnyPermission(projectId);
         }
       }
     }
