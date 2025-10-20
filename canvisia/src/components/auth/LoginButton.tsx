@@ -81,9 +81,10 @@ export function LoginButton() {
         }}>
           Don't have an account?
         </span>
-        <button
-          onClick={handleSignIn}
-          disabled={loading}
+        <a
+          href="https://accounts.google.com/lifecycle/steps/signup/name?continue=https://myaccount.google.com?utm_source%3Daccount-marketing-page%26utm_medium%3Dcreate-account-button&dsh=S1260519615:1760958491735312&flowEntry=SignUp&flowName=GlifWebSignIn&TL=AMbiOOS0DD46ZJIPtlkHZL7FqpcbeoIwKudZ4EqBMLaTNy-fw1kWn-EZCnoZXkYr"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
             padding: '0.5rem 1rem',
             fontSize: '0.875rem',
@@ -91,24 +92,21 @@ export function LoginButton() {
             color: 'white',
             border: 'none',
             borderRadius: '6px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1,
+            cursor: 'pointer',
             fontWeight: '600',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             textDecoration: 'underline',
             textUnderlineOffset: '3px',
           }}
           onMouseEnter={(e) => {
-            if (!loading) {
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'
-            }
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.color = 'white'
           }}
         >
-          {loading ? 'Signing up...' : 'Sign up'}
-        </button>
+          Sign up
+        </a>
       </div>
       {error && (
         <p style={{
