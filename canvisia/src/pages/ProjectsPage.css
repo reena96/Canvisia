@@ -181,7 +181,8 @@
 }
 
 .share-project-btn,
-.rename-project-btn {
+.rename-project-btn,
+.delete-project-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -198,6 +199,11 @@
 .rename-project-btn:hover {
   transform: scale(1.1);
   color: #8B5CF6;
+}
+
+.delete-project-btn:hover {
+  transform: scale(1.1);
+  color: #EF4444;
 }
 
 .project-name-input {
