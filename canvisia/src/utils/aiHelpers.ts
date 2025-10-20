@@ -164,6 +164,7 @@ export async function executeCreateMultipleShapes(
   console.log('[AI Helpers] executeCreateMultipleShapes called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const canvasId = canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
     : canvasPath
@@ -407,6 +408,7 @@ export async function executeCreateShape(
   console.log('[AI Helpers] executeCreateShape called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const canvasId = canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
     : canvasPath
@@ -620,6 +622,7 @@ export async function executeCreateText(
   console.log('[AI Helpers] executeCreateText called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const canvasId = canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
     : canvasPath
@@ -713,6 +716,7 @@ export async function executeCreateArrow(
   console.log('[AI Helpers] executeCreateArrow called with:', input, 'userId:', userId)
 
   // Extract canvasId for RTDB if needed
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const canvasId = canvasPath.includes('/')
     ? canvasPath.split('/').pop() || canvasPath
     : canvasPath
@@ -1498,8 +1502,6 @@ export function alignShapes(
 
   switch (alignment) {
     case 'left': {
-      // Find leftmost x in the group
-      const minX = Math.min(...shapes.map(s => s.x))
       // All shapes stay at their current positions (already at leftmost)
       deltaX = 0
       for (const shape of shapes) {
@@ -1525,8 +1527,6 @@ export function alignShapes(
     }
 
     case 'top': {
-      // Find topmost y in the group
-      const minY = Math.min(...shapes.map(s => s.y))
       // All shapes stay at their current positions (already at topmost)
       deltaY = 0
       for (const shape of shapes) {

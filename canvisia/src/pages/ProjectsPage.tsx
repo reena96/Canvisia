@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { getUserProjects, createProject } from '@/services/firestore';
-import { Project } from '@/types/project';
+import type { Project } from '@/types/project';
 import './ProjectsPage.css';
 
 type TabType = 'recent' | 'shared' | 'owned';
 
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const user = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('recent');
@@ -17,14 +17,14 @@ const ProjectsPage: React.FC = () => {
 
   useEffect(() => {
     loadProjects();
-  }, [currentUser]);
+  }, [user]);
 
   const loadProjects = async () => {
-    if (!currentUser) return;
+    if (!user) return;
 
     try {
       setLoading(true);
-      const userProjects = await getUserProjects(currentUser.uid);
+      const userProjects = await getUserProjects(user.uid);
       setProjects(userProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -34,12 +34,12 @@ const ProjectsPage: React.FC = () => {
   };
 
   const handleCreateProject = async () => {
-    if (!currentUser || creatingProject) return;
+    if (!user || creatingProject) return;
 
     try {
       setCreatingProject(true);
       const newProject = await createProject(
-        currentUser.uid,
+        user.uid,
         `Untitled Project ${projects.length + 1}`
       );
       navigate(`/canvas/${newProject.id}`);
@@ -55,26 +55,26 @@ const ProjectsPage: React.FC = () => {
   };
 
   const getFilteredProjects = () => {
-    if (!currentUser) return [];
+    if (!user) return [];
 
     switch (activeTab) {
       case 'recent':
         return [...projects].sort((a, b) =>
-          b.lastModified.toDate().getTime() - a.lastModified.toDate().getTime()
+          b.lastModified.getTime() - a.lastModified.getTime()
         );
       case 'shared':
         return projects.filter(p =>
-          p.sharedWith?.includes(currentUser.uid) && p.ownerId !== currentUser.uid
+          p.ownerId !== user.uid
         );
       case 'owned':
-        return projects.filter(p => p.ownerId === currentUser.uid);
+        return projects.filter(p => p.ownerId === user.uid);
       default:
         return projects;
     }
   };
 
   const formatTimestamp = (timestamp: any): string => {
-    const date = timestamp.toDate();
+    const date = timestamp;
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
