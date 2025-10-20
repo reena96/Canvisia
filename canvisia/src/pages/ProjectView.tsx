@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Canvas } from '../components/canvas/Canvas';
 import { CanvasSidebar } from '../components/canvas/CanvasSidebar';
+import { AIChat } from '@/components/ai/AIChat';
 
 interface CanvasData {
   id: string;
@@ -16,6 +17,7 @@ export const ProjectView: React.FC = () => {
   const navigate = useNavigate();
   const [canvases, setCanvases] = useState<CanvasData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVegaOpen, setIsVegaOpen] = useState(false);
 
   const loadCanvases = async () => {
     if (!projectId) return;
@@ -64,6 +66,9 @@ export const ProjectView: React.FC = () => {
     return <div>Loading...</div>;
   }
 
+  // Construct canvas path for Firestore
+  const canvasPath = projectId && canvasId ? `projects/${projectId}/canvases/${canvasId}` : '';
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <CanvasSidebar
@@ -73,8 +78,13 @@ export const ProjectView: React.FC = () => {
         onCanvasesChange={loadCanvases}
       />
       {canvasId && (
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <Canvas canvasId={canvasId} />
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          <Canvas canvasPath={canvasPath} />
+          <AIChat
+            canvasPath={canvasPath}
+            isOpen={isVegaOpen}
+            onClose={() => setIsVegaOpen(false)}
+          />
         </div>
       )}
       {!canvasId && canvases.length === 0 && (
