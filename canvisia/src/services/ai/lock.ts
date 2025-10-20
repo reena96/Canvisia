@@ -10,7 +10,10 @@ export async function acquireAILock(
   userName: string,
   command: string
 ): Promise<boolean> {
-  const lockRef = ref(rtdb, `canvases/${canvasId}/aiLock`)
+  console.log('🔒 [acquireAILock] Called with:', { canvasId, userId, userName, command })
+  const lockPath = `canvases/${canvasId}/aiLock`
+  console.log('🔒 [acquireAILock] Lock path:', lockPath)
+  const lockRef = ref(rtdb, lockPath)
 
   try {
     const snapshot = await get(lockRef)
@@ -54,8 +57,13 @@ export async function acquireAILock(
     return true
 
   } catch (error) {
-    console.error('Error acquiring AI lock:', error)
-    return false
+    console.error('❌ [acquireAILock] Error acquiring AI lock:', error)
+    if (error instanceof Error) {
+      console.error('❌ [acquireAILock] Error message:', error.message)
+      console.error('❌ [acquireAILock] Error stack:', error.stack)
+    }
+    // Re-throw to see the actual error
+    throw error
   }
 }
 

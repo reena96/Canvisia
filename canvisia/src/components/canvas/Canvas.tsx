@@ -146,10 +146,10 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
   const [error, setError] = useState<string | null>(null)
 
   // Setup canvas and user tracking
-  // Extract canvasId from path for RTDB (projects/x/canvases/y -> y)
-  const canvasId = canvasPath.includes('/')
-    ? canvasPath.split('/').pop() || canvasPath
-    : canvasPath
+  // Extract canvasId and projectId from path (projects/{projectId}/canvases/{canvasId})
+  const pathParts = canvasPath.split('/')
+  const canvasId = pathParts[pathParts.length - 1] || canvasPath
+  const projectId = pathParts.length >= 4 ? pathParts[1] : canvasId
   const userId = user?.uid || ''
   const userName = user?.displayName || user?.email?.split('@')[0] || 'Anonymous'
   const userColor = getUserColor(userName)
@@ -157,8 +157,8 @@ export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega
   // Setup cursor tracking
   const { cursors, updateCursor, cleanup: cleanupCursors } = useCursors(canvasId, userId, userName, userColor)
 
-  // Setup presence tracking
-  const { activeUsers, cleanup: cleanupPresence } = usePresence(canvasId, userId, userName, userColor)
+  // Setup presence tracking - at project level
+  const { activeUsers, cleanup: cleanupPresence } = usePresence(projectId, userId, userName, userColor)
 
   // Notify parent of presence changes
   useEffect(() => {

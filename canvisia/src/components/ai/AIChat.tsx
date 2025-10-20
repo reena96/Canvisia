@@ -3,8 +3,8 @@ import { Pin, ArrowRight, ArrowLeft, ChevronRight, Mic, SquarePlus, X as CloseIc
 import { useAI } from '@/hooks/useAI'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { addChatMessage, subscribeToChatMessages, markMessageAsRead, createChatTab, hideChatTab, unhideChatTab, renameChatTab, subscribeToChatTabs } from '@/services/firestore'
-import { AI_COMMAND_EXAMPLES, type CommandExample } from '@/constants/aiCommandExamples'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { AI_COMMAND_EXAMPLES, type CommandExample } from '@/constants/aiCommandExamples'
 
 // Component to format and render message text with markdown-like formatting
 const FormattedMessage = ({ text }: { text: string }) => {
@@ -98,7 +98,7 @@ interface ChatTab {
 }
 
 interface AIChatProps {
-  canvasId: string
+  canvasPath: string
   isOpen?: boolean
   onClose?: () => void
 }
@@ -106,7 +106,7 @@ interface AIChatProps {
 type WindowState = 'minimized' | 'normal' | 'maximized'
 type PinPosition = 'floating' | 'right' | 'left'
 
-export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
+export function AIChat({ canvasPath, isOpen = true, onClose }: AIChatProps) {
   const [command, setCommand] = useState('')
   const [tabs, setTabs] = useState<ChatTab[]>([])
   const [activeTabId, setActiveTabId] = useState('1')
@@ -144,10 +144,10 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
       timestamp: Date.now(),
       userName: 'Vega'
     }
-    await addChatMessage(canvasId, activeTabId, aiMessage)
+    await addChatMessage(canvasPath, activeTabId, aiMessage)
   }
 
-  const { sendCommand, isProcessing, isLocked, lockOwner } = useAI(canvasId, handleAIResponse)
+  const { sendCommand, isProcessing, isLocked, lockOwner } = useAI(canvasPath, handleAIResponse)
 
   // Reset to right-pinned when opened from toolbar
   useEffect(() => {
@@ -161,10 +161,10 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
   useEffect(() => {
     if (!isOpen || !user?.email) return
 
-    const unsubscribe = subscribeToChatTabs(canvasId, async (firestoreTabs) => {
+    const unsubscribe = subscribeToChatTabs(canvasPath, async (firestoreTabs) => {
       // If no tabs exist, create the default tab
       if (firestoreTabs.length === 0) {
-        await createChatTab(canvasId, '1', 'Chat 1')
+        await createChatTab(canvasPath, '1', 'Chat 1')
         return
       }
 
@@ -190,7 +190,7 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     })
 
     return () => unsubscribe()
-  }, [canvasId, isOpen, user?.email])
+  }, [canvasPath, isOpen, user?.email])
 
   // Subscribe to messages for ALL tabs (to detect messages on hidden tabs)
   useEffect(() => {
@@ -199,14 +199,14 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     const unsubscribes: (() => void)[] = []
 
     // Get all tabs including hidden ones from Firestore
-    subscribeToChatTabs(canvasId, (allTabs) => {
+    subscribeToChatTabs(canvasPath, (allTabs) => {
       // Clean up previous subscriptions
       unsubscribes.forEach(unsub => unsub())
       unsubscribes.length = 0
 
       // Subscribe to each tab's messages
       allTabs.forEach(tab => {
-        const unsubscribe = subscribeToChatMessages(canvasId, tab.id, async (firestoreMessages) => {
+        const unsubscribe = subscribeToChatMessages(canvasPath, tab.id, async (firestoreMessages) => {
           // If new messages arrive on a hidden tab from another user, unhide it
           if (firestoreMessages.length > 0 && user?.email) {
             const lastMessage = firestoreMessages[firestoreMessages.length - 1]
@@ -214,7 +214,7 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
 
             // If tab is hidden and message is from someone else, unhide it
             if (hiddenBy.includes(user.email) && lastMessage.userEmail !== user.email) {
-              await unhideChatTab(canvasId, tab.id, user.email)
+              await unhideChatTab(canvasPath, tab.id, user.email)
             }
           }
 
@@ -233,7 +233,7 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     return () => {
       unsubscribes.forEach(unsub => unsub())
     }
-  }, [canvasId, isOpen, tabsLoaded, user?.email])
+  }, [canvasPath, isOpen, tabsLoaded, user?.email])
 
   // Mark messages as read when viewing them
   useEffect(() => {
@@ -249,12 +249,12 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
 
       // Mark as read
       try {
-        await markMessageAsRead(canvasId, activeTabId, msg.id, user.email)
+        await markMessageAsRead(canvasPath, activeTabId, msg.id, user.email)
       } catch (error) {
         console.error('Failed to mark message as read:', error)
       }
     })
-  }, [messages, canvasId, activeTabId, user?.email, isOpen])
+  }, [messages, canvasPath, activeTabId, user?.email, isOpen])
 
   // Load saved state from localStorage
   useEffect(() => {
@@ -327,6 +327,23 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     }
   }
 
+  const handleSuggestionClick = (suggestion: CommandExample) => {
+    setCommand(suggestion.command)
+    setShowAutocomplete(false)
+    setFilteredSuggestions([])
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+        }
+      }, 0)
+    }
+    // Focus input
+    inputRef.current?.focus()
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle autocomplete navigation
     if (showAutocomplete && filteredSuggestions.length > 0) {
@@ -339,25 +356,14 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : 0))
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : prev)
         return
       }
       if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
         e.preventDefault()
         const selected = filteredSuggestions[selectedSuggestionIndex]
         if (selected) {
-          setCommand(selected.command)
-          setShowAutocomplete(false)
-          setFilteredSuggestions([])
-          // Reset textarea height
-          if (inputRef.current) {
-            inputRef.current.style.height = 'auto'
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
-              }
-            }, 0)
-          }
+          handleSuggestionClick(selected)
         }
         return
       }
@@ -379,30 +385,9 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     // Shift+Enter adds a new line (default behavior)
   }
 
-  const handleSuggestionClick = (suggestion: CommandExample) => {
-    setCommand(suggestion.command)
-    setShowAutocomplete(false)
-    setFilteredSuggestions([])
-    // Focus back on input
-    inputRef.current?.focus()
-    // Reset textarea height
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto'
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
-        }
-      }, 0)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!command.trim() || isProcessing) return
-
-    // Hide autocomplete on submit
-    setShowAutocomplete(false)
-    setFilteredSuggestions([])
 
     // Add user message to Firestore with user info
     const userMessage: Message = {
@@ -415,10 +400,12 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     }
 
     // Save to Firestore (will be synced to all users)
-    await addChatMessage(canvasId, activeTabId, userMessage)
+    await addChatMessage(canvasPath, activeTabId, userMessage)
 
     const userCommand = command
     setCommand('')
+    setShowAutocomplete(false)
+    setFilteredSuggestions([])
 
     // Reset textarea height
     if (inputRef.current) {
@@ -541,7 +528,7 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     // Create a new tab in Firestore
     const newTabId = Date.now().toString()
     const newTabName = `Chat ${tabs.length + 1}`
-    await createChatTab(canvasId, newTabId, newTabName)
+    await createChatTab(canvasPath, newTabId, newTabName)
     setActiveTabId(newTabId)
   }
 
@@ -565,7 +552,7 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
     }
 
     // Hide tab for current user (not delete)
-    await hideChatTab(canvasId, tabId, user.email)
+    await hideChatTab(canvasPath, tabId, user.email)
   }
 
   const handleStartRename = (tabId: string, currentName: string) => {
@@ -575,7 +562,7 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
 
   const handleFinishRename = async () => {
     if (editingTabId && editingTabName.trim()) {
-      await renameChatTab(canvasId, editingTabId, editingTabName.trim())
+      await renameChatTab(canvasPath, editingTabId, editingTabName.trim())
     }
     setEditingTabId(null)
     setEditingTabName('')
@@ -659,76 +646,83 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
           {isLocked && <span className="ai-chat-status"> (Busy with {lockOwner})</span>}
         </div>
         <div className="ai-chat-controls">
-          <button
-            onClick={moveLeft}
-            className="ai-chat-control-btn"
-            title={windowState === 'minimized' ? 'Expand to left' : 'Move left'}
-            disabled={windowState !== 'minimized' && pinPosition === 'left'}
-            style={{
-              opacity: (windowState !== 'minimized' && pinPosition === 'left') ? 0.3 : 1,
-              cursor: (windowState !== 'minimized' && pinPosition === 'left') ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <button
-            onClick={handlePinToggle}
-            className="ai-chat-control-btn"
-            title={pinPosition === 'floating' ? 'Pin to closest side' : 'Unpin'}
-            disabled={windowState === 'minimized'}
-            style={{
-              backgroundColor: pinPosition !== 'floating' ? 'rgba(255, 255, 255, 0.9)' : undefined,
-              color: pinPosition !== 'floating' ? '#667eea' : undefined,
-              boxShadow: pinPosition !== 'floating' ? '0 0 12px rgba(255, 255, 255, 0.6), inset 0 0 0 2px rgba(102, 126, 234, 0.3)' : undefined,
-              transform: pinPosition !== 'floating' ? 'scale(1.05)' : undefined,
-              opacity: windowState === 'minimized' ? 0.3 : 1
-            }}
-          >
-            <Pin size={16} style={{
-              transform: pinPosition !== 'floating' ? 'rotate(-45deg)' : undefined,
-              transition: 'transform 0.2s'
-            }} />
-          </button>
-          <button
-            onClick={moveRight}
-            className="ai-chat-control-btn"
-            title={windowState === 'minimized' ? 'Expand to right' : 'Move right'}
-            disabled={windowState !== 'minimized' && pinPosition === 'right'}
-            style={{
-              opacity: (windowState !== 'minimized' && pinPosition === 'right') ? 0.3 : 1,
-              cursor: (windowState !== 'minimized' && pinPosition === 'right') ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <ArrowRight size={16} />
-          </button>
-          <button
-            onClick={handleNewTab}
-            className="ai-chat-control-btn"
-            title="New Tab"
-          >
-            <SquarePlus size={16} />
-          </button>
-          <button
-            onClick={toggleMinimize}
-            className="ai-chat-control-btn"
-            title="Minimize"
-          >
-            −
-          </button>
-          <button
-            onClick={toggleMaximize}
-            className="ai-chat-control-btn"
-            title={windowState === 'maximized' ? 'Restore' : 'Maximize'}
-          >
-            {windowState === 'maximized' ? '⊡' : '□'}
-          </button>
-          <button
-            onClick={handleClose}
-            className="ai-chat-control-btn"
-            title="Close"
-          >
-            <CloseIcon size={16} />
-          </button>
+          <Tooltip content={windowState === 'minimized' ? 'Expand to left' : 'Move left'}>
+            <button
+              onClick={moveLeft}
+              className="ai-chat-control-btn"
+              disabled={windowState !== 'minimized' && pinPosition === 'left'}
+              style={{
+                opacity: (windowState !== 'minimized' && pinPosition === 'left') ? 0.3 : 1,
+                cursor: (windowState !== 'minimized' && pinPosition === 'left') ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ArrowLeft size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content={pinPosition === 'floating' ? 'Pin to closest side' : 'Unpin'}>
+            <button
+              onClick={handlePinToggle}
+              className="ai-chat-control-btn"
+              disabled={windowState === 'minimized'}
+              style={{
+                backgroundColor: pinPosition !== 'floating' ? 'rgba(255, 255, 255, 0.9)' : undefined,
+                color: pinPosition !== 'floating' ? '#667eea' : undefined,
+                boxShadow: pinPosition !== 'floating' ? '0 0 12px rgba(255, 255, 255, 0.6), inset 0 0 0 2px rgba(102, 126, 234, 0.3)' : undefined,
+                transform: pinPosition !== 'floating' ? 'scale(1.05)' : undefined,
+                opacity: windowState === 'minimized' ? 0.3 : 1
+              }}
+            >
+              <Pin size={16} style={{
+                transform: pinPosition !== 'floating' ? 'rotate(-45deg)' : undefined,
+                transition: 'transform 0.2s'
+              }} />
+            </button>
+          </Tooltip>
+          <Tooltip content={windowState === 'minimized' ? 'Expand to right' : 'Move right'}>
+            <button
+              onClick={moveRight}
+              className="ai-chat-control-btn"
+              disabled={windowState !== 'minimized' && pinPosition === 'right'}
+              style={{
+                opacity: (windowState !== 'minimized' && pinPosition === 'right') ? 0.3 : 1,
+                cursor: (windowState !== 'minimized' && pinPosition === 'right') ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <ArrowRight size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content="New Tab">
+            <button
+              onClick={handleNewTab}
+              className="ai-chat-control-btn"
+            >
+              <SquarePlus size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Minimize">
+            <button
+              onClick={toggleMinimize}
+              className="ai-chat-control-btn"
+            >
+              −
+            </button>
+          </Tooltip>
+          <Tooltip content={windowState === 'maximized' ? 'Restore' : 'Maximize'}>
+            <button
+              onClick={toggleMaximize}
+              className="ai-chat-control-btn"
+            >
+              {windowState === 'maximized' ? '⊡' : '□'}
+            </button>
+          </Tooltip>
+          <Tooltip content="Close">
+            <button
+              onClick={handleClose}
+              className="ai-chat-control-btn"
+            >
+              <CloseIcon size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -809,15 +803,16 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
                 />
               ) : (
                 <>
-                  <span
-                    onDoubleClick={(e) => {
-                      e.stopPropagation()
-                      handleStartRename(tab.id, tab.name)
-                    }}
-                    title="Double-click to rename"
-                  >
-                    {tab.name}
-                  </span>
+                  <Tooltip content="Double-click to rename">
+                    <span
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        handleStartRename(tab.id, tab.name)
+                      }}
+                    >
+                      {tab.name}
+                    </span>
+                  </Tooltip>
                   {hasUnread && (
                     <span
                       style={{
@@ -1074,14 +1069,15 @@ export function AIChat({ canvasId, isOpen = true, onClose }: AIChatProps) {
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="ai-chat-input-form">
-            <button
-              type="button"
-              className="ai-chat-voice-btn"
-              title="Voice input (coming soon)"
-              disabled={isProcessing || isLocked}
-            >
-              <Mic size={18} />
-            </button>
+            <Tooltip content="Voice input (coming soon)">
+              <button
+                type="button"
+                className="ai-chat-voice-btn"
+                disabled={isProcessing || isLocked}
+              >
+                <Mic size={18} />
+              </button>
+            </Tooltip>
             <textarea
               ref={inputRef}
               id="ai-chat-input"
