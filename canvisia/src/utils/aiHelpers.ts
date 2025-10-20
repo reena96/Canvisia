@@ -2681,8 +2681,11 @@ export async function executeCreateFlowchart(
   const nodeHeight = 80
 
   // Create node shapes with metadata
+  // IMPORTANT: Create shapes first, then text, to ensure correct z-order (text on top)
   const createdNodes = new Map<string, { shape: Shape; centerX: number; centerY: number }>()
+  const textLabels: Text[] = []
 
+  // Step 1: Create all node shapes first
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     const nodeId = uuidv4()
@@ -2779,11 +2782,11 @@ export async function executeCreateFlowchart(
       }
     }
 
-    // Create node shape
+    // Create node shape immediately
     await createShape(canvasId, nodeShape)
     createdNodes.set(node.id, { shape: nodeShape, centerX, centerY })
 
-    // Create label text (black text for visibility on colored backgrounds)
+    // Store text label for later creation (after all shapes and arrows)
     const labelText: Text = {
       id: textId,
       type: 'text',
@@ -2807,7 +2810,7 @@ export async function executeCreateFlowchart(
       groupName,
       groupType,
     }
-    await createShape(canvasId, labelText)
+    textLabels.push(labelText)
   }
 
   // Create connections (arrows) with metadata
@@ -2862,7 +2865,7 @@ export async function executeCreateFlowchart(
     await createShape(canvasId, arrow)
     createdConnections.push({ from: conn.from, to: conn.to, arrowId })
 
-    // Create label if provided (positioned BESIDE arrow, not overlapping)
+    // Store arrow label for later creation (after all shapes and arrows)
     if (conn.label) {
       const labelId = uuidv4()
       const midX = (fromNode.centerX + toNode.centerX) / 2
@@ -2891,8 +2894,14 @@ export async function executeCreateFlowchart(
         groupName,
         groupType,
       }
-      await createShape(canvasId, labelText)
+      textLabels.push(labelText)
     }
+  }
+
+  // Step 3: Create all text labels last (ensures they appear on top of all shapes)
+  console.log(`[AI Helpers] Creating ${textLabels.length} text labels on top of shapes`)
+  for (const textLabel of textLabels) {
+    await createShape(canvasId, textLabel)
   }
 
   console.log(`[AI Helpers] Flowchart created with ${nodes.length} nodes and ${createdConnections.length} connections`)
