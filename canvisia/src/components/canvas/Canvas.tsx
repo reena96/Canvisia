@@ -207,6 +207,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         node.x(position.x)
         node.y(position.y)
 
+        // ROTATION SYNC: Update rotation if present (for smooth remote rotation viewing)
+        if (position.rotation !== undefined) node.rotation(position.rotation)
+
         // RESIZE SYNC: Update dimensions if present (for smooth remote resize viewing)
         if (position.width !== undefined) node.width(position.width)
         if (position.height !== undefined) node.height(position.height)
@@ -439,12 +442,24 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       }
 
       // Check if this matches previous merged version
+      // CRITICAL: Must check ALL properties that could have changed, not just x/y
       const prevShape = prevShapesRef.current.find(s => s.id === shape.id)
-      if (prevShape &&
-          prevShape.x === mergedShape.x &&
-          prevShape.y === mergedShape.y &&
-          prevShape.updatedAt === mergedShape.updatedAt) {
-        return prevShape // Same data = return same reference
+      if (prevShape && prevShape.updatedAt === mergedShape.updatedAt) {
+        // Check if all properties in the local update match
+        const allLocalPropsMatch = Object.keys(localUpdate).every((key) => {
+          const prevValue = prevShape[key as keyof typeof prevShape]
+          const mergedValue = mergedShape[key as keyof typeof mergedShape]
+
+          if (typeof prevValue === 'number' && typeof mergedValue === 'number') {
+            return Math.abs(prevValue - mergedValue) < 0.01
+          }
+
+          return prevValue === mergedValue
+        })
+
+        if (allLocalPropsMatch) {
+          return prevShape // Same data = return same reference
+        }
       }
 
       return mergedShape
@@ -576,36 +591,52 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
     }))
   }, [])
 
-  // Clear local updates when Firestore syncs back
-  useMemo(() => {
-    // When firestoreShapes change, clear local updates for those shapes
-    // BUT ONLY if Firestore has actually caught up with the local changes
+  // Batch update multiple shapes at once (avoids race conditions)
+  const updateShapesLocalBatch = useCallback((updates: Map<string, Partial<Shape>>) => {
     setLocalShapeUpdates((prev) => {
-      const updated = { ...prev }
-      firestoreShapes.forEach((shape) => {
-        const localUpdate = updated[shape.id]
-        if (localUpdate) {
-          // Check if ALL properties in local update match Firestore shape
-          const allPropertiesMatch = Object.keys(localUpdate).every((key) => {
-            const localValue = localUpdate[key as keyof typeof localUpdate]
-            const firestoreValue = shape[key as keyof typeof shape]
-
-            // For numbers, use approximate equality (floating point tolerance)
-            if (typeof localValue === 'number' && typeof firestoreValue === 'number') {
-              return Math.abs(localValue - firestoreValue) < 0.01
-            }
-
-            return localValue === firestoreValue
-          })
-
-          // Only clear local update if Firestore has caught up
-          if (allPropertiesMatch) {
-            delete updated[shape.id]
-          }
-        }
+      const next = { ...prev }
+      updates.forEach((shapeUpdates, shapeId) => {
+        next[shapeId] = { ...(prev[shapeId] || {}), ...shapeUpdates }
       })
-      return updated
+      return next
     })
+  }, [])
+
+  // Clear local updates when Firestore syncs back
+  // Use useEffect with a small delay to ensure renders complete before clearing
+  useEffect(() => {
+    // Small delay to ensure all components have rendered with the updated data
+    const timeoutId = setTimeout(() => {
+      setLocalShapeUpdates((prev) => {
+        const updated = { ...prev }
+        firestoreShapes.forEach((shape) => {
+          const localUpdate = updated[shape.id]
+          if (localUpdate) {
+            // Check if ALL properties in local update match Firestore shape
+            const allPropertiesMatch = Object.keys(localUpdate).every((key) => {
+              const localValue = localUpdate[key as keyof typeof localUpdate]
+              const firestoreValue = shape[key as keyof typeof shape]
+
+              // For numbers, use approximate equality (floating point tolerance)
+              if (typeof localValue === 'number' && typeof firestoreValue === 'number') {
+                return Math.abs(localValue - firestoreValue) < 0.01
+              }
+
+              return localValue === firestoreValue
+            })
+
+            // Only clear local update if Firestore has caught up
+            if (allPropertiesMatch) {
+              console.log('[LocalUpdates] Clearing local update for shape:', shape.id)
+              delete updated[shape.id]
+            }
+          }
+        })
+        return updated
+      })
+    }, 100) // 100ms delay to ensure render completes
+
+    return () => clearTimeout(timeoutId)
   }, [firestoreShapes])
 
   // Handle text formatting keyboard shortcuts
@@ -1371,7 +1402,24 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // Calculate initial group bounding box
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
 
+      // Helper function to rotate a point around a center
+      const rotatePoint = (px: number, py: number, cx: number, cy: number, angle: number) => {
+        const radians = (angle * Math.PI) / 180
+        const cos = Math.cos(radians)
+        const sin = Math.sin(radians)
+        const dx = px - cx
+        const dy = py - cy
+        return {
+          x: cx + dx * cos - dy * sin,
+          y: cy + dx * sin + dy * cos
+        }
+      }
+
       selectedShapes.forEach(shape => {
+        // Get rotation angle (in degrees, default to 0)
+        const rotation = shape.rotation || 0
+        const hasRotation = Math.abs(rotation) > 0.01
+
         let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
 
         // Same bounds calculation as MultiSelectResizeHandles
@@ -1379,12 +1427,30 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           case 'rectangle':
           case 'roundedRectangle':
           case 'cylinder':
-            left = shape.x - shape.width / 2
-            top = shape.y - shape.height / 2
-            right = shape.x + shape.width / 2
-            bottom = shape.y + shape.height / 2
+            if (hasRotation) {
+              // Calculate all 4 corners and rotate them
+              const halfW = shape.width / 2
+              const halfH = shape.height / 2
+              const corners = [
+                { x: shape.x - halfW, y: shape.y - halfH }, // top-left
+                { x: shape.x + halfW, y: shape.y - halfH }, // top-right
+                { x: shape.x + halfW, y: shape.y + halfH }, // bottom-right
+                { x: shape.x - halfW, y: shape.y + halfH }, // bottom-left
+              ]
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, shape.x, shape.y, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = shape.x - shape.width / 2
+              top = shape.y - shape.height / 2
+              right = shape.x + shape.width / 2
+              bottom = shape.y + shape.height / 2
+            }
             break
           case 'circle':
+            // Circle (rotation doesn't affect circular bounds)
             left = shape.x - shape.radius
             top = shape.y - shape.radius
             right = shape.x + shape.radius
@@ -1394,32 +1460,82 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           case 'triangle':
           case 'pentagon':
           case 'hexagon':
-            left = shape.x - shape.radiusX
-            top = shape.y - shape.radiusY
-            right = shape.x + shape.radiusX
-            bottom = shape.y + shape.radiusY
+            if (hasRotation) {
+              // For rotated shapes, approximate with rotated bounding box
+              const corners = [
+                { x: shape.x - shape.radiusX, y: shape.y - shape.radiusY },
+                { x: shape.x + shape.radiusX, y: shape.y - shape.radiusY },
+                { x: shape.x + shape.radiusX, y: shape.y + shape.radiusY },
+                { x: shape.x - shape.radiusX, y: shape.y + shape.radiusY },
+              ]
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, shape.x, shape.y, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = shape.x - shape.radiusX
+              top = shape.y - shape.radiusY
+              right = shape.x + shape.radiusX
+              bottom = shape.y + shape.radiusY
+            }
             break
           case 'star':
-            left = shape.x - shape.outerRadiusX
-            top = shape.y - shape.outerRadiusY
-            right = shape.x + shape.outerRadiusX
-            bottom = shape.y + shape.outerRadiusY
+            if (hasRotation) {
+              const corners = [
+                { x: shape.x - shape.outerRadiusX, y: shape.y - shape.outerRadiusY },
+                { x: shape.x + shape.outerRadiusX, y: shape.y - shape.outerRadiusY },
+                { x: shape.x + shape.outerRadiusX, y: shape.y + shape.outerRadiusY },
+                { x: shape.x - shape.outerRadiusX, y: shape.y + shape.outerRadiusY },
+              ]
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, shape.x, shape.y, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = shape.x - shape.outerRadiusX
+              top = shape.y - shape.outerRadiusY
+              right = shape.x + shape.outerRadiusX
+              bottom = shape.y + shape.outerRadiusY
+            }
             break
           case 'text':
-            left = shape.x
-            top = shape.y
-            right = shape.x + shape.width
-            bottom = shape.y + (shape.height || shape.fontSize * 1.5)
+            if (hasRotation) {
+              // Text rotates around its center
+              const w = shape.width
+              const h = shape.height || shape.fontSize * 1.5
+              const corners = [
+                { x: shape.x, y: shape.y },
+                { x: shape.x + w, y: shape.y },
+                { x: shape.x + w, y: shape.y + h },
+                { x: shape.x, y: shape.y + h },
+              ]
+              const cx = shape.x + w / 2
+              const cy = shape.y + h / 2
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, cx, cy, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = shape.x
+              top = shape.y
+              right = shape.x + shape.width
+              bottom = shape.y + (shape.height || shape.fontSize * 1.5)
+            }
             break
           case 'line':
           case 'arrow':
           case 'bidirectionalArrow':
+            // Lines/arrows - rotation is built into x2,y2 endpoints
             left = Math.min(shape.x, shape.x2)
             top = Math.min(shape.y, shape.y2)
             right = Math.max(shape.x, shape.x2)
             bottom = Math.max(shape.y, shape.y2)
             break
           case 'bentConnector':
+            // Bent connector - rotation is built into endpoints
             left = Math.min(shape.x, shape.bendX, shape.x2)
             top = Math.min(shape.y, shape.bendY, shape.y2)
             right = Math.max(shape.x, shape.bendX, shape.x2)
@@ -1524,7 +1640,12 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         const newX = newCenterX + newRelX
         const newY = newCenterY + newRelY
 
-        let updates: Partial<Shape> = { x: newX, y: newY }
+        let updates: Partial<Shape> = {
+          x: newX,
+          y: newY,
+          // Preserve rotation (resize doesn't change rotation)
+          rotation: initialShape.rotation || 0
+        }
 
         // Scale shape dimensions based on type
         if ('width' in initialShape && 'height' in initialShape) {
@@ -1614,6 +1735,19 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       // Calculate actual bounding box from transformed shapes
       let actualMinX = Infinity, actualMinY = Infinity, actualMaxX = -Infinity, actualMaxY = -Infinity
 
+      // Helper function to rotate a point around a center
+      const rotatePoint = (px: number, py: number, cx: number, cy: number, angle: number) => {
+        const radians = (angle * Math.PI) / 180
+        const cos = Math.cos(radians)
+        const sin = Math.sin(radians)
+        const dx = px - cx
+        const dy = py - cy
+        return {
+          x: cx + dx * cos - dy * sin,
+          y: cy + dx * sin + dy * cos
+        }
+      }
+
       selectedIds.forEach(id => {
         const node = cachedNodes.current.get(id)
         const initialShape = initialShapesData.current.get(id)
@@ -1621,6 +1755,11 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
         const x = node.x()
         const y = node.y()
+
+        // Get rotation angle (in degrees, default to 0)
+        const rotation = node.rotation() || 0
+        const hasRotation = Math.abs(rotation) > 0.01
+
         let left = x, top = y, right = x, bottom = y
 
         // Calculate bounds based on shape type
@@ -1631,14 +1770,32 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             // Rectangle-like shapes (center-based)
             const width = node.width()
             const height = node.height()
-            left = x - width / 2
-            top = y - height / 2
-            right = x + width / 2
-            bottom = y + height / 2
+
+            if (hasRotation) {
+              // Calculate all 4 corners and rotate them
+              const halfW = width / 2
+              const halfH = height / 2
+              const corners = [
+                { x: x - halfW, y: y - halfH }, // top-left
+                { x: x + halfW, y: y - halfH }, // top-right
+                { x: x + halfW, y: y + halfH }, // bottom-right
+                { x: x - halfW, y: y + halfH }, // bottom-left
+              ]
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, x, y, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = x - width / 2
+              top = y - height / 2
+              right = x + width / 2
+              bottom = y + height / 2
+            }
             break
 
           case 'circle':
-            // Circle
+            // Circle (rotation doesn't affect circular bounds)
             const radius = node.radius()
             left = x - radius
             top = y - radius
@@ -1653,36 +1810,85 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
             // Ellipse, polygon
             const radiusX = node.radiusX()
             const radiusY = node.radiusY()
-            left = x - radiusX
-            top = y - radiusY
-            right = x + radiusX
-            bottom = y + radiusY
+
+            if (hasRotation) {
+              // For rotated shapes, approximate with rotated bounding box
+              const corners = [
+                { x: x - radiusX, y: y - radiusY },
+                { x: x + radiusX, y: y - radiusY },
+                { x: x + radiusX, y: y + radiusY },
+                { x: x - radiusX, y: y + radiusY },
+              ]
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, x, y, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = x - radiusX
+              top = y - radiusY
+              right = x + radiusX
+              bottom = y + radiusY
+            }
             break
 
           case 'star':
             // Star
             const outerRadius = node.outerRadius()
-            left = x - outerRadius
-            top = y - outerRadius
-            right = x + outerRadius
-            bottom = y + outerRadius
+
+            if (hasRotation) {
+              const corners = [
+                { x: x - outerRadius, y: y - outerRadius },
+                { x: x + outerRadius, y: y - outerRadius },
+                { x: x + outerRadius, y: y + outerRadius },
+                { x: x - outerRadius, y: y + outerRadius },
+              ]
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, x, y, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = x - outerRadius
+              top = y - outerRadius
+              right = x + outerRadius
+              bottom = y + outerRadius
+            }
             break
 
           case 'text':
             // Text (top-left based)
             const textWidth = node.width()
             const textHeight = node.height()
-            left = x
-            top = y
-            right = x + textWidth
-            bottom = y + textHeight
+
+            if (hasRotation) {
+              // Text rotates around its center
+              const corners = [
+                { x: x, y: y },
+                { x: x + textWidth, y: y },
+                { x: x + textWidth, y: y + textHeight },
+                { x: x, y: y + textHeight },
+              ]
+              const cx = x + textWidth / 2
+              const cy = y + textHeight / 2
+              const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, cx, cy, rotation))
+              left = Math.min(...rotatedCorners.map(c => c.x))
+              right = Math.max(...rotatedCorners.map(c => c.x))
+              top = Math.min(...rotatedCorners.map(c => c.y))
+              bottom = Math.max(...rotatedCorners.map(c => c.y))
+            } else {
+              left = x
+              top = y
+              right = x + textWidth
+              bottom = y + textHeight
+            }
             break
 
           case 'line':
           case 'arrow':
           case 'bidirectionalArrow':
           case 'bentConnector':
-            // Lines/connectors - get from points array
+            // Lines/connectors - get from points array (rotation is built into points)
             const points = node.points()
             const xs = [x]
             const ys = [y]
@@ -1910,13 +2116,6 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   const handleResizeEnd = useCallback(async () => {
     if (!isResizing) return
 
-    setIsResizing(false)
-    setResizingHandle(null)
-    setResizeStart(null)
-    setInitialShapeDimensions(null)
-    setInitialGroupBounds(null)
-    setCurrentGroupBounds(null)
-
     // Multi-select resize - read final state from Konva nodes and save to Firestore
     if (selectedIds.length > 1) {
       try {
@@ -1934,7 +2133,10 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           // Read final values from Konva node
           let updates: Partial<Shape> = {
             x: node.x(),
-            y: node.y()
+            y: node.y(),
+            // CRITICAL: Preserve rotation even if it didn't change
+            // This ensures MultiSelectResizeHandles has correct rotation for bounds calculation
+            rotation: node.rotation() || 0
           }
 
           // Read dimensions based on shape type
@@ -1978,10 +2180,25 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           allUpdates.set(id, updates)
         })
 
-        // First, update local React state immediately for all shapes
-        allUpdates.forEach((updates, id) => {
-          updateShapeLocal(id, updates)
-        })
+        // CRITICAL: Update local React state BEFORE clearing resize state
+        // Use batch update to ensure all shapes update atomically
+        console.log('[ResizeEnd] Updating local state with:', Array.from(allUpdates.entries()).map(([id, u]) => ({
+          id,
+          x: u.x,
+          y: u.y,
+          width: (u as any).width,
+          height: (u as any).height,
+          rotation: u.rotation
+        })))
+        updateShapesLocalBatch(allUpdates)
+
+        // Now clear resize state - this will cause MultiSelectResizeHandles to render
+        setIsResizing(false)
+        setResizingHandle(null)
+        setResizeStart(null)
+        setInitialShapeDimensions(null)
+        setInitialGroupBounds(null)
+        setCurrentGroupBounds(null)
 
         // Then save to Firestore asynchronously (using the SAME updates)
         await Promise.all(
@@ -2006,14 +2223,31 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       const currentShape = shapes.find(s => s.id === selectedShapeId)
       if (currentShape) {
         try {
+          // Clear resize state first
+          setIsResizing(false)
+          setResizingHandle(null)
+          setResizeStart(null)
+          setInitialShapeDimensions(null)
+          setInitialGroupBounds(null)
+          setCurrentGroupBounds(null)
+
+          // Then save to Firestore
           await updateShape(selectedShapeId, { ...localShapeUpdates[selectedShapeId] })
         } catch (err) {
           console.error('Failed to save final resize:', err)
           setError('Failed to save resize. Please try again.')
         }
       }
+    } else {
+      // No shapes selected - just clear resize state
+      setIsResizing(false)
+      setResizingHandle(null)
+      setResizeStart(null)
+      setInitialShapeDimensions(null)
+      setInitialGroupBounds(null)
+      setCurrentGroupBounds(null)
     }
-  }, [selectedIds, selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape, updateShapeLocal])
+  }, [selectedIds, selectedShapeId, isResizing, shapes, localShapeUpdates, updateShape, updateShapeLocal, updateShapesLocalBatch])
 
   // Rotation handlers
   const handleRotationStart = useCallback(() => {
@@ -2046,10 +2280,17 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       const deltaY = currentPos.y - groupCenterY
       const initialAngle = Math.atan2(deltaY, deltaX) * 180 / Math.PI
 
-      // Store initial data for all shapes
+      // Store initial data for all shapes and cache Konva nodes
       initialShapesData.current.clear()
+      cachedNodes.current.clear()
       selectedShapes.forEach(shape => {
         initialShapesData.current.set(shape.id, { ...shape })
+
+        // Cache Konva node for direct manipulation
+        const node = stage.findOne(`#${shape.id}`)
+        if (node) {
+          cachedNodes.current.set(shape.id, node)
+        }
       })
 
       setInitialGroupBounds({ minX, minY, maxX, maxY })
@@ -2106,6 +2347,9 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
 
       const angleRad = angleDelta * Math.PI / 180
 
+      // Collect all updates for batch state update
+      const allUpdates = new Map<string, Partial<Shape>>()
+
       // Rotate all shapes around group center
       selectedIds.forEach(id => {
         const initialShape = initialShapesData.current.get(id)
@@ -2153,8 +2397,39 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           }
         }
 
-        updateShapeLocal(id, updates)
+        // PERFORMANCE: Direct Konva manipulation (bypass React for ultra-smooth rotation)
+        const node = cachedNodes.current.get(id)
+        if (node) {
+          // Update position and rotation
+          node.x(newX)
+          node.y(newY)
+          node.rotation(newRotation)
+
+          // For lines/arrows/connectors, update points array
+          if ('x2' in initialShape && 'y2' in initialShape) {
+            if ('bendX' in updates && 'bendY' in updates) {
+              // Bent connector
+              node.points([
+                0, 0,
+                (updates as any).bendX - newX, (updates as any).bendY - newY,
+                (updates as any).x2 - newX, (updates as any).y2 - newY
+              ])
+            } else if ('x2' in updates && 'y2' in updates) {
+              // Regular line/arrow
+              node.points([0, 0, (updates as any).x2 - newX, (updates as any).y2 - newY])
+            }
+          }
+        }
+
+        // Collect updates for batch state update and RTDB
+        allUpdates.set(id, updates)
       })
+
+      // CRITICAL: Update local React state with all rotation changes
+      updateShapesLocalBatch(allUpdates)
+
+      // PERFORMANCE: Single batch RTDB write for all shapes
+      writeBatchShapePositions(canvasId, allUpdates).catch(() => {})
     }
     // Single shape rotation
     else if (selectedShapeId) {
@@ -2177,21 +2452,40 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
         newRotation = snapAngle(newRotation, 15)
       }
 
+      // PERFORMANCE: Direct Konva manipulation (bypass React for ultra-smooth rotation)
+      const node = stage.findOne(`#${selectedShapeId}`)
+      if (node) {
+        node.rotation(newRotation)
+        const layer = stage.findOne('Layer')
+        if (layer) {
+          layer.batchDraw()
+        }
+      }
+
+      // Update local state and write to RTDB
       updateShapeLocal(selectedShapeId, { rotation: newRotation })
-      updateShapeThrottled(selectedShapeId, { rotation: newRotation })
+
+      // Write to RTDB for smooth remote viewing
+      writeBatchShapePositions(canvasId, new Map([[selectedShapeId, {
+        x: selectedShape.x,
+        y: selectedShape.y,
+        rotation: newRotation,
+        updatedBy: userId || 'unknown'
+      }]])).catch(() => {})
     }
-  }, [isRotating, selectedIds, selectedShapeId, rotationStart, initialGroupBounds, shapes, viewport, updateShapeLocal, updateShapeThrottled])
+  }, [isRotating, selectedIds, selectedShapeId, rotationStart, initialGroupBounds, shapes, viewport, updateShapeLocal, updateShapesLocalBatch, canvasId, userId])
 
   const handleRotationEnd = useCallback(async () => {
     if (!isRotating) return
 
-    setIsRotating(false)
-    setRotationStart(null)
-    setInitialGroupBounds(null)
-
     // Multi-select rotation - save all shapes
     if (selectedIds.length > 1) {
       try {
+        // Clear state first, then save to Firestore
+        setIsRotating(false)
+        setRotationStart(null)
+        setInitialGroupBounds(null)
+
         await Promise.all(
           selectedIds.map(id => {
             const updates = localShapeUpdates[id]
@@ -2202,6 +2496,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
           })
         )
         initialShapesData.current.clear()
+        cachedNodes.current.clear()
       } catch (err) {
         console.error('Failed to save group rotation:', err)
         setError('Failed to save rotation. Please try again.')
@@ -2212,12 +2507,23 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
       const currentShape = shapes.find(s => s.id === selectedShapeId)
       if (currentShape) {
         try {
+          // Clear state first
+          setIsRotating(false)
+          setRotationStart(null)
+          setInitialGroupBounds(null)
+
+          // Then save to Firestore
           await updateShape(selectedShapeId, { rotation: currentShape.rotation })
         } catch (err) {
           console.error('Failed to save final rotation:', err)
           setError('Failed to save rotation. Please try again.')
         }
       }
+    } else {
+      // No shapes selected - just clear state
+      setIsRotating(false)
+      setRotationStart(null)
+      setInitialGroupBounds(null)
     }
   }, [selectedIds, selectedShapeId, isRotating, shapes, localShapeUpdates, updateShape])
 

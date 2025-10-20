@@ -407,6 +407,9 @@ export interface LivePosition {
   innerRadiusX?: number
   innerRadiusY?: number
 
+  // Rotation property (for rotate operations)
+  rotation?: number // Rotation angle in degrees
+
   // Metadata
   updatedBy: string // User ID who made the update
   updatedAt: number // Timestamp

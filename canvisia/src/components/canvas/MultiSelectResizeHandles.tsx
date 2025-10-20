@@ -40,6 +40,16 @@ function getCursor(handle: ResizeHandle): string {
 export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStart, viewport }: MultiSelectResizeHandlesProps) {
   if (shapes.length === 0) return null
 
+  console.log('[MultiSelectResizeHandles] Rendering with shapes:', shapes.map(s => ({
+    id: s.id,
+    type: s.type,
+    x: s.x,
+    y: s.y,
+    width: (s as any).width,
+    height: (s as any).height,
+    rotation: s.rotation
+  })))
+
   // Calculate bounding box of all selected shapes
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
 
@@ -150,20 +160,54 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
 
     let left = shape.x, top = shape.y, right = shape.x, bottom = shape.y
 
+    // Get rotation angle (in degrees, default to 0)
+    const rotation = shape.rotation || 0
+    const hasRotation = Math.abs(rotation) > 0.01
+
+    // Helper function to rotate a point around a center
+    const rotatePoint = (px: number, py: number, cx: number, cy: number, angle: number) => {
+      const radians = (angle * Math.PI) / 180
+      const cos = Math.cos(radians)
+      const sin = Math.sin(radians)
+      const dx = px - cx
+      const dy = py - cy
+      return {
+        x: cx + dx * cos - dy * sin,
+        y: cy + dx * sin + dy * cos
+      }
+    }
+
     // Calculate bounds based on shape type
     switch (shape.type) {
       case 'rectangle':
       case 'roundedRectangle':
       case 'cylinder':
         // Rectangle-like shapes (center-based)
-        left = shape.x - shape.width / 2
-        top = shape.y - shape.height / 2
-        right = shape.x + shape.width / 2
-        bottom = shape.y + shape.height / 2
+        if (hasRotation) {
+          // Calculate all 4 corners and rotate them
+          const halfW = shape.width / 2
+          const halfH = shape.height / 2
+          const corners = [
+            { x: shape.x - halfW, y: shape.y - halfH }, // top-left
+            { x: shape.x + halfW, y: shape.y - halfH }, // top-right
+            { x: shape.x + halfW, y: shape.y + halfH }, // bottom-right
+            { x: shape.x - halfW, y: shape.y + halfH }, // bottom-left
+          ]
+          const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, shape.x, shape.y, rotation))
+          left = Math.min(...rotatedCorners.map(c => c.x))
+          right = Math.max(...rotatedCorners.map(c => c.x))
+          top = Math.min(...rotatedCorners.map(c => c.y))
+          bottom = Math.max(...rotatedCorners.map(c => c.y))
+        } else {
+          left = shape.x - shape.width / 2
+          top = shape.y - shape.height / 2
+          right = shape.x + shape.width / 2
+          bottom = shape.y + shape.height / 2
+        }
         break
 
       case 'circle':
-        // Circle
+        // Circle (rotation doesn't affect circular bounds)
         left = shape.x - shape.radius
         top = shape.y - shape.radius
         right = shape.x + shape.radius
@@ -175,32 +219,85 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
       case 'pentagon':
       case 'hexagon':
         // Ellipse, polygon
-        left = shape.x - shape.radiusX
-        top = shape.y - shape.radiusY
-        right = shape.x + shape.radiusX
-        bottom = shape.y + shape.radiusY
+        if (hasRotation) {
+          // For rotated ellipses/polygons, approximate with rotated bounding box
+          const halfW = shape.radiusX
+          const halfH = shape.radiusY
+          const corners = [
+            { x: shape.x - halfW, y: shape.y - halfH },
+            { x: shape.x + halfW, y: shape.y - halfH },
+            { x: shape.x + halfW, y: shape.y + halfH },
+            { x: shape.x - halfW, y: shape.y + halfH },
+          ]
+          const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, shape.x, shape.y, rotation))
+          left = Math.min(...rotatedCorners.map(c => c.x))
+          right = Math.max(...rotatedCorners.map(c => c.x))
+          top = Math.min(...rotatedCorners.map(c => c.y))
+          bottom = Math.max(...rotatedCorners.map(c => c.y))
+        } else {
+          left = shape.x - shape.radiusX
+          top = shape.y - shape.radiusY
+          right = shape.x + shape.radiusX
+          bottom = shape.y + shape.radiusY
+        }
         break
 
       case 'star':
         // Star
-        left = shape.x - shape.outerRadiusX
-        top = shape.y - shape.outerRadiusY
-        right = shape.x + shape.outerRadiusX
-        bottom = shape.y + shape.outerRadiusY
+        if (hasRotation) {
+          const halfW = shape.outerRadiusX
+          const halfH = shape.outerRadiusY
+          const corners = [
+            { x: shape.x - halfW, y: shape.y - halfH },
+            { x: shape.x + halfW, y: shape.y - halfH },
+            { x: shape.x + halfW, y: shape.y + halfH },
+            { x: shape.x - halfW, y: shape.y + halfH },
+          ]
+          const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, shape.x, shape.y, rotation))
+          left = Math.min(...rotatedCorners.map(c => c.x))
+          right = Math.max(...rotatedCorners.map(c => c.x))
+          top = Math.min(...rotatedCorners.map(c => c.y))
+          bottom = Math.max(...rotatedCorners.map(c => c.y))
+        } else {
+          left = shape.x - shape.outerRadiusX
+          top = shape.y - shape.outerRadiusY
+          right = shape.x + shape.outerRadiusX
+          bottom = shape.y + shape.outerRadiusY
+        }
         break
 
       case 'text':
         // Text (top-left based)
-        left = shape.x
-        top = shape.y
-        right = shape.x + shape.width
-        bottom = shape.y + (shape.height || shape.fontSize * 1.5)
+        if (hasRotation) {
+          // Text uses top-left origin, so we need to calculate differently
+          const w = shape.width
+          const h = shape.height || shape.fontSize * 1.5
+          const corners = [
+            { x: shape.x, y: shape.y },
+            { x: shape.x + w, y: shape.y },
+            { x: shape.x + w, y: shape.y + h },
+            { x: shape.x, y: shape.y + h },
+          ]
+          // Text rotates around its center
+          const cx = shape.x + w / 2
+          const cy = shape.y + h / 2
+          const rotatedCorners = corners.map(c => rotatePoint(c.x, c.y, cx, cy, rotation))
+          left = Math.min(...rotatedCorners.map(c => c.x))
+          right = Math.max(...rotatedCorners.map(c => c.x))
+          top = Math.min(...rotatedCorners.map(c => c.y))
+          bottom = Math.max(...rotatedCorners.map(c => c.y))
+        } else {
+          left = shape.x
+          top = shape.y
+          right = shape.x + shape.width
+          bottom = shape.y + (shape.height || shape.fontSize * 1.5)
+        }
         break
 
       case 'line':
       case 'arrow':
       case 'bidirectionalArrow':
-        // Line, arrow
+        // Line, arrow (rotation is built into x2,y2 endpoints)
         left = Math.min(shape.x, shape.x2)
         top = Math.min(shape.y, shape.y2)
         right = Math.max(shape.x, shape.x2)
@@ -208,7 +305,7 @@ export function MultiSelectResizeHandles({ shapes, onResizeStart, onRotationStar
         break
 
       case 'bentConnector':
-        // Bent connector
+        // Bent connector (rotation is built into endpoints)
         left = Math.min(shape.x, shape.bendX, shape.x2)
         top = Math.min(shape.y, shape.bendY, shape.y2)
         right = Math.max(shape.x, shape.bendX, shape.x2)
