@@ -563,44 +563,7 @@ export function Toolbar({
         <MessageSquarePlus size={20} color="#1F2937" />
       </button>
 
-      {/* Ask Vega Button */}
-      {onAskVega && (
-        <button
-          onClick={onAskVega}
-          title="Ask Vega AI"
-          style={{
-            height: '40px',
-            padding: '0 12px',
-            border: isVegaOpen ? '2px solid #667eea' : '2px solid transparent',
-            borderRadius: '6px',
-            backgroundColor: isVegaOpen ? '#f0f4ff' : 'white',
-            color: '#1F2937',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s',
-            fontWeight: '500',
-            fontSize: '14px',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={(e) => {
-            if (!isVegaOpen) {
-              e.currentTarget.style.backgroundColor = '#F9FAFB'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isVegaOpen) {
-              e.currentTarget.style.backgroundColor = 'white'
-            }
-          }}
-        >
-          <img src="/vega-icon.svg" alt="Vega" style={{ width: '25px', height: '25px' }} />
-          <span>Ask Vega</span>
-        </button>
-      )}
-
-      {/* Comments Button */}
+      {/* Comments Panel Toggle */}
       {onToggleComments && (
         <button
           onClick={onToggleComments}
@@ -650,6 +613,43 @@ export function Toolbar({
               {unreadCommentsCount > 99 ? '99+' : unreadCommentsCount}
             </div>
           )}
+        </button>
+      )}
+
+      {/* Ask Vega Button */}
+      {onAskVega && (
+        <button
+          onClick={onAskVega}
+          title="Ask Vega AI"
+          style={{
+            height: '40px',
+            padding: '0 12px',
+            border: isVegaOpen ? '2px solid #667eea' : '2px solid transparent',
+            borderRadius: '6px',
+            backgroundColor: isVegaOpen ? '#f0f4ff' : 'white',
+            color: '#1F2937',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s',
+            fontWeight: '500',
+            fontSize: '14px',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={(e) => {
+            if (!isVegaOpen) {
+              e.currentTarget.style.backgroundColor = '#F9FAFB'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isVegaOpen) {
+              e.currentTarget.style.backgroundColor = 'white'
+            }
+          }}
+        >
+          <img src="/vega-icon.svg" alt="Vega" style={{ width: '25px', height: '25px' }} />
+          <span>Ask Vega</span>
         </button>
       )}
 
