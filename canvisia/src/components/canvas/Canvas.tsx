@@ -40,13 +40,14 @@ import type { ResizeHandle } from '@/utils/resizeCalculations'
 import { writeBatchShapePositions, clearShapePositions, subscribeToLivePositions, type LivePosition } from '@/services/rtdb'
 
 interface CanvasProps {
+  canvasPath: string
   onPresenceChange?: (activeUsers: import('@/types/user').Presence[]) => void
   onMountCleanup?: (cleanup: () => Promise<void>) => void
   onAskVega?: () => void
   isVegaOpen?: boolean
 }
 
-export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen = false }: CanvasProps = {}) {
+export function Canvas({ canvasPath, onPresenceChange, onMountCleanup, onAskVega, isVegaOpen = false }: CanvasProps) {
   const stageRef = useRef<any>(null)
   const viewport = useCanvasStore((state) => state.viewport)
   const updateViewport = useCanvasStore((state) => state.updateViewport)
@@ -145,7 +146,10 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   const [error, setError] = useState<string | null>(null)
 
   // Setup canvas and user tracking
-  const canvasId = 'default-canvas' // TODO: Get from canvas context/router
+  // Extract canvasId from path for RTDB (projects/x/canvases/y -> y)
+  const canvasId = canvasPath.includes('/')
+    ? canvasPath.split('/').pop() || canvasPath
+    : canvasPath
   const userId = user?.uid || ''
   const userName = user?.displayName || user?.email?.split('@')[0] || 'Anonymous'
   const userColor = getUserColor(userName)
@@ -179,7 +183,7 @@ export function Canvas({ onPresenceChange, onMountCleanup, onAskVega, isVegaOpen
   }, []) // Run only once on mount
 
   // Setup Firestore sync for shapes
-  const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasId)
+  const { shapes: firestoreShapes, loading, createShape, updateShape, deleteShape } = useFirestore(canvasPath)
 
   // Undo/Redo handlers (defined early to avoid circular dependencies)
   const saveToHistory = useCallback((shapesSnapshot: Shape[]) => {
