@@ -17,7 +17,6 @@ const ProjectsPage: React.FC = () => {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [sharingProjectId, setSharingProjectId] = useState<string | null>(null);
-  const [copyLinkFeedback, setCopyLinkFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[ProjectsPage] User changed:', user);
@@ -160,19 +159,6 @@ const ProjectsPage: React.FC = () => {
     setSharingProjectId(projectId);
   };
 
-  const handleCopyLink = async (projectId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const url = `${window.location.origin}/p/${projectId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopyLinkFeedback(projectId);
-      setTimeout(() => setCopyLinkFeedback(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy link:', error);
-      alert('Failed to copy link');
-    }
-  };
-
   const handleDelete = async (projectId: string, projectName: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
@@ -287,7 +273,7 @@ const ProjectsPage: React.FC = () => {
                         <button
                           className="share-project-btn"
                           onClick={(e) => handleShare(project.id, e)}
-                          title={copyLinkFeedback === project.id ? "Link copied!" : "Share project"}
+                          title="Share project"
                         >
                           <Share2 size={16} />
                         </button>
