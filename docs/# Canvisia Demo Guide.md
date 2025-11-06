@@ -17,7 +17,12 @@
 
 ## Introduction
 
-**Canvisia** is an AI-powered collaborative canvas application that combines real-time multiplayer editing with intelligent natural language commands. Think Figma meets ChatGPT – users can create, manipulate, and arrange visual content through both direct manipulation and conversational AI.
+**Canvisia** 
+Welcome back to Canvisia. in our previous demo, we understood the project overivew, the architecture, some key design, implementation and the MVP features.
+Today, I'm going to walk you through the post-MVP features. 
+
+1) 
+is an AI-powered collaborative canvas application that combines real-time multiplayer editing with intelligent natural language commands. Think Figma meets ChatGPT – users can create, manipulate, and arrange visual content through both direct manipulation and conversational AI.
 
 **Core Innovation:** Instead of clicking through menus and tools, users can simply tell Vega (the AI assistant) what they want: "create a login form", "arrange all shapes in a grid", "move the blue circle to the center."
 
@@ -340,12 +345,12 @@ These 6 PRs transformed the basic canvas prototype into a production-ready colla
 #### PR #14: Collaborative Chat Enhancements
 
 **WhatsApp-Style Chat UX:**
-- **Message bubbles** - Rounded, colored backgrounds
-- **Sender indicators** - User names and timestamps
-- **Left/right layout** - Other users left, current user right
-- **Message grouping** - Consecutive messages from same user
-- **Scroll to bottom** - Auto-scroll on new messages
-- **Read receipts** - Track who has read messages
+- Message bubbles - Rounded, colored backgrounds
+- Sender indicators- User names and timestamps
+- Left/right layout - Other users left, current user right
+- Message grouping - Consecutive messages from same user
+- Scroll to bottom - Auto-scroll on new messages
+- Read receipts- Track who has read messages
 
 **Markdown Formatting:**
 - **Bold text** - `**bold**` renders as **bold**
@@ -356,11 +361,11 @@ These 6 PRs transformed the basic canvas prototype into a production-ready colla
 - **Links** - Clickable hyperlinks
 
 **Multi-Tab Chat:**
-- **Tab creation** - Create multiple chat channels
-- **Tab renaming** - Editable tab names
-- **Tab hiding** - Per-user tab visibility
-- **Persistent tabs** - Tabs saved to Firestore
-- **Active tab indicator** - Visual active state
+- Tab creation - Create multiple chat channels
+- Tab renaming - Editable tab names
+- Tab hiding - Per-user tab visibility
+- Persistent tabs - Tabs saved to Firestore
+- Active tab indicator - Visual active state
 
 **Firestore Integration:**
 - **Message persistence** - All messages saved
@@ -370,33 +375,33 @@ These 6 PRs transformed the basic canvas prototype into a production-ready colla
 - **Scalable structure** - Subcollections for organization
 
 **Vega Personality:**
-- **Named identity** - "I'm Vega, your canvas assistant"
-- **Conversational tone** - Friendly and helpful
-- **Context awareness** - References current canvas state
-- **Concise responses** - No verbose explanations
+- Named identity - "I'm Vega, your canvas assistant"
+- Conversational tone - Friendly and helpful
+- Context awareness - References current canvas state
+- Concise responses - No verbose explanations
 
 ---
 
 #### PR #15: AI Manipulation Commands
 
 **Natural Language Shape Creation:**
-- **Type-based creation** - "create a circle", "make a rectangle"
-- **Position specification** - "at (100, 200)", "in the center"
-- **Size specification** - "200x300", "radius 50"
-- **Color specification** - "red circle", "blue rectangle"
+- Type-based creation - "create a circle", "make a rectangle"
+- Position specification- "at (100, 200)", "in the center"
+- Size specification - "200x300", "radius 50"
+- Color specification - "red circle", "blue rectangle"
 
 **Intelligent Shape Identification:**
-- **By type** - "move the circle", "resize the rectangle"
-- **By color** - "move the blue circle", "rotate the red square"
-- **Combined filters** - "resize the blue rectangle"
-- **No IDs required** - Users don't need to know element IDs
+- By type - "move the circle", "resize the rectangle"
+- By color - "move the blue circle", "rotate the red square"
+- Combined filters - "resize the blue rectangle"
+- No IDs required - Users don't need to know element IDs
 
 **RGB Distance-Based Color Matching:**
-- **Infinite color support** - Works with any hex color
-- **Fuzzy matching** - Finds closest color family
-- **Multi-user colors** - Handles cursor colors on shapes
-- **30 color families** - Comprehensive color map
-- **Mathematical approach** - Euclidean distance in RGB space
+- Infinite color support- Works with any hex color
+- Fuzzy matching - Finds closest color family
+- Multi-user colors - Handles cursor colors on shapes
+- 30 color families - Comprehensive color map
+- Mathematical approach - Euclidean distance in RGB space
 
 **Example Calculations:**
 ```
@@ -408,22 +413,22 @@ These 6 PRs transformed the basic canvas prototype into a production-ready colla
 ```
 
 **Shape Manipulation Commands:**
-- **Move** - "move the blue circle to the center"
-- **Resize** - "make the rectangle twice as big"
-- **Rotate** - "rotate the text 45 degrees"
-- **Named positions** - "center", "top left", "bottom right"
+- Move - "move the blue circle to the center"
+- Resize - "make the rectangle twice as big"
+- Rotate - "rotate the text 45 degrees"
+- Named positions - "center", "top left", "bottom right"
 
 **Shape-Specific Property Handling:**
-- **Rectangles** - width, height
-- **Circles** - radius
-- **Ellipses** - radiusX, radiusY (automatic conversion from width/height)
-- **Stars** - outerRadiusX/Y, innerRadiusX/Y
-- **Text** - fontSize, bounding box
+- Rectangles - width, height
+- Circles - radius
+- Ellipses - radiusX, radiusY (automatic conversion from width/height)
+- Stars - outerRadiusX/Y, innerRadiusX/Y
+- Text - fontSize, bounding box
 
 **Tool Schema Updates:**
-- **Descriptive parameters** - Accept type, color instead of elementId
-- **Optional parameters** - Flexible tool calling
-- **Natural language descriptions** - Guide AI behavior
+- Descriptive parameters - Accept type, color instead of elementId
+- Optional parameters- Flexible tool calling
+- Natural language descriptions** - Guide AI behavior
 
 **Tests:** 41 new tests, 284 total passing
 
@@ -453,24 +458,21 @@ These 6 PRs transformed the basic canvas prototype into a production-ready colla
   - Height-aware spacing
 
 **Alignment Commands:**
-- **Left align** - "align shapes to the left"
-  - Aligns to leftmost X coordinate
-- **Right align** - "align shapes to the right"
-  - Aligns right edges (accounts for width)
-- **Top align** - "align shapes to the top"
+- Left/right align** - "align shapes to the left/right"
+- Top align - "align shapes to the top"
   - Aligns to topmost Y coordinate
-- **Bottom align** - "align shapes to the bottom"
+- Bottom align- "align shapes to the bottom"
   - Aligns bottom edges (accounts for height)
-- **Center horizontal** - "center shapes horizontally"
+- Center horizontal - "center shapes horizontally"
   - Aligns centers to average center X
-- **Center vertical** - "center shapes vertically"
+- Center vertical - "center shapes vertically"
   - Aligns centers to average center Y
 
 **"All Shapes" Keyword:**
-- **Explicit examples in system prompt** - AI taught to use `["all"]`
-- **Two-way detection** - Handles both `["all"]` and user saying "all shapes"
-- **Natural language** - "arrange all shapes", "align everything"
-- **Tool descriptions updated** - Mention special keyword
+- Explicit examples in system prompt - AI taught to use `["all"]`
+- Two-way detection - Handles both `["all"]` and user saying "all shapes"
+- Natural language - "arrange all shapes", "align everything"
+- Tool descriptions updated - Mention special keyword
 
 **Shape Dimension Calculation:**
 - **Width helper** - Handles width, radius, radiusX, outerRadiusX

@@ -1,8 +1,8 @@
-# Canvisia Demo Checklist
+ake # Canvisia Demo Checklist
 **Quick Reference for 5-Minute Demo**
 
 ---
-
+<!--
 ## Canvas Basics (30 seconds)
 1. Infinite canvas with pan (spacebar + drag)
 2. Zoom (Cmd/Ctrl + scroll, +/- buttons)
@@ -15,10 +15,10 @@
 5. 10 shape types (rectangle, circle, ellipse, rounded rect, cylinder, triangle, pentagon, hexagon, star, text)
 6. 3 connector types (arrow, bidirectional arrow, bent connector)
 7. Click to select, drag to move
-8. Delete key to remove
+8. Delete key to remove 
 9. Color picker for fills and strokes
 
----
+-->
 
 ## Advanced Shape Editing (30 seconds)
 10. 8 resize handles (4 corners + 4 sides)
@@ -32,12 +32,13 @@
 ---
 
 ## Real-Time Collaboration (1 minute)
+<!--
 17. Open second browser tab as different user
 18. Multiplayer cursors with name labels
 19. Changes sync instantly (<100ms)
-20. Presence awareness ("2 users online" in header)
-21. Multi-tab support (same user, multiple tabs)
-22. Shape colors match creator's cursor color
+ 20. Presence awareness ("2 users online" in header) -->
+20. How user presence works? Multi-tab support (same user, multiple tabs)
+<!-- 22. Shape colors match creator's cursor color -->
 23. Anyone can edit any shape (Figma-style)
 
 ---
